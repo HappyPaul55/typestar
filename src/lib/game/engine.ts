@@ -7,7 +7,7 @@
  * the player's clock.
  */
 
-import type { TrackWord } from "../track/types";
+import type { TrackLine, TrackWord } from "../track/types";
 import { normaliseHard } from "../track/parse";
 
 export type GameMode = "easy" | "normal" | "hard";
@@ -18,11 +18,38 @@ export function isGameMode(value: unknown): value is GameMode {
   return value === "easy" || value === "normal" || value === "hard";
 }
 
+/** Base points for a perfectly-timed hit. */
+export const HIT_BASE = 100;
+/** Points lost for a wrong keystroke (and the chain breaks). */
+export const WRONG_PENALTY = 20;
+/** Points lost for letting a word pass (smaller than a wrong key). */
+export const MISS_PENALTY = 10;
+/** Bonus for clearing a whole line without a miss or a wrong key. */
+export const LINE_BONUS = 250;
+
+/** The combo count at which each multiplier tier starts, highest first. */
+const COMBO_TIERS: [number, number][] = [
+  [50, 3],
+  [30, 2.5],
+  [20, 2],
+  [10, 1.5],
+];
+
+/** The score multiplier for a given chain length. */
+export function comboTier(combo: number): number {
+  for (const [threshold, tier] of COMBO_TIERS) {
+    if (combo >= threshold) return tier;
+  }
+  return 1;
+}
+
 /** A word is `pending` until it is typed (`hit`) or its window closes (`miss`). */
 export type WordResult = "pending" | "hit" | "miss";
 
 export interface GameConfig {
   words: TrackWord[];
+  /** The track's lines, used to award the perfect-line bonus. */
+  lines: TrackLine[];
   /** Seconds added to every timestamp (the player's sync nudge). */
   offset: number;
   mode: GameMode;
@@ -45,6 +72,10 @@ export interface GameState {
   misses: number;
   correctKeys: number;
   errorKeys: number;
+  /** Whole lines cleared without a miss or a wrong key. */
+  perfectLines: number;
+  /** Wrong keys made while typing the current line. */
+  lineWrong: number;
   finished: boolean;
 }
 
@@ -69,6 +100,8 @@ export function createGameState(wordCount: number): GameState {
     misses: 0,
     correctKeys: 0,
     errorKeys: 0,
+    perfectLines: 0,
+    lineWrong: 0,
     finished: wordCount === 0,
   };
 }
@@ -133,6 +166,25 @@ export function cueAt(
   return { waiting, remaining: Math.max(0, to - time), progress };
 }
 
+/** Whether the word at `pointer` is the last of its line. */
+function lineEnds(pointer: number, config: GameConfig): boolean {
+  const word = config.words[pointer];
+  if (!word) return false;
+  const next = config.words[pointer + 1];
+  return !next || next.line !== word.line;
+}
+
+/** Whether every word of the line containing `pointer` was hit. */
+function lineIsPerfect(results: WordResult[], pointer: number, config: GameConfig): boolean {
+  const word = config.words[pointer];
+  const line = word ? config.lines[word.line] : undefined;
+  if (!line) return false;
+  for (let i = line.from; i < line.to; i++) {
+    if (results[i] !== "hit") return false;
+  }
+  return true;
+}
+
 function tick(state: GameState, time: number, config: GameConfig): GameState {
   if (state.finished) return state;
 
@@ -140,6 +192,8 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
   let results = state.results;
   let misses = state.misses;
   let combo = state.combo;
+  let score = state.score;
+  let lineWrong = state.lineWrong;
   let advanced = false;
 
   while (pointer < config.words.length && time > deadlineOf(config.words[pointer], config)) {
@@ -150,6 +204,8 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     results[pointer] = "miss";
     misses++;
     combo = 0;
+    score -= MISS_PENALTY;
+    if (lineEnds(pointer, config)) lineWrong = 0;
     pointer++;
   }
 
@@ -160,6 +216,8 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     results,
     misses,
     combo,
+    score,
+    lineWrong,
     input: "",
     finished: pointer >= config.words.length,
   };
@@ -190,7 +248,14 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
   const expected = required[state.input.length];
 
   if (key !== expected) {
-    return { ...state, errorKeys: state.errorKeys + 1 };
+    // A wrong key costs points and breaks the chain.
+    return {
+      ...state,
+      errorKeys: state.errorKeys + 1,
+      lineWrong: state.lineWrong + 1,
+      combo: 0,
+      score: state.score - WRONG_PENALTY,
+    };
   }
 
   const input = state.input + key;
@@ -204,24 +269,36 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
   const duration = Math.max(word.end - word.start, 0.15);
   const delta = time - start;
   const timing = delta <= 0 ? 1 : Math.max(0, 1 - delta / (duration + config.grace));
-  const multiplier = 1 + Math.min(state.combo, 50) * 0.02;
-  const points = Math.round((100 + 100 * timing) * multiplier);
+  const points = Math.round(HIT_BASE * timing * comboTier(state.combo));
 
   const results = [...state.results];
   results[state.pointer] = "hit";
   const combo = state.combo + 1;
   const pointer = state.pointer + 1;
 
+  let score = state.score + points;
+  let perfectLines = state.perfectLines;
+  let lineWrong = state.lineWrong;
+  if (lineEnds(state.pointer, config)) {
+    if (lineWrong === 0 && lineIsPerfect(results, state.pointer, config)) {
+      score += LINE_BONUS;
+      perfectLines += 1;
+    }
+    lineWrong = 0;
+  }
+
   return {
     ...state,
     pointer,
     input: "",
     results,
-    score: state.score + points,
+    score,
     combo,
     maxCombo: Math.max(state.maxCombo, combo),
     hits: state.hits + 1,
     correctKeys,
+    perfectLines,
+    lineWrong,
     finished: pointer >= config.words.length,
   };
 }
@@ -273,4 +350,9 @@ export function rankOf(state: GameState): Rank {
 
 export function progressOf(state: GameState, config: GameConfig): number {
   return config.words.length ? state.pointer / config.words.length : 0;
+}
+
+/** The score multiplier currently in effect. */
+export function multiplierOf(state: GameState): number {
+  return comboTier(state.combo);
 }

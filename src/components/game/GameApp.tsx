@@ -13,7 +13,7 @@ import {
   TrackApiError,
   videoIdFromLocation,
 } from "../../lib/game/client";
-import { accuracyOf, cueAt, DEFAULT_LEAD, GAME_MODES, isGameMode, rankOf, type GameMode } from "../../lib/game/engine";
+import { accuracyOf, cueAt, DEFAULT_LEAD, GAME_MODES, isGameMode, multiplierOf, rankOf, type GameMode } from "../../lib/game/engine";
 import {
   readSetting,
   SETTING_MODE,
@@ -200,8 +200,10 @@ export default function GameApp() {
   }, [videoId]);
 
   const words = useMemo(() => track?.words ?? [], [track]);
+  const lines = useMemo(() => track?.lines ?? [], [track]);
   const game = useGameLoop({
     words,
+    lines,
     offset,
     mode,
     running: phase === "playing",
@@ -315,6 +317,16 @@ export default function GameApp() {
     [words, offset, game.state.pointer, time],
   );
 
+  // Flash a "Perfect line!" badge whenever a clean line is cleared.
+  const [perfectFlash, setPerfectFlash] = useState(0);
+  const previousPerfect = useRef(0);
+  useEffect(() => {
+    if (game.state.perfectLines > previousPerfect.current) {
+      previousPerfect.current = game.state.perfectLines;
+      setPerfectFlash((count) => count + 1);
+    }
+  }, [game.state.perfectLines]);
+
   if (videoId === undefined) return null;
   if (videoId === null) return <TrackPicker />;
   if (loadError) {
@@ -337,6 +349,7 @@ export default function GameApp() {
   }
 
   const accuracy = accuracyOf(game.state);
+  const multiplier = multiplierOf(game.state);
   const progress = words.length ? game.state.pointer / words.length : 0;
   const featured = FEATURED_BY_ID.get(track.id);
 
@@ -345,6 +358,7 @@ export default function GameApp() {
       <Hud
         score={game.state.score}
         combo={game.state.combo}
+        multiplier={multiplier}
         accuracy={accuracy}
         progress={progress}
         time={time}
@@ -389,6 +403,12 @@ export default function GameApp() {
           />
         </div>
       </div>
+
+      {perfectFlash > 0 ? (
+        <div key={perfectFlash} className="perfect-flash" aria-hidden="true">
+          Perfect line!
+        </div>
+      ) : null}
 
       {phase === "results" ? (
         <Results

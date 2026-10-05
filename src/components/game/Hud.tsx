@@ -1,13 +1,19 @@
 /**
- * The heads-up display: score, combo, accuracy, progress and controls.
+ * The heads-up display: score, combo multiplier, accuracy, a streak meter and
+ * the controls.
  */
 
+import { useEffect, useRef, useState } from "react";
 import { GAME_MODES, type GameMode } from "../../lib/game/engine";
 import { formatTime } from "../../lib/game/storage";
+
+/** The combo count that fills the streak meter. */
+const STREAK_MAX = 50;
 
 interface Props {
   score: number;
   combo: number;
+  multiplier: number;
   accuracy: number;
   progress: number;
   time: number;
@@ -58,6 +64,7 @@ function Control({
 export default function Hud({
   score,
   combo,
+  multiplier,
   accuracy,
   progress,
   time,
@@ -73,17 +80,47 @@ export default function Hud({
   onChangeSong,
 }: Props) {
   const percent = Math.round(accuracy * 100);
+  const [breaking, setBreaking] = useState(false);
+  const previousCombo = useRef(combo);
+
+  // Flash the meter when a decent chain is broken.
+  useEffect(() => {
+    const was = previousCombo.current;
+    previousCombo.current = combo;
+    if (combo === 0 && was >= 10) {
+      setBreaking(true);
+      const timer = window.setTimeout(() => setBreaking(false), 400);
+      return () => window.clearTimeout(timer);
+    }
+  }, [combo]);
 
   return (
     <div className="hud">
       <div className="hud__stats">
         <Stat label="score" value={score.toLocaleString("en-GB")} />
-        <Stat label="combo" value={combo > 0 ? `×${combo}` : "—"} />
+        <Stat label="combo" value={combo > 0 ? `×${multiplier}` : "—"} />
         <Stat label="accuracy" value={`${percent}%`} />
       </div>
 
+      <div
+        className={"hud__streak" + (breaking ? " is-breaking" : "")}
+        title={`Combo ${combo}`}
+        aria-hidden="true"
+      >
+        <div
+          className="hud__streak-fill"
+          style={{ width: `${Math.min(100, (combo / STREAK_MAX) * 100)}%` }}
+        />
+      </div>
+
       <div className="hud__progress">
-        <div className="hud__bar" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+        <div
+          className="hud__bar"
+          role="progressbar"
+          aria-valuenow={Math.round(progress * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
           <div className="hud__bar-fill" style={{ width: `${Math.min(100, progress * 100)}%` }} />
         </div>
         <div className="hud__time">

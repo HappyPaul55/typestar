@@ -1,13 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
   accuracyOf,
+  comboTier,
   createGameState,
   cueAt,
   gameReducer,
+  LINE_BONUS,
+  MISS_PENALTY,
   progressOf,
   rankOf,
   requiredCharIndices,
   requiredText,
+  WRONG_PENALTY,
   type GameConfig,
   type GameState,
 } from "./engine";
@@ -24,8 +28,20 @@ const WORDS: TrackWord[] = [
   word("strangers", 1.7, 2.4),
 ];
 
+const LINES = [
+  { start: WORDS[0].start, end: WORDS[WORDS.length - 1].end, from: 0, to: WORDS.length },
+];
+
 function config(overrides: Partial<GameConfig> = {}): GameConfig {
-  return { words: WORDS, offset: 0, mode: "normal", lead: 0.35, grace: 0.6, ...overrides };
+  return {
+    words: WORDS,
+    lines: LINES,
+    offset: 0,
+    mode: "normal",
+    lead: 0.35,
+    grace: 0.6,
+    ...overrides,
+  };
 }
 
 function type(state: GameState, text: string, time: number, cfg: GameConfig): GameState {
@@ -160,6 +176,62 @@ describe("gameReducer timing", () => {
     state = gameReducer(state, { type: "resync", time: 2.4 }, cfg);
     expect(state.pointer).toBe(2);
     expect(state.score).toBe(0);
+  });
+});
+
+describe("scoring", () => {
+  test("combo tiers scale the multiplier", () => {
+    expect(comboTier(0)).toBe(1);
+    expect(comboTier(9)).toBe(1);
+    expect(comboTier(10)).toBe(1.5);
+    expect(comboTier(25)).toBe(2);
+    expect(comboTier(60)).toBe(3);
+  });
+
+  test("a wrong key costs points and breaks the chain", () => {
+    const cfg = config();
+    let state = type(createGameState(WORDS.length), "were", 1.2, cfg);
+    const before = state.score;
+    expect(state.combo).toBe(1);
+    state = gameReducer(state, { type: "key", key: "x", time: 1.5 }, cfg);
+    expect(state.score).toBe(before - WRONG_PENALTY);
+    expect(state.combo).toBe(0);
+    expect(state.errorKeys).toBe(1);
+  });
+
+  test("a miss costs less than a wrong key and breaks the chain", () => {
+    expect(MISS_PENALTY).toBeLessThan(WRONG_PENALTY);
+    const cfg = config();
+    let state = createGameState(WORDS.length);
+    state = gameReducer(state, { type: "tick", time: 3.1 }, cfg);
+    expect(state.score).toBe(-MISS_PENALTY * 3);
+    expect(state.combo).toBe(0);
+  });
+
+  test("a clean line awards the perfect-line bonus", () => {
+    const cfg = config();
+    let state = type(createGameState(WORDS.length), "were", 1.2, cfg);
+    state = type(state, "no", 1.5, cfg);
+    state = type(state, "strangers", 1.9, cfg);
+    expect(state.perfectLines).toBe(1);
+    expect(state.score).toBeGreaterThan(LINE_BONUS);
+  });
+
+  test("a wrong key anywhere in the line loses the bonus", () => {
+    const cfg = config();
+    let state = type(createGameState(WORDS.length), "were", 1.2, cfg);
+    state = gameReducer(state, { type: "key", key: "x", time: 1.5 }, cfg);
+    state = type(state, "no", 1.6, cfg);
+    state = type(state, "strangers", 1.9, cfg);
+    expect(state.perfectLines).toBe(0);
+  });
+
+  test("a missed word loses the bonus", () => {
+    const cfg = config();
+    let state = type(createGameState(WORDS.length), "were", 1.2, cfg);
+    state = gameReducer(state, { type: "tick", time: 2.4 }, cfg);
+    state = type(state, "strangers", 2.5, cfg);
+    expect(state.perfectLines).toBe(0);
   });
 });
 

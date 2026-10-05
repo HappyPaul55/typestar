@@ -13,10 +13,11 @@ import {
   type GameMode,
   type GameState,
 } from "../../../lib/game/engine";
-import type { TrackWord } from "../../../lib/track/types";
+import type { TrackLine, TrackWord } from "../../../lib/track/types";
 
 export interface UseGameLoopOptions {
   words: TrackWord[];
+  lines: TrackLine[];
   offset: number;
   mode: GameMode;
   running: boolean;
@@ -36,6 +37,7 @@ export interface GameLoop {
 
 export function useGameLoop({
   words,
+  lines,
   offset,
   mode,
   running,
@@ -43,8 +45,8 @@ export function useGameLoop({
   getTime,
 }: UseGameLoopOptions): GameLoop {
   const config = useMemo<GameConfig>(
-    () => ({ words, offset, mode, lead: DEFAULT_LEAD, grace: DEFAULT_GRACE }),
-    [words, offset, mode],
+    () => ({ words, lines, offset, mode, lead: DEFAULT_LEAD, grace: DEFAULT_GRACE }),
+    [words, lines, offset, mode],
   );
   const configRef = useRef(config);
   configRef.current = config;
