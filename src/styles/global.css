@@ -1323,7 +1323,7 @@
       overflow-y: auto;
     }
     .game-overlay--start .comment {
-      font-size: 0.6rem;
+      display: none;
     }
     .game-overlay--start .game-overlay__title {
       font-size: 1rem;
