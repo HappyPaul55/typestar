@@ -36,10 +36,10 @@ import {
 import type { Track } from "../../lib/track/types";
 import Calibration from "./Calibration";
 import CueBar from "./CueBar";
+import EndScreen from "./EndScreen";
 import Hud from "./Hud";
 import LyricHighway from "./LyricHighway";
 import PlayerStage from "./PlayerStage";
-import Results from "./Results";
 import TrackPicker from "./TrackPicker";
 import { useGameLoop } from "./hooks/useGameLoop";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
@@ -476,11 +476,14 @@ export default function GameApp() {
       ) : null}
 
       {phase === "results" ? (
-        <Results
+        <EndScreen
           state={game.state}
           accuracy={accuracy}
           rank={rankOf(game.state)}
           mode={mode}
+          failMode={failMode}
+          trackId={track.id}
+          elapsed={time}
           onReplay={restart}
           onChangeSong={changeSong}
         />

@@ -5,9 +5,14 @@ typing / keyboard speed game**.
 
 - It uses **YouTube** as the music backend and the visuals.
 - The video sits on the left and the timed lyrics on the right.
-- Three modes: **Easy** (first letter of each word), **Normal** (every word,
-  punctuation optional) and **Hard** (every word, punctuation required).
-- Pick the mode on the start screen, or change it from the dropdown in the HUD.
+- Three difficulties: **Easy** (first letter of each word), **Normal** (every
+  word, punctuation optional) and **Hard** (every word, punctuation required).
+- Four run modes: **Normal** (fails if the score goes negative), **Instant**
+  (stops at the first mistake), **Fun** (never stops) and **Practise** (rewinds
+  5 seconds on a mistake and counts the replay).
+- Scoring rewards chains: a combo multiplier up to ×3 and a bonus for every
+  clean line. Wrong keys cost more than a missed word.
+- Pick both on the start screen; the difficulty is also in the HUD.
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
