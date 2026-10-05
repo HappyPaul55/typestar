@@ -14,16 +14,20 @@ interface WordProps {
   word: TrackWord;
   status: WordResult;
   isActive: boolean;
+  isCued: boolean;
   input: string;
   mode: GameMode;
 }
 
-function Word({ word, status, isActive, input, mode }: WordProps) {
+function Word({ word, status, isActive, isCued, input, mode }: WordProps) {
   if (status === "hit") {
     return <span className="lyric-word is-hit">{word.text}</span>;
   }
   if (status === "miss") {
     return <span className="lyric-word is-miss">{word.text}</span>;
+  }
+  if (isCued) {
+    return <span className="lyric-word is-cued">{word.text}</span>;
   }
   if (!isActive) {
     return <span className="lyric-word">{word.text}</span>;
@@ -71,6 +75,7 @@ interface LineProps {
   to: number;
   lineIndex: number;
   active: boolean;
+  cued: boolean;
   words: TrackWord[];
   results: WordResult[];
   pointer: number;
@@ -83,6 +88,7 @@ const LyricLine = memo(function LyricLine({
   to,
   lineIndex,
   active,
+  cued,
   words,
   results,
   pointer,
@@ -99,7 +105,8 @@ const LyricLine = memo(function LyricLine({
             <Word
               word={word}
               status={results[index] ?? "pending"}
-              isActive={index === pointer}
+              isActive={index === pointer && !cued}
+              isCued={index === pointer && cued}
               input={input}
               mode={mode}
             />
@@ -116,9 +123,18 @@ interface Props {
   pointer: number;
   input: string;
   mode: GameMode;
+  /** True while the next word is still ahead of its typeable window. */
+  cued: boolean;
 }
 
-export default function LyricHighway({ track, results, pointer, input, mode }: Props) {
+export default function LyricHighway({
+  track,
+  results,
+  pointer,
+  input,
+  mode,
+  cued,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLine = track.words[pointer]?.line ?? track.lines.length - 1;
 
@@ -141,6 +157,7 @@ export default function LyricHighway({ track, results, pointer, input, mode }: P
             to={line.to}
             lineIndex={index}
             active={index === activeLine}
+            cued={cued}
             words={track.words}
             results={results}
             pointer={pointer}

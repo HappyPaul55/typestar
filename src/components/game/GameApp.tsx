@@ -13,7 +13,7 @@ import {
   TrackApiError,
   videoIdFromLocation,
 } from "../../lib/game/client";
-import { accuracyOf, GAME_MODES, isGameMode, rankOf, type GameMode } from "../../lib/game/engine";
+import { accuracyOf, cueAt, DEFAULT_LEAD, GAME_MODES, isGameMode, rankOf, type GameMode } from "../../lib/game/engine";
 import {
   readSetting,
   SETTING_MODE,
@@ -22,6 +22,7 @@ import {
 } from "../../lib/game/storage";
 import type { Track } from "../../lib/track/types";
 import Calibration from "./Calibration";
+import CueBar from "./CueBar";
 import Hud from "./Hud";
 import LyricHighway from "./LyricHighway";
 import PlayerStage from "./PlayerStage";
@@ -309,6 +310,11 @@ export default function GameApp() {
     else void element.requestFullscreen?.();
   }, []);
 
+  const cue = useMemo(
+    () => cueAt({ words, offset, lead: DEFAULT_LEAD }, game.state.pointer, time),
+    [words, offset, game.state.pointer, time],
+  );
+
   if (videoId === undefined) return null;
   if (videoId === null) return <TrackPicker />;
   if (loadError) {
@@ -371,13 +377,17 @@ export default function GameApp() {
           {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
         </PlayerStage>
 
-        <LyricHighway
-          track={track}
-          results={game.state.results}
-          pointer={game.state.pointer}
-          input={game.state.input}
-          mode={mode}
-        />
+        <div className="lyric-panel">
+          <CueBar cue={cue} first={game.state.pointer === 0} />
+          <LyricHighway
+            track={track}
+            results={game.state.results}
+            pointer={game.state.pointer}
+            input={game.state.input}
+            mode={mode}
+            cued={cue.waiting}
+          />
+        </div>
       </div>
 
       {phase === "results" ? (

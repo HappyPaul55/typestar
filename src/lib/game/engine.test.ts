@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   accuracyOf,
   createGameState,
+  cueAt,
   gameReducer,
   progressOf,
   rankOf,
@@ -159,6 +160,31 @@ describe("gameReducer timing", () => {
     state = gameReducer(state, { type: "resync", time: 2.4 }, cfg);
     expect(state.pointer).toBe(2);
     expect(state.score).toBe(0);
+  });
+});
+
+describe("cueAt", () => {
+  const cfg = { words: WORDS, offset: 0, lead: 0.35 };
+
+  test("counts down before the first word is typeable", () => {
+    const cue = cueAt(cfg, 0, 0.2);
+    expect(cue.waiting).toBe(true);
+    expect(cue.remaining).toBeCloseTo(0.45, 5);
+    expect(cue.progress).toBeGreaterThan(0);
+    expect(cue.progress).toBeLessThan(1);
+  });
+
+  test("stops waiting once the word is typeable", () => {
+    expect(cueAt(cfg, 0, 0.7).waiting).toBe(false);
+    expect(cueAt(cfg, 0, 1.2).progress).toBe(1);
+  });
+
+  test("does nothing once the track is finished", () => {
+    expect(cueAt(cfg, WORDS.length, 5)).toEqual({
+      waiting: false,
+      remaining: 0,
+      progress: 1,
+    });
   });
 });
 

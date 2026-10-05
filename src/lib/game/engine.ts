@@ -103,6 +103,36 @@ function deadlineOf(word: TrackWord, config: GameConfig): number {
   return word.end + config.offset + config.grace;
 }
 
+export interface CueInfo {
+  /** Whether the next word is not yet typeable. */
+  waiting: boolean;
+  /** Seconds until it becomes typeable. */
+  remaining: number;
+  /** 0..1 fill towards the typeable moment. */
+  progress: number;
+}
+
+/**
+ * The wait before the next word can be typed. Used to show an intro cue bar —
+ * it covers the opening instrumental and any later gaps, not just the intro.
+ */
+export function cueAt(
+  config: Pick<GameConfig, "words" | "offset" | "lead">,
+  pointer: number,
+  time: number,
+): CueInfo {
+  const word = config.words[pointer];
+  if (!word) return { waiting: false, remaining: 0, progress: 1 };
+
+  const to = word.start + config.offset - config.lead;
+  const previous = pointer > 0 ? config.words[pointer - 1] : null;
+  const from = previous ? previous.end + config.offset : 0;
+  const waiting = time < to;
+  const span = Math.max(to - from, 0.001);
+  const progress = waiting ? Math.min(1, Math.max(0, (time - from) / span)) : 1;
+  return { waiting, remaining: Math.max(0, to - time), progress };
+}
+
 function tick(state: GameState, time: number, config: GameConfig): GameState {
   if (state.finished) return state;
 
