@@ -9,7 +9,7 @@ const outDir = path.join(root, "public", "icons");
 const response = await favicons(source, {
   path: "/icons",
   appName: "TypeStar",
-  appShortName: "TS",
+  appShortName: "TypeStar",
   appDescription:
     "A rhythm touch-typing game — type the lyrics of a YouTube track in time.",
   developerName: "HappyPaul55",

@@ -1,16 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="TypeStar">
-  <rect width="64" height="64" rx="14" fill="#FFD400"/>
+  <defs>
+    <clipPath id="brand-half">
+      <rect x="0" y="0" width="44" height="64" />
+    </clipPath>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#FFD400" />
   <text
-    x="32"
-    y="42"
+    x="20"
+    y="44"
     text-anchor="middle"
     fill="#0C0D0A"
-    stroke="#0C0D0A"
-    stroke-width="1"
-    stroke-linejoin="round"
     font-family="'Space Grotesk','Segoe UI',ui-sans-serif,system-ui,sans-serif"
     font-weight="700"
     font-size="30"
-    letter-spacing="-1"
-  >TS</text>
+  >T</text>
+  <path
+    d="M44 23 L46.704 29.279 L53.511 29.910 L48.375 34.421 L49.878 41.090 L44 37.6 L38.122 41.090 L39.625 34.421 L34.489 29.910 L41.296 29.279 Z"
+    fill="none"
+    stroke="#0C0D0A"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M44 23 L46.704 29.279 L53.511 29.910 L48.375 34.421 L49.878 41.090 L44 37.6 L38.122 41.090 L39.625 34.421 L34.489 29.910 L41.296 29.279 Z"
+    fill="#0C0D0A"
+    clip-path="url(#brand-half)"
+  />
 </svg>

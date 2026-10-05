@@ -38,8 +38,7 @@ const current = (href: string) => (isActive(href) ? "page" : undefined);
       <span
         class="font-display text-[1.05rem] leading-none font-bold tracking-[-0.02em] text-cream sm:text-[1.15rem]"
       >
-        <span class="sm:hidden">{settings.shortName}</span>
-        <span class="hidden sm:inline">{settings.name}</span>
+        {settings.name}
       </span>
     </a>
 
