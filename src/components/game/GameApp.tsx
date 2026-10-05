@@ -328,15 +328,24 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     setPhase("idle");
   }, [game]);
 
-  const selectMode = useCallback((next: GameMode) => {
-    setMode(next);
-    writeSetting(SETTING_MODE, next);
-  }, []);
+  const selectMode = useCallback(
+    (next: GameMode) => {
+      // Not while a run is in progress.
+      if (phase !== "idle" && phase !== "results") return;
+      setMode(next);
+      writeSetting(SETTING_MODE, next);
+    },
+    [phase],
+  );
 
-  const selectFailMode = useCallback((next: FailMode) => {
-    setFailMode(next);
-    writeSetting(SETTING_FAIL_MODE, next);
-  }, []);
+  const selectFailMode = useCallback(
+    (next: FailMode) => {
+      if (phase !== "idle" && phase !== "results") return;
+      setFailMode(next);
+      writeSetting(SETTING_FAIL_MODE, next);
+    },
+    [phase],
+  );
 
   const changeOffset = useCallback(
     (value: number) => {
@@ -397,6 +406,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
   const multiplier = multiplierOf(game.state);
   const progress = words.length ? game.state.pointer / words.length : 0;
   const featured = FEATURED_BY_ID.get(track.id);
+  const locked = phase === "playing" || phase === "countdown" || phase === "paused";
 
   return (
     <div ref={shellRef} className="game-shell">
@@ -410,6 +420,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
         duration={duration}
         mode={mode}
         failMode={failMode}
+        locked={locked}
         paused={phase === "paused"}
         playing={phase === "playing"}
         onTogglePause={togglePause}

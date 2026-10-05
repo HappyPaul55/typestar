@@ -22,6 +22,8 @@ interface Props {
   duration: number;
   mode: GameMode;
   failMode: FailMode;
+  /** True while a run is in progress, so the dropdowns are disabled. */
+  locked: boolean;
   paused: boolean;
   playing: boolean;
   onTogglePause(): void;
@@ -75,6 +77,7 @@ export default function Hud({
   duration,
   mode,
   failMode,
+  locked,
   paused,
   playing,
   onTogglePause,
@@ -122,6 +125,7 @@ export default function Hud({
           <select
             className="hud__select"
             value={mode}
+            disabled={locked}
             onChange={(event) => onSelectMode(event.target.value as GameMode)}
           >
             {GAME_MODES.map((value) => (
@@ -136,6 +140,7 @@ export default function Hud({
           <select
             className="hud__select"
             value={failMode}
+            disabled={locked}
             onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
           >
             {FAIL_MODES.map((value) => (
