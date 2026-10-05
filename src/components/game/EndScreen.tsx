@@ -1,13 +1,13 @@
 /**
  * The end screen: shown when a run finishes (or fails). Summarises the run with
  * the score, a rank on a completed run, some fun stats and a local personal
- * best, compares against a shared target, and offers replay + share.
+ * best, and offers replay + share.
  */
 
 import { useEffect, useState } from "react";
 import type { FailMode, GameMode, GameState, Rank } from "../../lib/game/engine";
 import { formatTime, readSetting, writeSetting } from "../../lib/game/storage";
-import { buildHash, type SharedStats } from "../../lib/game/url";
+import { buildHash } from "../../lib/game/url";
 
 interface Props {
   state: GameState;
@@ -20,8 +20,6 @@ interface Props {
   elapsed: number;
   /** How far through the words the run got, 0..1. */
   progress: number;
-  /** A target shared in the URL, if any. */
-  target?: SharedStats | null;
   onReplay(): void;
   onChangeSong(): void;
   onClose(): void;
@@ -50,7 +48,6 @@ export default function EndScreen({
   trackId,
   elapsed,
   progress,
-  target,
   onReplay,
   onChangeSong,
   onClose,
@@ -77,28 +74,20 @@ export default function EndScreen({
   const failed = state.failed;
   const accuracyPercent = Math.round(accuracy * 100);
 
+  /** Share the same track and settings so someone else can take the same run. */
   async function share() {
-    const stats: SharedStats = {
-      score: state.score,
-      accuracy: accuracyPercent,
-      maxCombo: state.maxCombo,
-      hits: state.hits,
-      misses: state.misses,
-      perfectLines: state.perfectLines,
-    };
-    const url = `${window.location.origin}/play/${trackId}${buildHash({ mode, failMode, stats })}`;
-    const text = `I scored ${state.score.toLocaleString("en-GB")} (${accuracyPercent}%) on TypeStar — beat it:`;
+    const url = `${window.location.origin}/play/${trackId}${buildHash({ mode, failMode })}`;
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title: "TypeStar", text, url });
+        await navigator.share({ title: "TypeStar", url });
         return;
       } catch {
         // Cancelled or unsupported; fall back to copying.
       }
     }
     try {
-      await navigator.clipboard.writeText(`${text} ${url}`);
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -145,14 +134,6 @@ export default function EndScreen({
         <p className="results__best">
           {newBest ? "New best!" : `Best ${best?.toLocaleString("en-GB") ?? "—"}`}
         </p>
-
-        {target ? (
-          <p className={"results__target" + (state.score >= target.score ? " is-beaten" : "")}>
-            {state.score >= target.score
-              ? `Target beaten — ${target.score.toLocaleString("en-GB")}`
-              : `Target ${target.score.toLocaleString("en-GB")} · ${target.accuracy}% · ×${target.maxCombo}`}
-          </p>
-        ) : null}
 
         <div className="results__grid">
           <Metric label="score" value={state.score.toLocaleString("en-GB")} />
