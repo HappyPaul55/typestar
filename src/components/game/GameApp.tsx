@@ -1,0 +1,403 @@
+/**
+ * TypeStar's game island — the single mount point behind `/play`.
+ *
+ * The component is deliberately thin: it owns the phase machine, the track
+ * load and the wiring between the YouTube player and the pure game reducer.
+ * All the interesting rules live in `src/lib/game/engine.ts`.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FEATURED_BY_ID } from "../../content/tracks/featured";
+import {
+  loadTrack,
+  TrackApiError,
+  videoIdFromLocation,
+} from "../../lib/game/client";
+import { accuracyOf, GAME_MODES, isGameMode, rankOf, type GameMode } from "../../lib/game/engine";
+import {
+  readSetting,
+  SETTING_MODE,
+  SETTING_OFFSET_PREFIX,
+  writeSetting,
+} from "../../lib/game/storage";
+import type { Track } from "../../lib/track/types";
+import Calibration from "./Calibration";
+import Hud from "./Hud";
+import LyricHighway from "./LyricHighway";
+import PlayerStage from "./PlayerStage";
+import Results from "./Results";
+import TrackPicker from "./TrackPicker";
+import { useGameLoop } from "./hooks/useGameLoop";
+import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
+
+type Phase = "idle" | "countdown" | "playing" | "paused" | "results";
+
+const MODE_LABEL: Record<GameMode, string> = {
+  easy: "Easy",
+  normal: "Normal",
+  hard: "Hard",
+};
+
+const MODE_HELP: Record<GameMode, string> = {
+  easy: "Type just the first letter of each word.",
+  normal: "Type every word — punctuation is optional.",
+  hard: "Type every word, punctuation and all.",
+};
+
+function StartOverlay({
+  mode,
+  onSelectMode,
+  onStart,
+}: {
+  mode: GameMode;
+  onSelectMode(mode: GameMode): void;
+  onStart(): void;
+}) {
+  return (
+    <div className="game-overlay game-overlay--start">
+      <p className="comment on-ink">
+        <span className="slash" aria-hidden="true">
+          //
+        </span>{" "}
+        ready
+      </p>
+      <h2 className="game-overlay__title">Type the words in time.</h2>
+      <p className="game-overlay__help">
+        Words light up as they arrive. Type each one before its moment passes.
+      </p>
+
+      <button
+        type="button"
+        className="btn-game btn-game--primary btn-game--start"
+        onClick={onStart}
+      >
+        Start
+      </button>
+
+      <div className="mode-picker" role="group" aria-label="Difficulty">
+        {GAME_MODES.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={"mode-picker__option" + (value === mode ? " is-active" : "")}
+            aria-pressed={value === mode}
+            onClick={() => onSelectMode(value)}
+          >
+            {MODE_LABEL[value]}
+          </button>
+        ))}
+      </div>
+      <p className="mode-picker__help">{MODE_HELP[mode]}</p>
+    </div>
+  );
+}
+
+function CountdownOverlay({ value }: { value: number }) {
+  return (
+    <div className="game-overlay game-overlay--countdown" aria-live="assertive">
+      <span className="countdown__number">{value > 0 ? value : "Go"}</span>
+    </div>
+  );
+}
+
+function PausedOverlay({ onResume }: { onResume(): void }) {
+  return (
+    <div className="game-overlay game-overlay--paused">
+      <p className="game-overlay__title">Paused</p>
+      <button type="button" className="btn-game btn-game--primary" onClick={onResume}>
+        Resume
+      </button>
+    </div>
+  );
+}
+
+function StatusPanel({
+  title,
+  message,
+  action,
+  onAction,
+}: {
+  title: string;
+  message: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="game-status">
+      <div className="panel game-status__panel">
+        <p className="comment">
+          <span className="slash" aria-hidden="true">
+            //
+          </span>{" "}
+          play
+        </p>
+        <h2 className="panel__title mt-2">{title}</h2>
+        <p className="mt-2 text-ink-soft">{message}</p>
+        {action && onAction ? (
+          <div className="mt-4">
+            <button type="button" className="btn-game btn-game--primary" onClick={onAction}>
+              {action}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export default function GameApp() {
+  const [videoId, setVideoId] = useState<string | null | undefined>(undefined);
+  const [track, setTrack] = useState<Track | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [countdown, setCountdown] = useState(3);
+  const [mode, setMode] = useState<GameMode>("normal");
+  const [offset, setOffset] = useState(0);
+  const [showCalibration, setShowCalibration] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  const player = useYouTubePlayer(videoId ?? null);
+  const { ready, error: playerError, containerRef, play, pause, restart: restartPlayer, seekTo, getTime, time, duration, state: playerState } = player;
+
+  // Read the id from the address bar after hydration (SSR-safe).
+  useEffect(() => {
+    setVideoId(videoIdFromLocation());
+  }, []);
+
+  useEffect(() => {
+    const stored = readSetting<unknown>(SETTING_MODE, "normal");
+    setMode(isGameMode(stored) ? stored : "normal");
+  }, []);
+
+  // Load the track, and restore its saved sync offset.
+  useEffect(() => {
+    if (!videoId) {
+      setTrack(null);
+      setLoadError(null);
+      return;
+    }
+    const controller = new AbortController();
+    setTrack(null);
+    setLoadError(null);
+    setPhase("idle");
+
+    loadTrack(videoId, "en", controller.signal)
+      .then((loaded) => {
+        setTrack(loaded);
+        setOffset(readSetting<number>(SETTING_OFFSET_PREFIX + videoId, 0));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLoadError(
+          error instanceof TrackApiError
+            ? error.message
+            : "Something went wrong loading this track.",
+        );
+      });
+
+    return () => controller.abort();
+  }, [videoId]);
+
+  const words = useMemo(() => track?.words ?? [], [track]);
+  const game = useGameLoop({
+    words,
+    offset,
+    mode,
+    running: phase === "playing",
+    time,
+    getTime,
+  });
+
+  // Countdown, then play.
+  useEffect(() => {
+    if (phase !== "countdown") return;
+    if (countdown <= 0) {
+      play();
+      setPhase("playing");
+      return;
+    }
+    const timer = window.setTimeout(() => setCountdown((value) => value - 1), 650);
+    return () => window.clearTimeout(timer);
+  }, [phase, countdown, play]);
+
+  // Finished when every word is resolved.
+  useEffect(() => {
+    if (phase === "playing" && game.state.finished) {
+      pause();
+      setPhase("results");
+    }
+  }, [phase, game.state.finished, pause]);
+
+  // The video ending before the lyrics do counts as a finish.
+  useEffect(() => {
+    if (phase === "playing" && playerState === 0) game.finish();
+  }, [phase, playerState, game.finish]);
+
+  // Capture typing while playing.
+  useEffect(() => {
+    if (phase !== "playing") return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        game.onKey("Backspace");
+        return;
+      }
+      if (event.key === " ") {
+        event.preventDefault();
+        return;
+      }
+      if (event.key.length === 1) game.onKey(event.key);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [phase, game.onKey]);
+
+  const start = useCallback(() => {
+    if (!ready) return;
+    seekTo(0);
+    setCountdown(3);
+    setPhase("countdown");
+  }, [ready, seekTo]);
+
+  const togglePause = useCallback(() => {
+    if (phase === "playing") {
+      pause();
+      setPhase("paused");
+    } else if (phase === "paused") {
+      play();
+      setPhase("playing");
+    }
+  }, [phase, pause, play]);
+
+  const restart = useCallback(() => {
+    game.reset();
+    restartPlayer();
+    setPhase("playing");
+  }, [game, restartPlayer]);
+
+  const selectMode = useCallback((next: GameMode) => {
+    setMode(next);
+    writeSetting(SETTING_MODE, next);
+  }, []);
+
+  const changeOffset = useCallback(
+    (value: number) => {
+      setOffset(value);
+      if (videoId) writeSetting(SETTING_OFFSET_PREFIX + videoId, value);
+    },
+    [videoId],
+  );
+
+  const changeSong = useCallback(() => {
+    window.location.href = "/play";
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const element = shellRef.current;
+    if (!element) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void element.requestFullscreen?.();
+  }, []);
+
+  if (videoId === undefined) return null;
+  if (videoId === null) return <TrackPicker />;
+  if (loadError) {
+    return (
+      <StatusPanel
+        title="No track to play"
+        message={loadError}
+        action="Try another song"
+        onAction={changeSong}
+      />
+    );
+  }
+  if (!track) {
+    return (
+      <StatusPanel
+        title="Loading track…"
+        message="Fetching the captions and timing the words."
+      />
+    );
+  }
+
+  const accuracy = accuracyOf(game.state);
+  const progress = words.length ? game.state.pointer / words.length : 0;
+  const featured = FEATURED_BY_ID.get(track.id);
+
+  return (
+    <div ref={shellRef} className="game-shell">
+      <Hud
+        score={game.state.score}
+        combo={game.state.combo}
+        accuracy={accuracy}
+        progress={progress}
+        time={time}
+        duration={duration}
+        mode={mode}
+        paused={phase === "paused"}
+        playing={phase === "playing"}
+        onTogglePause={togglePause}
+        onRestart={restart}
+        onSelectMode={selectMode}
+        onCalibrate={() => setShowCalibration(true)}
+        onFullscreen={toggleFullscreen}
+        onChangeSong={changeSong}
+      />
+
+      <div className="game-shell__grid">
+        <PlayerStage
+          containerRef={containerRef}
+          ready={ready}
+          error={playerError}
+          title={track.title}
+          artist={featured?.artist}
+          shielded={phase === "playing"}
+          onShield={() => window.focus()}
+        >
+          {phase === "idle" && ready ? (
+            <StartOverlay mode={mode} onStart={start} onSelectMode={selectMode} />
+          ) : null}
+          {phase === "countdown" ? <CountdownOverlay value={countdown} /> : null}
+          {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
+        </PlayerStage>
+
+        <LyricHighway
+          track={track}
+          results={game.state.results}
+          pointer={game.state.pointer}
+          input={game.state.input}
+          mode={mode}
+        />
+      </div>
+
+      {phase === "results" ? (
+        <Results
+          state={game.state}
+          accuracy={accuracy}
+          rank={rankOf(game.state)}
+          mode={mode}
+          onReplay={restart}
+          onChangeSong={changeSong}
+        />
+      ) : null}
+
+      {showCalibration ? (
+        <Calibration
+          offset={offset}
+          onChange={changeOffset}
+          onClose={() => setShowCalibration(false)}
+        />
+      ) : null}
+    </div>
+  );
+}

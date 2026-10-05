@@ -1,0 +1,15 @@
+[
+  {
+    "id": "main",
+    "name": "TypeStar",
+    "shortName": "TS",
+    "tagline": "Type the lyrics in time",
+    "description": "A rhythm touch-typing game. YouTube supplies the music and visuals, and you type the lyrics as the words arrive — a bit like Guitar Hero for your keyboard.",
+    "url": "https://typestar.happypaul55.com",
+    "author": "HappyPaul55",
+    "authorUrl": "https://www.happypaul55.com",
+    "repo": "https://github.com/HappyPaul55/typestar",
+    "license": "AGPL-3.0",
+    "licenseUrl": "https://www.gnu.org/licenses/agpl-3.0.html"
+  }
+]

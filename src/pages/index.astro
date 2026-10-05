@@ -1,0 +1,42 @@
+---
+import { getEntry } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Container from "../components/ui/Container.astro";
+import Button from "../components/ui/Button.astro";
+
+const site = (await getEntry("site", "main"))!.data;
+---
+
+<BaseLayout
+  title={`${site.name} — ${site.tagline}`}
+  description={site.description}
+  path="/"
+>
+  <main id="main">
+    <section
+      class="on-ink grid-ink border-b border-line-ink bg-ink pt-[clamp(6.5rem,15vw,10rem)] pb-[clamp(3.5rem,8vw,6rem)]"
+    >
+      <Container>
+        <p class="comment">
+          <span class="slash" aria-hidden="true">//</span> rhythm typing
+        </p>
+        <h1
+          class="mt-4 max-w-[18ch] font-display text-[clamp(2.6rem,8vw,5rem)] leading-[0.98] font-bold tracking-[-0.035em] text-cream"
+        >
+          Type the lyrics <span class="mark">in time</span>.
+        </h1>
+        <p
+          class="mt-6 max-w-[44rem] text-[clamp(1.02rem,1.6vw,1.2rem)] leading-[1.6] text-[rgba(250,250,244,0.7)]"
+        >
+          {site.description}
+        </p>
+        <div class="mt-9 flex flex-wrap gap-3.5">
+          <Button href="/play" variant="primary">
+            Play TypeStar <span aria-hidden="true">→</span>
+          </Button>
+          <Button href="/privacy" variant="outlineInk">Privacy</Button>
+        </div>
+      </Container>
+    </section>
+  </main>
+</BaseLayout>
