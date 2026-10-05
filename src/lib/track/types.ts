@@ -8,7 +8,7 @@
  */
 
 /** Bump when the shape changes in a way the game cannot read. */
-export const TRACK_VERSION = 4;
+export const TRACK_VERSION = 5;
 
 /** How a caption track was produced, which hints at how reliable the timing is. */
 export type CaptionKind = "manual" | "asr" | "unknown";

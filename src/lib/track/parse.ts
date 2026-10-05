@@ -90,7 +90,7 @@ export function decodeEntities(text: string): string {
 export function stripMarkers(text: string): string {
   return text
     .replace(/[[(][^\])]*[\])]/g, " ")
-    .replace(/[\u2669-\u266F]/g, " ");
+    .replace(/[\u2669-\u266F\u{1D100}-\u{1D1FF}\u{1F3B5}\u{1F3B6}]/gu, " ");
 }
 
 /**
@@ -336,12 +336,20 @@ export function tokensFromJson3(json: unknown): ParsedCaptions {
       segs.length > 1 && segs.some((seg) => num(seg.tOffsetMs) > 0);
 
     if (hasOffsets) {
+      // Each segment carries its own offset (auto-captions time every word),
+      // but the whole event is one display line. Time the segments
+      // individually, then give them a single group so they stay together.
+      const eventWords: WordSpan[] = [];
       segs.forEach((seg, i) => {
         const segStart = (startMs + num(seg.tOffsetMs)) / 1000;
         const next = segs.slice(i + 1).find((s) => typeof s.tOffsetMs === "number");
         const segEnd = next ? (startMs + num(next.tOffsetMs)) / 1000 : end;
-        emitFragment(tokens, seg.utf8 ?? "", segStart, segEnd, index, state);
+        eventWords.push(...wordsInLine(cleanCaption(seg.utf8 ?? ""), segStart, segEnd));
       });
+      if (eventWords.length) {
+        const group = eventWords.length >= 2 ? state.nextGroup++ : -1;
+        for (const word of eventWords) tokens.push({ ...word, source: index, group });
+      }
       return;
     }
 

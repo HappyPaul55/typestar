@@ -84,6 +84,46 @@ describe("tokensFromJson3", () => {
     expect(tokens[1].start).toBeCloseTo(2.4, 5);
   });
 
+  test("keeps an offset-timed auto-caption event together as one line", () => {
+    const json = {
+      events: [
+        {
+          tStartMs: 17680,
+          dDurationMs: 4070,
+          wWinId: 1,
+          segs: [
+            { utf8: "we" },
+            { utf8: " had", tOffsetMs: 200 },
+            { utf8: " a", tOffsetMs: 400 },
+            { utf8: " plan", tOffsetMs: 600 },
+            { utf8: " move", tOffsetMs: 800 },
+            { utf8: " out", tOffsetMs: 1000 },
+            { utf8: " of", tOffsetMs: 1200 },
+            { utf8: " this", tOffsetMs: 1400 },
+            { utf8: " town", tOffsetMs: 1600 },
+            { utf8: " Baby", tOffsetMs: 1800 },
+          ],
+        },
+        {
+          tStartMs: 21760,
+          dDurationMs: 3429,
+          wWinId: 1,
+          segs: [
+            { utf8: "W" },
+            { utf8: " to", tOffsetMs: 200 },
+            { utf8: " the", tOffsetMs: 400 },
+          ],
+        },
+      ],
+    };
+    const { lines, words } = groupLines(tokensFromJson3(json).tokens);
+    expect(lines).toHaveLength(2);
+    expect(words.slice(lines[0].from, lines[0].to).map((w) => w.match).join(" ")).toBe(
+      "we had a plan move out of this town baby",
+    );
+    expect(words.slice(lines[1].from, lines[1].to).map((w) => w.match).join(" ")).toBe("w to the");
+  });
+
   test("distributes a multi-word line without offsets by character weight", () => {
     const json = {
       events: [
