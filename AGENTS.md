@@ -67,6 +67,7 @@ bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 bun run tracks:warm     # fetch + build the featured tracks into public/tracks/
 bun run tracks:bucket   # create the R2 bucket (once)
 bun run tracks:publish  # upload public/tracks/*.json to the R2 bucket
+bun run tracks:purge    # delete the cached tracks from R2 (needs an API token)
 ```
 
 Use **Bun** for everything: `bun` (never `npm`) and `bunx` (never `npx`). The
@@ -128,8 +129,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `tracks/<id>/<lang>.json`, and `tracks:publish` only adds or overwrites — it
   never removes stale objects. If you change the built track shape, you must
   bump `TRACK_VERSION` (so `isTrack` rejects the old objects) **and** purge the
-  `tracks/` prefix in R2 before republishing, otherwise the deployed Worker keeps
-  serving the old format. Avoid format changes unless necessary.
+  `tracks/` prefix in R2 (`bun run tracks:purge`) before republishing, otherwise
+  the deployed Worker keeps serving the old format. Avoid format changes unless
+  necessary.
 - URL policy is `trailingSlash: "never"` + `build.format: "file"`. Output is
   `index.html` / `play.html` / etc.; canonical and sitemap URLs have no trailing
   slash. Active-nav logic in `Header.astro` normalises both `.html` and trailing

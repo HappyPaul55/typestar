@@ -70,6 +70,7 @@ The featured list lives in `src/content/tracks/featured.ts`.
 bun run tracks:warm      # fetch + build the featured tracks into public/tracks/
 bun run tracks:bucket    # create the R2 bucket (once)
 bun run tracks:publish   # upload public/tracks/*.json to the R2 bucket
+bun run tracks:purge     # delete the cached tracks from R2 (needs an API token)
 ```
 
 `tracks:warm` should be run from a normal residential connection: YouTube gates
