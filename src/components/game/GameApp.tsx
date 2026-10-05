@@ -13,9 +13,22 @@ import {
   TrackApiError,
   videoIdFromLocation,
 } from "../../lib/game/client";
-import { accuracyOf, cueAt, DEFAULT_LEAD, GAME_MODES, isGameMode, multiplierOf, rankOf, type GameMode } from "../../lib/game/engine";
+import {
+  accuracyOf,
+  cueAt,
+  DEFAULT_LEAD,
+  FAIL_MODES,
+  GAME_MODES,
+  isFailMode,
+  isGameMode,
+  multiplierOf,
+  rankOf,
+  type FailMode,
+  type GameMode,
+} from "../../lib/game/engine";
 import {
   readSetting,
+  SETTING_FAIL_MODE,
   SETTING_MODE,
   SETTING_OFFSET_PREFIX,
   writeSetting,
@@ -45,13 +58,31 @@ const MODE_HELP: Record<GameMode, string> = {
   hard: "Type every word, punctuation and all.",
 };
 
+const FAIL_LABEL: Record<FailMode, string> = {
+  normal: "Normal",
+  instant: "Instant",
+  fun: "Fun",
+  practise: "Practise",
+};
+
+const FAIL_HELP: Record<FailMode, string> = {
+  normal: "Fails if your score goes negative.",
+  instant: "Stops at the first mistake.",
+  fun: "Never stops — play to the end.",
+  practise: "Rewinds 5 seconds on a mistake and counts the replay.",
+};
+
 function StartOverlay({
   mode,
   onSelectMode,
+  failMode,
+  onSelectFailMode,
   onStart,
 }: {
   mode: GameMode;
   onSelectMode(mode: GameMode): void;
+  failMode: FailMode;
+  onSelectFailMode(mode: FailMode): void;
   onStart(): void;
 }) {
   return (
@@ -75,6 +106,7 @@ function StartOverlay({
         Start
       </button>
 
+      <p className="mode-picker__heading">Difficulty</p>
       <div className="mode-picker" role="group" aria-label="Difficulty">
         {GAME_MODES.map((value) => (
           <button
@@ -89,6 +121,22 @@ function StartOverlay({
         ))}
       </div>
       <p className="mode-picker__help">{MODE_HELP[mode]}</p>
+
+      <p className="mode-picker__heading">Run mode</p>
+      <div className="mode-picker" role="group" aria-label="Run mode">
+        {FAIL_MODES.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={"mode-picker__option" + (value === failMode ? " is-active" : "")}
+            aria-pressed={value === failMode}
+            onClick={() => onSelectFailMode(value)}
+          >
+            {FAIL_LABEL[value]}
+          </button>
+        ))}
+      </div>
+      <p className="mode-picker__help">{FAIL_HELP[failMode]}</p>
     </div>
   );
 }
@@ -153,6 +201,7 @@ export default function GameApp() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [countdown, setCountdown] = useState(3);
   const [mode, setMode] = useState<GameMode>("normal");
+  const [failMode, setFailMode] = useState<FailMode>("normal");
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -168,6 +217,8 @@ export default function GameApp() {
   useEffect(() => {
     const stored = readSetting<unknown>(SETTING_MODE, "normal");
     setMode(isGameMode(stored) ? stored : "normal");
+    const storedFail = readSetting<unknown>(SETTING_FAIL_MODE, "normal");
+    setFailMode(isFailMode(storedFail) ? storedFail : "normal");
   }, []);
 
   // Load the track, and restore its saved sync offset.
@@ -206,9 +257,11 @@ export default function GameApp() {
     lines,
     offset,
     mode,
+    failMode,
     running: phase === "playing",
     time,
     getTime,
+    seek: seekTo,
   });
 
   // Countdown, then play.
@@ -223,13 +276,13 @@ export default function GameApp() {
     return () => window.clearTimeout(timer);
   }, [phase, countdown, play]);
 
-  // Finished when every word is resolved.
+  // Finished when every word is resolved, or when the run fails.
   useEffect(() => {
-    if (phase === "playing" && game.state.finished) {
+    if (phase === "playing" && (game.state.finished || game.state.failed)) {
       pause();
       setPhase("results");
     }
-  }, [phase, game.state.finished, pause]);
+  }, [phase, game.state.finished, game.state.failed, pause]);
 
   // The video ending before the lyrics do counts as a finish.
   useEffect(() => {
@@ -291,6 +344,11 @@ export default function GameApp() {
   const selectMode = useCallback((next: GameMode) => {
     setMode(next);
     writeSetting(SETTING_MODE, next);
+  }, []);
+
+  const selectFailMode = useCallback((next: FailMode) => {
+    setFailMode(next);
+    writeSetting(SETTING_FAIL_MODE, next);
   }, []);
 
   const changeOffset = useCallback(
@@ -364,6 +422,7 @@ export default function GameApp() {
         time={time}
         duration={duration}
         mode={mode}
+        failMode={failMode}
         paused={phase === "paused"}
         playing={phase === "playing"}
         onTogglePause={togglePause}
@@ -385,7 +444,13 @@ export default function GameApp() {
           onShield={() => window.focus()}
         >
           {phase === "idle" && ready ? (
-            <StartOverlay mode={mode} onStart={start} onSelectMode={selectMode} />
+            <StartOverlay
+              mode={mode}
+              onSelectMode={selectMode}
+              failMode={failMode}
+              onSelectFailMode={selectFailMode}
+              onStart={start}
+            />
           ) : null}
           {phase === "countdown" ? <CountdownOverlay value={countdown} /> : null}
           {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}

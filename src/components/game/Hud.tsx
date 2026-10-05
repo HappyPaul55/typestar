@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { GAME_MODES, type GameMode } from "../../lib/game/engine";
+import { GAME_MODES, type FailMode, type GameMode } from "../../lib/game/engine";
 import { formatTime } from "../../lib/game/storage";
 
 /** The combo count that fills the streak meter. */
@@ -19,6 +19,7 @@ interface Props {
   time: number;
   duration: number;
   mode: GameMode;
+  failMode: FailMode;
   paused: boolean;
   playing: boolean;
   onTogglePause(): void;
@@ -70,6 +71,7 @@ export default function Hud({
   time,
   duration,
   mode,
+  failMode,
   paused,
   playing,
   onTogglePause,
@@ -149,6 +151,9 @@ export default function Hud({
             ))}
           </select>
         </label>
+        <span className="hud__badge" title="Run mode">
+          {failMode}
+        </span>
         <Control onClick={onCalibrate} title="Sync offset">
           sync
         </Control>

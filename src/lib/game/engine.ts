@@ -18,6 +18,18 @@ export function isGameMode(value: unknown): value is GameMode {
   return value === "easy" || value === "normal" || value === "hard";
 }
 
+/** How a run ends. Independent of the typing difficulty. */
+export type FailMode = "normal" | "instant" | "fun" | "practise";
+
+export const FAIL_MODES: FailMode[] = ["normal", "instant", "fun", "practise"];
+
+export function isFailMode(value: unknown): value is FailMode {
+  return value === "normal" || value === "instant" || value === "fun" || value === "practise";
+}
+
+/** How far back Practise rewinds on a mistake, in seconds. */
+export const PRACTISE_REWIND = 5;
+
 /** Base points for a perfectly-timed hit. */
 export const HIT_BASE = 100;
 /** Points lost for a wrong keystroke (and the chain breaks). */
@@ -53,6 +65,8 @@ export interface GameConfig {
   /** Seconds added to every timestamp (the player's sync nudge). */
   offset: number;
   mode: GameMode;
+  /** How the run ends. */
+  failMode: FailMode;
   /** How early, in seconds, a word may be typed before its start. */
   lead: number;
   /** Extra time, in seconds, after a word's end before it is missed. */
@@ -77,13 +91,22 @@ export interface GameState {
   /** Wrong keys made while typing the current line. */
   lineWrong: number;
   finished: boolean;
+  /** Set when the run is over because of a failure (score or mistake). */
+  failed: boolean;
+  failReason: "score" | "mistake" | null;
+  /** Practise rewinds taken. */
+  replays: number;
+  /** Practise: the time the player should be sent back to, or null. */
+  rewindTo: number | null;
 }
 
 export type GameAction =
   | { type: "reset" }
   | { type: "tick"; time: number }
   | { type: "key"; key: string; time: number }
-  | { type: "resync"; time: number };
+  | { type: "resync"; time: number }
+  | { type: "finish" }
+  | { type: "clearRewind" };
 
 export const DEFAULT_LEAD = 0.35;
 export const DEFAULT_GRACE = 0.6;
@@ -103,6 +126,10 @@ export function createGameState(wordCount: number): GameState {
     perfectLines: 0,
     lineWrong: 0,
     finished: wordCount === 0,
+    failed: false,
+    failReason: null,
+    replays: 0,
+    rewindTo: null,
   };
 }
 
@@ -185,8 +212,61 @@ function lineIsPerfect(results: WordResult[], pointer: number, config: GameConfi
   return true;
 }
 
+/** Send the player back to replay the last few seconds (Practise mode). */
+function practiseRewind(state: GameState, time: number, config: GameConfig): GameState {
+  const target = Math.max(0, time - PRACTISE_REWIND);
+  let pointer = 0;
+  while (pointer < config.words.length && deadlineOf(config.words[pointer], config) < target) {
+    pointer++;
+  }
+  return {
+    ...state,
+    pointer,
+    results: state.results.map((result, index) => (index < pointer ? result : "pending")),
+    input: "",
+    combo: 0,
+    lineWrong: 0,
+    replays: state.replays + 1,
+    rewindTo: target,
+    finished: false,
+    failed: false,
+  };
+}
+
+/** Mark every remaining word missed and end the run (e.g. the video ended). */
+function finish(state: GameState, config: GameConfig): GameState {
+  if (state.finished || state.failed) return state;
+  let misses = state.misses;
+  const results = state.results.map((result) => {
+    if (result === "pending") {
+      misses++;
+      return "miss" as WordResult;
+    }
+    return result;
+  });
+  return {
+    ...state,
+    pointer: config.words.length,
+    results,
+    misses,
+    input: "",
+    finished: true,
+  };
+}
+
+/** Apply the fail-mode outcome of a mistake that already cost points. */
+function afterPenalty(state: GameState, config: GameConfig): GameState {
+  if (config.failMode === "instant") {
+    return { ...state, failed: true, failReason: "mistake" };
+  }
+  if (config.failMode === "normal" && state.score < 0) {
+    return { ...state, failed: true, failReason: "score" };
+  }
+  return state;
+}
+
 function tick(state: GameState, time: number, config: GameConfig): GameState {
-  if (state.finished) return state;
+  if (state.finished || state.failed) return state;
 
   let pointer = state.pointer;
   let results = state.results;
@@ -197,6 +277,15 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
   let advanced = false;
 
   while (pointer < config.words.length && time > deadlineOf(config.words[pointer], config)) {
+    // Practise rewinds instead of penalising.
+    if (config.failMode === "practise") {
+      return practiseRewind(
+        { ...state, pointer, results, misses, combo, score, lineWrong },
+        time,
+        config,
+      );
+    }
+
     if (!advanced) {
       results = [...results];
       advanced = true;
@@ -207,10 +296,25 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     score -= MISS_PENALTY;
     if (lineEnds(pointer, config)) lineWrong = 0;
     pointer++;
+
+    if (config.failMode === "instant") {
+      return {
+        ...state,
+        pointer,
+        results,
+        misses,
+        combo,
+        score,
+        lineWrong,
+        input: "",
+        failed: true,
+        failReason: "mistake",
+      };
+    }
   }
 
   if (!advanced) return state;
-  return {
+  const next: GameState = {
     ...state,
     pointer,
     results,
@@ -221,10 +325,11 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     input: "",
     finished: pointer >= config.words.length,
   };
+  return afterPenalty(next, config);
 }
 
 function press(state: GameState, rawKey: string, time: number, config: GameConfig): GameState {
-  if (state.finished) return state;
+  if (state.finished || state.failed) return state;
 
   if (rawKey === "Backspace") {
     return state.input ? { ...state, input: state.input.slice(0, -1) } : state;
@@ -248,14 +353,18 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
   const expected = required[state.input.length];
 
   if (key !== expected) {
-    // A wrong key costs points and breaks the chain.
-    return {
-      ...state,
-      errorKeys: state.errorKeys + 1,
-      lineWrong: state.lineWrong + 1,
-      combo: 0,
-      score: state.score - WRONG_PENALTY,
-    };
+    // A wrong key costs points and breaks the chain (or rewinds in Practise).
+    if (config.failMode === "practise") return practiseRewind(state, time, config);
+    return afterPenalty(
+      {
+        ...state,
+        errorKeys: state.errorKeys + 1,
+        lineWrong: state.lineWrong + 1,
+        combo: 0,
+        score: state.score - WRONG_PENALTY,
+      },
+      config,
+    );
   }
 
   const input = state.input + key;
@@ -326,6 +435,10 @@ export function gameReducer(
       return press(state, action.key, action.time, config);
     case "resync":
       return resync(state, action.time, config);
+    case "finish":
+      return finish(state, config);
+    case "clearRewind":
+      return state.rewindTo === null ? state : { ...state, rewindTo: null };
   }
 }
 

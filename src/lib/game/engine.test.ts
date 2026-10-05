@@ -33,11 +33,13 @@ const LINES = [
 ];
 
 function config(overrides: Partial<GameConfig> = {}): GameConfig {
+  // Default to "fun" so the typing/scoring tests are not affected by failure.
   return {
     words: WORDS,
     lines: LINES,
     offset: 0,
     mode: "normal",
+    failMode: "fun",
     lead: 0.35,
     grace: 0.6,
     ...overrides,
@@ -232,6 +234,70 @@ describe("scoring", () => {
     state = gameReducer(state, { type: "tick", time: 2.4 }, cfg);
     state = type(state, "strangers", 2.5, cfg);
     expect(state.perfectLines).toBe(0);
+  });
+});
+
+describe("failure modes", () => {
+  test("normal fails once the score goes negative", () => {
+    const cfg = config({ failMode: "normal" });
+    const state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
+    expect(state.score).toBeLessThan(0);
+    expect(state.failed).toBe(true);
+    expect(state.failReason).toBe("score");
+  });
+
+  test("fun never fails", () => {
+    const cfg = config({ failMode: "fun" });
+    const state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
+    expect(state.score).toBeLessThan(0);
+    expect(state.failed).toBe(false);
+  });
+
+  test("instant fails on a wrong key", () => {
+    const cfg = config({ failMode: "instant" });
+    const state = gameReducer(createGameState(WORDS.length), { type: "key", key: "x", time: 1.2 }, cfg);
+    expect(state.failed).toBe(true);
+    expect(state.failReason).toBe("mistake");
+  });
+
+  test("instant fails on a miss", () => {
+    const cfg = config({ failMode: "instant" });
+    const state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
+    expect(state.failed).toBe(true);
+  });
+
+  test("practise rewinds on a wrong key without a penalty", () => {
+    const cfg = config({ failMode: "practise" });
+    let state = type(createGameState(WORDS.length), "were", 1.2, cfg);
+    const score = state.score;
+    state = gameReducer(state, { type: "key", key: "x", time: 3.0 }, cfg);
+    expect(state.failed).toBe(false);
+    expect(state.replays).toBe(1);
+    expect(state.rewindTo).toBeCloseTo(0, 5);
+    expect(state.score).toBe(score);
+  });
+
+  test("practise rewinds on a miss", () => {
+    const cfg = config({ failMode: "practise" });
+    const state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
+    expect(state.replays).toBe(1);
+    expect(state.rewindTo).toBeCloseTo(0, 5);
+    expect(state.failed).toBe(false);
+  });
+
+  test("finish marks the rest missed regardless of mode", () => {
+    const cfg = config({ failMode: "practise" });
+    const state = gameReducer(createGameState(WORDS.length), { type: "finish" }, cfg);
+    expect(state.finished).toBe(true);
+    expect(state.misses).toBe(WORDS.length);
+    expect(state.replays).toBe(0);
+  });
+
+  test("clearRewind clears the request", () => {
+    const cfg = config({ failMode: "practise" });
+    let state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
+    state = gameReducer(state, { type: "clearRewind" }, cfg);
+    expect(state.rewindTo).toBeNull();
   });
 });
 
