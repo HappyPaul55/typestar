@@ -24,6 +24,8 @@ type Env = {
   ASSETS: AssetsBinding;
   /** R2 bucket binding for the track cache, configured in wrangler.jsonc. */
   TRACKS?: R2LikeBucket;
+  /** Base URL of the fallback caption service, configured in wrangler.jsonc. */
+  CAPTION_FALLBACK_URL?: string;
 };
 
 export default {
@@ -45,7 +47,15 @@ export default {
         return asset.ok ? asset.text() : null;
       };
 
-      return handleTrackRequest(request, { store: r2Store(env.TRACKS), seed }, id);
+      return handleTrackRequest(
+        request,
+        {
+          store: r2Store(env.TRACKS),
+          seed,
+          fallbackUrl: env.CAPTION_FALLBACK_URL,
+        },
+        id,
+      );
     }
 
     if (pathname === "/play") {

@@ -14,6 +14,11 @@
   // workers.dev route and version preview URLs so neither is re-enabled on deploy.
   "workers_dev": false,
   "preview_urls": false,
+  // The fallback caption service, used only when YouTube's caption lookup
+  // fails or returns nothing. Overridable here without touching code.
+  "vars": {
+    "CAPTION_FALLBACK_URL": "https://youtube.weblinq.dev/api/videoDetails"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

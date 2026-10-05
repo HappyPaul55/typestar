@@ -6,6 +6,11 @@
  * the real code path. It is runtime-agnostic: it takes a {@link TrackStore} and
  * an optional seed lookup rather than reaching for R2 or the asset binding
  * itself.
+ *
+ * Only successful, playable tracks are cached. A failure to reach YouTube (rate
+ * limiting, bot blocking, network) is never cached, and neither is an empty
+ * result — otherwise a transient upstream problem would poison the cache and
+ * make a track permanently unplayable.
  */
 
 import { buildTrack } from "./track/build";
@@ -17,14 +22,16 @@ import { CaptionError, fetchTrackSource } from "./youtube-captions";
 export interface TracksEnv {
   store: TrackStore;
   /**
-   * Bundled, pre-warmed track lookup tried before hitting YouTube. In
+   * Bundled, pre-warmed track lookup tried before hitting the network. In
    * production this reads the static `/tracks/<id>.json` assets; in dev it reads
    * the same files from `public/`.
    */
   seed?: (id: string, lang: string) => Promise<string | null>;
   fetchImpl?: typeof fetch;
-  /** Upstream attempts; defaults to 3. */
+  /** Upstream attempts for the primary path; defaults to 3. */
   retries?: number;
+  /** Base URL of the fallback caption service. */
+  fallbackUrl?: string;
 }
 
 /** A YouTube video id. */
@@ -33,15 +40,8 @@ export const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 /** A caption language code such as `en` or `pt-BR`. */
 const LANG_RE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
 
-/** How long a "this video has no captions" result is trusted. */
-const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
 export function trackKey(id: string, lang: string): string {
   return `tracks/${id}/${lang}.json`;
-}
-
-export function missKey(id: string, lang: string): string {
-  return `misses/${id}/${lang}.json`;
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -64,16 +64,6 @@ function trackResponse(track: Track, cache: "hit" | "miss" | "seed"): Response {
       "x-typestar-cache": cache,
     },
   });
-}
-
-function isFreshMiss(raw: string): boolean {
-  try {
-    const value = JSON.parse(raw) as { at?: string };
-    const at = value.at ? Date.parse(value.at) : Number.NaN;
-    return Number.isFinite(at) && Date.now() - at < MISS_TTL_MS;
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -102,11 +92,6 @@ export async function handleTrackRequest(
   const cachedTrack = cached ? parseTrack(cached) : null;
   if (cachedTrack) return trackResponse(cachedTrack, "hit");
 
-  const miss = await env.store.get(missKey(id, lang));
-  if (miss && isFreshMiss(miss)) {
-    return json({ error: "no-captions", id, lang }, 422);
-  }
-
   if (env.seed) {
     const seeded = await env.seed(id, lang).catch(() => null);
     const seededTrack = seeded ? parseTrack(seeded) : null;
@@ -118,8 +103,13 @@ export async function handleTrackRequest(
 
   let source;
   try {
-    source = await fetchTrackSource(id, lang, env.fetchImpl ?? fetch, env.retries ?? 3);
+    source = await fetchTrackSource(id, lang, {
+      fetchImpl: env.fetchImpl,
+      attempts: env.retries,
+      fallbackUrl: env.fallbackUrl,
+    });
   } catch (error) {
+    // Upstream failure: return it, but never cache it.
     const status = error instanceof CaptionError ? error.status : 502;
     return json(
       {
@@ -141,7 +131,8 @@ export async function handleTrackRequest(
   });
 
   if (!track.words.length) {
-    await env.store.put(missKey(id, lang), JSON.stringify({ at: new Date().toISOString() }));
+    // An authoritative "no captions" result. Not cached, so a later retry (or a
+    // fix on the provider side) can still succeed.
     return json({ error: "no-captions", id, lang, title: source.title }, 422);
   }
 

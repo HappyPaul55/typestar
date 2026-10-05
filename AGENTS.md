@@ -26,8 +26,11 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    address bar and calls `GET /api/track/<id>`.
 2. The Worker returns the track from **R2** if cached, else from the bundled
    seed in `public/tracks/<id>.json`, else it fetches the video's captions with
-   `youtube-caption-extractor`, builds a word-timed track, caches it in R2 and
-   returns it.
+   `youtube-caption-extractor` (falling back to the `CAPTION_FALLBACK_URL`
+   service in `wrangler.jsonc` when YouTube fails or returns nothing), builds a
+   word-timed track, caches it in R2 and returns it. Only playable tracks are
+   cached — an upstream failure or an empty result is never written, so a
+   transient YouTube block cannot poison the cache.
 3. The React island plays the video with the YouTube IFrame API and scores
    typing against the caption timings.
 

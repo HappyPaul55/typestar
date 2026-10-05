@@ -18,8 +18,13 @@ with static assets, and it caches processed tracks in **R2**.
 2. The page calls `GET /api/track/<youtubeId>`.
 3. The Worker returns the track from **R2** if it is cached, otherwise it
    fetches the video's captions from YouTube with
-   [`youtube-caption-extractor`](https://github.com/devhims/youtube-caption-extractor),
-   builds a word-timed track, stores it in R2 and returns it.
+   [`youtube-caption-extractor`](https://github.com/devhims/youtube-caption-extractor)
+   (falling back to a third-party caption service if YouTube fails or returns
+   nothing), builds a word-timed track, stores it in R2 and returns it.
+
+Only playable tracks are cached. A failure to reach YouTube (rate limiting, bot
+blocking, network) is never cached, so a transient upstream problem can't make a
+track permanently unplayable.
 4. The React island plays the video with the YouTube IFrame API and scores your
    typing against the caption timings.
 
