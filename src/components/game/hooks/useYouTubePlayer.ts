@@ -5,6 +5,12 @@
  * exposes a clock (`getTime`) the game loop can read on every keystroke. The
  * rendered `time` is throttled to ~20 Hz, which is plenty for highlighting;
  * scoring always uses the live `getTime()`.
+ *
+ * The player is created only once both the API and the container element are
+ * available. That ordering matters: the track is fetched first, so on a cache
+ * miss the container can mount after the API has loaded. Waiting on both (via
+ * state) instead of checking `divRef.current` inside the API promise means the
+ * player is still created in that case.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -71,7 +77,8 @@ export interface YouTubePlayerHandle {
 }
 
 export function useYouTubePlayer(videoId: string | null): YouTubePlayerHandle {
-  const divRef = useRef<HTMLDivElement | null>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [apiReady, setApiReady] = useState(false);
   const playerRef = useRef<YTPlayer | null>(null);
   const rafRef = useRef<number | null>(null);
   const timeRef = useRef(0);
@@ -108,61 +115,68 @@ export function useYouTubePlayer(videoId: string | null): YouTubePlayerHandle {
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
+  // Load the IFrame API once per page.
   useEffect(() => {
-    if (!videoId) return;
     let cancelled = false;
+    void loadYouTubeApi().then(() => {
+      if (!cancelled) setApiReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Create the player once the API and the container are both ready.
+  useEffect(() => {
+    if (!videoId || !apiReady || !container || !window.YT) return;
+
     setReady(false);
     setState(-1);
     setError(null);
 
-    void loadYouTubeApi().then(() => {
-      if (cancelled || !divRef.current || !window.YT) return;
-      const player = new window.YT.Player(divRef.current, {
-        videoId,
-        playerVars: {
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          controls: 1,
-          disablekb: 1,
-          iv_load_policy: 3,
-          origin: window.location.origin,
+    const player = new window.YT.Player(container, {
+      videoId,
+      playerVars: {
+        rel: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        controls: 1,
+        disablekb: 1,
+        iv_load_policy: 3,
+        origin: window.location.origin,
+      },
+      events: {
+        onReady: () => {
+          playerRef.current = player;
+          setReady(true);
+          setDuration(player.getDuration());
         },
-        events: {
-          onReady: () => {
-            if (cancelled) return;
-            playerRef.current = player;
-            setReady(true);
-            setDuration(player.getDuration());
-          },
-          onStateChange: (event: { data: number }) => {
-            if (cancelled) return;
-            setState(event.data);
-            if (event.data === 1) {
-              startLoop();
-            } else {
-              stopLoop();
-              setTime(player.getCurrentTime());
-            }
-          },
-          onError: (event: { data: number }) => {
-            if (!cancelled) setError(event.data);
-          },
+        onStateChange: (event: { data: number }) => {
+          setState(event.data);
+          if (event.data === 1) {
+            startLoop();
+          } else {
+            stopLoop();
+            setTime(player.getCurrentTime());
+          }
         },
-      });
+        onError: (event: { data: number }) => {
+          setError(event.data);
+        },
+      },
     });
+    playerRef.current = player;
 
     return () => {
-      cancelled = true;
       stopLoop();
       try {
-        playerRef.current?.destroy();
+        player.destroy();
       } catch {
         // The player may already be gone.
       }
-      playerRef.current = null;
+      if (playerRef.current === player) playerRef.current = null;
     };
-  }, [videoId, startLoop, stopLoop]);
+  }, [videoId, apiReady, container, startLoop, stopLoop]);
 
   const play = useCallback(() => playerRef.current?.playVideo(), []);
   const pause = useCallback(() => playerRef.current?.pauseVideo(), []);
@@ -182,7 +196,7 @@ export function useYouTubePlayer(videoId: string | null): YouTubePlayerHandle {
     [],
   );
   const containerRef = useCallback((node: HTMLDivElement | null) => {
-    divRef.current = node;
+    setContainer(node);
   }, []);
 
   return {
