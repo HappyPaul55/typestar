@@ -17,6 +17,8 @@ interface Props {
   combo: number;
   multiplier: number;
   accuracy: number;
+  /** True once any key has been typed, so accuracy is meaningful. */
+  attempted: boolean;
   progress: number;
   time: number;
   duration: number;
@@ -72,6 +74,7 @@ export default function Hud({
   combo,
   multiplier,
   accuracy,
+  attempted,
   progress,
   time,
   duration,
@@ -95,7 +98,7 @@ export default function Hud({
       <div className="hud__stats">
         <Stat label="score" value={score.toLocaleString("en-GB")} />
         <Stat label="combo" value={combo > 0 ? `×${multiplier}` : "—"} />
-        <Stat label="accuracy" value={`${percent}%`} />
+        <Stat label="accuracy" value={attempted ? `${percent}%` : "—"} />
       </div>
 
       <div className="hud__progress">

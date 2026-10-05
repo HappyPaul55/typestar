@@ -457,6 +457,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
         combo={game.state.combo}
         multiplier={multiplier}
         accuracy={accuracy}
+        attempted={game.state.correctKeys + game.state.errorKeys > 0}
         progress={progress}
         time={time}
         duration={duration}
