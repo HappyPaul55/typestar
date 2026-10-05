@@ -170,6 +170,8 @@ export default function GameApp({ site }: { site: SiteSettings }) {
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const lyricRef = useRef<HTMLDivElement>(null);
 
   const player = useYouTubePlayer(videoId ?? null);
   const { ready, error: playerError, containerRef, play, pause, restart: restartPlayer, seekTo, getTime, time, duration, state: playerState } = player;
@@ -305,6 +307,11 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     seekTo(0);
     setCountdown(3);
     setPhase("countdown");
+    // Bring up the on-screen keyboard, then show the lyrics on small screens.
+    inputRef.current?.focus();
+    if (window.matchMedia("(max-width: 919px)").matches) {
+      lyricRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [ready, seekTo]);
 
   const togglePause = useCallback(() => {
@@ -321,6 +328,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     game.reset();
     restartPlayer();
     setPhase("playing");
+    inputRef.current?.focus();
   }, [game, restartPlayer]);
 
   const closeResults = useCallback(() => {
@@ -410,6 +418,40 @@ export default function GameApp({ site }: { site: SiteSettings }) {
 
   return (
     <div ref={shellRef} className="game-shell">
+      {/*
+        A visually-hidden input that holds focus during a run. On mobile it
+        brings up the on-screen keyboard; on desktop it keeps keystrokes
+        flowing to the game.
+      */}
+      <input
+        ref={inputRef}
+        className="game-input"
+        type="text"
+        inputMode="text"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        enterKeyHint="go"
+        aria-label="Type the lyrics"
+        onKeyDown={(event) => {
+          if (event.key === "Backspace") {
+            event.preventDefault();
+            game.onKey("Backspace");
+          }
+        }}
+        onInput={(event) => {
+          const value = event.currentTarget.value;
+          event.currentTarget.value = "";
+          for (const char of value) game.onKey(char);
+        }}
+        onBlur={() => {
+          if (phase === "playing" || phase === "countdown") {
+            window.setTimeout(() => inputRef.current?.focus(), 0);
+          }
+        }}
+      />
+
       <Hud
         score={game.state.score}
         combo={game.state.combo}
@@ -440,7 +482,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
           title={track.title}
           artist={featured?.artist}
           shielded={phase === "playing"}
-          onShield={() => window.focus()}
+          onShield={() => inputRef.current?.focus()}
         >
           {phase === "idle" && ready ? (
             <StartOverlay mode={mode} onSelectMode={selectMode} onStart={start} />
@@ -449,7 +491,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
           {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
         </PlayerStage>
 
-        <div className="lyric-panel">
+        <div className="lyric-panel" ref={lyricRef}>
           <CueBar cue={cue} first={game.state.pointer === 0} />
           <LyricHighway
             track={track}
