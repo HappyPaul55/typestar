@@ -1,12 +1,13 @@
 /**
  * The end screen: shown when a run finishes (or fails). Summarises the run with
  * the score, a rank on a completed run, some fun stats and a local personal
- * best, and offers a replay.
+ * best, compares against a shared target, and offers replay + share.
  */
 
 import { useEffect, useState } from "react";
 import type { FailMode, GameMode, GameState, Rank } from "../../lib/game/engine";
 import { formatTime, readSetting, writeSetting } from "../../lib/game/storage";
+import { buildHash, type SharedStats } from "../../lib/game/url";
 
 interface Props {
   state: GameState;
@@ -19,6 +20,8 @@ interface Props {
   elapsed: number;
   /** How far through the words the run got, 0..1. */
   progress: number;
+  /** A target shared in the URL, if any. */
+  target?: SharedStats | null;
   onReplay(): void;
   onChangeSong(): void;
   onClose(): void;
@@ -47,6 +50,7 @@ export default function EndScreen({
   trackId,
   elapsed,
   progress,
+  target,
   onReplay,
   onChangeSong,
   onClose,
@@ -54,6 +58,7 @@ export default function EndScreen({
   const bestKey = `best:${trackId}:${mode}:${failMode}`;
   const [best, setBest] = useState<number | null>(null);
   const [newBest, setNewBest] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Record a personal best for this track + difficulty + run mode.
   useEffect(() => {
@@ -70,6 +75,36 @@ export default function EndScreen({
 
   const wpm = elapsed > 0 ? Math.round(state.correctKeys / 5 / (elapsed / 60)) : 0;
   const failed = state.failed;
+  const accuracyPercent = Math.round(accuracy * 100);
+
+  async function share() {
+    const stats: SharedStats = {
+      score: state.score,
+      accuracy: accuracyPercent,
+      maxCombo: state.maxCombo,
+      hits: state.hits,
+      misses: state.misses,
+      perfectLines: state.perfectLines,
+    };
+    const url = `${window.location.origin}/play/${trackId}${buildHash({ mode, failMode, stats })}`;
+    const text = `I scored ${state.score.toLocaleString("en-GB")} (${accuracyPercent}%) on TypeStar — beat it:`;
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: "TypeStar", text, url });
+        return;
+      } catch {
+        // Cancelled or unsupported; fall back to copying.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // Clipboard unavailable; nothing more to do.
+    }
+  }
 
   return (
     <div className="game-overlay game-overlay--results">
@@ -111,9 +146,17 @@ export default function EndScreen({
           {newBest ? "New best!" : `Best ${best?.toLocaleString("en-GB") ?? "—"}`}
         </p>
 
+        {target ? (
+          <p className={"results__target" + (state.score >= target.score ? " is-beaten" : "")}>
+            {state.score >= target.score
+              ? `Target beaten — ${target.score.toLocaleString("en-GB")}`
+              : `Target ${target.score.toLocaleString("en-GB")} · ${target.accuracy}% · ×${target.maxCombo}`}
+          </p>
+        ) : null}
+
         <div className="results__grid">
           <Metric label="score" value={state.score.toLocaleString("en-GB")} />
-          <Metric label="accuracy" value={`${Math.round(accuracy * 100)}%`} />
+          <Metric label="accuracy" value={`${accuracyPercent}%`} />
           <Metric label="best combo" value={`×${state.maxCombo}`} />
           <Metric label="perfect lines" value={`${state.perfectLines}`} />
           <Metric label="words hit" value={`${state.hits}`} />
@@ -131,6 +174,9 @@ export default function EndScreen({
         <div className="results__actions">
           <button type="button" className="btn-game btn-game--primary" onClick={onReplay}>
             Play again
+          </button>
+          <button type="button" className="btn-game" onClick={share}>
+            {copied ? "Copied!" : "Share"}
           </button>
           <button type="button" className="btn-game" onClick={onChangeSong}>
             Change song

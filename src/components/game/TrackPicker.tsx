@@ -16,7 +16,7 @@ export default function TrackPicker() {
       setError("That does not look like a YouTube link or video id.");
       return;
     }
-    window.location.href = `/play/${id}`;
+    window.location.href = `/play/${id}${window.location.hash}`;
   }
 
   return (

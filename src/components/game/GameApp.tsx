@@ -34,6 +34,7 @@ import {
 } from "../../lib/game/storage";
 import type { Track } from "../../lib/track/types";
 import type { SiteSettings } from "../../lib/site";
+import { buildHash, parseHash, type SharedStats } from "../../lib/game/url";
 import Calibration from "./Calibration";
 import CueBar from "./CueBar";
 import EndScreen from "./EndScreen";
@@ -62,10 +63,12 @@ function StartOverlay({
   mode,
   onSelectMode,
   onStart,
+  target,
 }: {
   mode: GameMode;
   onSelectMode(mode: GameMode): void;
   onStart(): void;
+  target?: SharedStats | null;
 }) {
   return (
     <div className="game-overlay game-overlay--start">
@@ -79,6 +82,15 @@ function StartOverlay({
       <p className="game-overlay__help">
         Words light up as they arrive. Type each one before its moment passes.
       </p>
+
+      {target ? (
+        <p className="target-line">
+          <span className="target-line__label">// beat this</span>
+          <span className="target-line__value">
+            {target.score.toLocaleString("en-GB")} · {target.accuracy}% · ×{target.maxCombo}
+          </span>
+        </p>
+      ) : null}
 
       <button
         type="button"
@@ -167,6 +179,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
   const [countdown, setCountdown] = useState(3);
   const [mode, setMode] = useState<GameMode>("normal");
   const [failMode, setFailMode] = useState<FailMode>("normal");
+  const [targetStats, setTargetStats] = useState<SharedStats | null>(null);
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -182,11 +195,27 @@ export default function GameApp({ site }: { site: SiteSettings }) {
   }, []);
 
   useEffect(() => {
-    const stored = readSetting<unknown>(SETTING_MODE, "normal");
-    setMode(isGameMode(stored) ? stored : "normal");
+    const parsed = parseHash(window.location.hash);
+    const storedMode = readSetting<unknown>(SETTING_MODE, "normal");
     const storedFail = readSetting<unknown>(SETTING_FAIL_MODE, "normal");
-    setFailMode(isFailMode(storedFail) ? storedFail : "normal");
+    const resolvedMode = parsed.mode ?? (isGameMode(storedMode) ? storedMode : "normal");
+    const resolvedFail = parsed.failMode ?? (isFailMode(storedFail) ? storedFail : "normal");
+    setMode(resolvedMode);
+    setFailMode(resolvedFail);
+    if (parsed.stats) setTargetStats(parsed.stats);
+    // Persist the resolved settings so later visits remember them.
+    writeSetting(SETTING_MODE, resolvedMode);
+    writeSetting(SETTING_FAIL_MODE, resolvedFail);
   }, []);
+
+  // Keep the URL hash in step with the settings, so the page is shareable.
+  useEffect(() => {
+    if (!videoId) return;
+    const hash = buildHash({ mode, failMode, stats: targetStats ?? undefined });
+    if (window.location.hash !== hash) {
+      window.history.replaceState(null, "", hash);
+    }
+  }, [videoId, mode, failMode, targetStats]);
 
   // Load the track, and restore its saved sync offset.
   useEffect(() => {
@@ -486,7 +515,12 @@ export default function GameApp({ site }: { site: SiteSettings }) {
           onShield={() => inputRef.current?.focus()}
         >
           {phase === "idle" && ready ? (
-            <StartOverlay mode={mode} onSelectMode={selectMode} onStart={start} />
+            <StartOverlay
+              mode={mode}
+              onSelectMode={selectMode}
+              onStart={start}
+              target={targetStats}
+            />
           ) : null}
           {phase === "countdown" ? <CountdownOverlay value={countdown} /> : null}
           {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
@@ -521,6 +555,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
           trackId={track.id}
           elapsed={time}
           progress={progress}
+          target={targetStats}
           onReplay={restart}
           onChangeSong={changeSong}
           onClose={closeResults}

@@ -46,6 +46,11 @@ HUD, and both persist locally. The end screen shows the score, rank, how far
 through the song you got, fun stats and a local personal best per track +
 difficulty + run mode. The page title and header show the loaded song.
 
+Settings and results travel in the URL hash so a run can be shared:
+`/play/<id>#difficulty=hard&run=practise&score=1240&acc=98&combo=42&hits=120&misses=3&perfect=8`.
+`src/lib/game/url.ts` builds and parses it; a shared target is shown on the start
+overlay, compared on the end screen, and the end screen has a Share button.
+
 Captions are line-level; `src/lib/track/parse.ts` recovers word-level timing
 from the raw `json3` transcript (one word per auto-caption event, per-segment
 offsets where present) and otherwise shares a line's duration across its words.

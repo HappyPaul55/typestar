@@ -15,6 +15,8 @@ typing / keyboard speed game**.
   clean line. Wrong keys cost more than a missed word.
 - Pick the difficulty on the start screen; both difficulty and run mode are
   dropdowns in the HUD.
+- Share a run: the settings and your stats travel in the URL hash, so a friend
+  opens the same track and settings with your score as the target to beat.
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
