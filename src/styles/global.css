@@ -771,7 +771,6 @@
     text-align: center;
     background: rgba(12, 13, 10, 0.84);
     backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     color: var(--color-cream);
   }
   .game-overlay--results {
