@@ -38,6 +38,8 @@ export const WRONG_PENALTY = 20;
 export const MISS_PENALTY = 10;
 /** Bonus for clearing a whole line without a miss or a wrong key. */
 export const LINE_BONUS = 250;
+/** Normal mode fails once the score drops below this. */
+export const NORMAL_FAIL_THRESHOLD = -150;
 
 /** The combo count at which each multiplier tier starts, highest first. */
 const COMBO_TIERS: [number, number][] = [
@@ -98,6 +100,11 @@ export interface GameState {
   replays: number;
   /** Practise: the time the player should be sent back to, or null. */
   rewindTo: number | null;
+  /**
+   * Practise: until this time, score changes and further rewinds are ignored,
+   * so replaying the section that was just rewound is free.
+   */
+  ignoreUntil: number;
 }
 
 export type GameAction =
@@ -130,6 +137,7 @@ export function createGameState(wordCount: number): GameState {
     failReason: null,
     replays: 0,
     rewindTo: null,
+    ignoreUntil: 0,
   };
 }
 
@@ -232,6 +240,8 @@ function practiseRewind(state: GameState, time: number, config: GameConfig): Gam
     lineWrong: 0,
     replays: state.replays + 1,
     rewindTo: target,
+    // Ignore score changes until the mistake point is reached again.
+    ignoreUntil: time,
     finished: false,
     failed: false,
   };
@@ -263,7 +273,7 @@ function afterPenalty(state: GameState, config: GameConfig): GameState {
   if (config.failMode === "instant") {
     return { ...state, failed: true, failReason: "mistake" };
   }
-  if (config.failMode === "normal" && state.score < 0) {
+  if (config.failMode === "normal" && state.score < NORMAL_FAIL_THRESHOLD) {
     return { ...state, failed: true, failReason: "score" };
   }
   return state;
@@ -279,10 +289,12 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
   let score = state.score;
   let lineWrong = state.lineWrong;
   let advanced = false;
+  const ignoring = config.failMode === "practise" && time < state.ignoreUntil;
 
   while (pointer < config.words.length && time > deadlineOf(config.words[pointer], config)) {
-    // Practise rewinds instead of penalising.
-    if (config.failMode === "practise") {
+    // Practise rewinds instead of penalising — unless we are replaying the
+    // section that was already rewound.
+    if (config.failMode === "practise" && !ignoring) {
       return practiseRewind(
         { ...state, pointer, results, misses, combo, score, lineWrong },
         time,
@@ -296,8 +308,10 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     }
     results[pointer] = "miss";
     misses++;
-    combo = 0;
-    score -= MISS_PENALTY;
+    if (!ignoring) {
+      combo = 0;
+      score -= MISS_PENALTY;
+    }
     if (lineEnds(pointer, config)) lineWrong = 0;
     pointer++;
 
@@ -355,8 +369,11 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
 
   const key = rawKey.toLowerCase();
   const expected = required[state.input.length];
+  const ignoring = config.failMode === "practise" && time < state.ignoreUntil;
 
   if (key !== expected) {
+    // During a Practise replay the section is score-neutral.
+    if (ignoring) return state;
     // A wrong key costs points and breaks the chain (or rewinds in Practise).
     if (config.failMode === "practise") return practiseRewind(state, time, config);
     return afterPenalty(
@@ -376,6 +393,25 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
 
   if (input.length < required.length) {
     return { ...state, input, correctKeys };
+  }
+
+  if (ignoring) {
+    // Clear the word but change no score, combo or bonus.
+    const results = [...state.results];
+    results[state.pointer] = "hit";
+    const pointer = state.pointer + 1;
+    let lineWrong = state.lineWrong;
+    if (lineEnds(state.pointer, config)) lineWrong = 0;
+    return {
+      ...state,
+      pointer,
+      input: "",
+      results,
+      hits: state.hits + 1,
+      correctKeys,
+      lineWrong,
+      finished: pointer >= config.words.length,
+    };
   }
 
   const start = word.start + config.offset;

@@ -238,12 +238,25 @@ describe("scoring", () => {
 });
 
 describe("failure modes", () => {
-  test("normal fails once the score goes negative", () => {
+  test("normal fails once the score drops below -150", () => {
     const cfg = config({ failMode: "normal" });
-    const state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
-    expect(state.score).toBeLessThan(0);
-    expect(state.failed).toBe(true);
-    expect(state.failReason).toBe("score");
+    // -140 is still above the threshold.
+    const ok = gameReducer(
+      { ...createGameState(WORDS.length), score: -120 },
+      { type: "key", key: "x", time: 1.2 },
+      cfg,
+    );
+    expect(ok.score).toBe(-140);
+    expect(ok.failed).toBe(false);
+    // Crossing the threshold fails the run.
+    const bad = gameReducer(
+      { ...createGameState(WORDS.length), score: -135 },
+      { type: "key", key: "x", time: 1.2 },
+      cfg,
+    );
+    expect(bad.score).toBe(-155);
+    expect(bad.failed).toBe(true);
+    expect(bad.failReason).toBe("score");
   });
 
   test("fun never fails", () => {
@@ -298,6 +311,35 @@ describe("failure modes", () => {
     let state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
     state = gameReducer(state, { type: "clearRewind" }, cfg);
     expect(state.rewindTo).toBeNull();
+  });
+
+  test("practise ignores mistakes during the replay window", () => {
+    const cfg = config({ failMode: "practise" });
+    let state = type(createGameState(WORDS.length), "were", 1.2, cfg);
+    state = gameReducer(state, { type: "key", key: "x", time: 3.0 }, cfg);
+    expect(state.replays).toBe(1);
+    expect(state.ignoreUntil).toBeCloseTo(3.0, 5);
+
+    // A wrong key inside the window is a no-op (same state reference).
+    const after = gameReducer(state, { type: "key", key: "x", time: 1.0 }, cfg);
+    expect(after).toBe(state);
+    expect(after.replays).toBe(1);
+  });
+
+  test("practise gives no score or penalty during the replay window", () => {
+    const cfg = config({ failMode: "practise" });
+    let state = type(createGameState(WORDS.length), "were", 1.2, cfg);
+    const score = state.score;
+    state = gameReducer(state, { type: "key", key: "x", time: 3.0 }, cfg);
+
+    // Re-typing the word adds nothing.
+    state = type(state, "were", 1.0, cfg);
+    expect(state.score).toBe(score);
+
+    // A miss inside the window costs nothing and does not rewind.
+    state = gameReducer(state, { type: "tick", time: 2.5 }, cfg);
+    expect(state.score).toBe(score);
+    expect(state.replays).toBe(1);
   });
 });
 

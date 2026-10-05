@@ -7,9 +7,10 @@ typing / keyboard speed game**.
 - The video sits on the left and the timed lyrics on the right.
 - Three difficulties: **Easy** (first letter of each word), **Normal** (every
   word, punctuation optional) and **Hard** (every word, punctuation required).
-- Four run modes: **Normal** (fails if the score goes negative), **Instant**
-  (stops at the first mistake), **Fun** (never stops) and **Practise** (rewinds
-  5 seconds on a mistake and counts the replay).
+- Four run modes: **Normal** (fails once the score drops below −150),
+  **Instant** (stops at the first mistake), **Fun** (never stops) and
+  **Practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
+  replay and counts it).
 - Scoring rewards chains: a combo multiplier up to ×3 and a bonus for every
   clean line. Wrong keys cost more than a missed word.
 - Pick the difficulty on the start screen; both difficulty and run mode are

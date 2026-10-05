@@ -61,7 +61,7 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
-    scroll-padding-top: 5.5rem;
+    scroll-padding-top: 1rem;
     background-color: var(--color-paper);
   }
   body {
@@ -863,7 +863,9 @@
     color: var(--color-cream);
   }
   .game-overlay--results {
-    z-index: 10;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
     background: rgba(12, 13, 10, 0.6);
     backdrop-filter: blur(3px);
   }

@@ -36,9 +36,10 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
 
 Three difficulty modes: **easy** (first letter only), **normal** (whole word,
 punctuation optional) and **hard** (whole word, punctuation required). Four run
-modes, independent of difficulty: **normal** (fails when the score goes
-negative), **instant** (stops on the first mistake), **fun** (never fails) and
-**practise** (rewinds 5 seconds on a mistake and counts the replay). Scoring
+modes, independent of difficulty: **normal** (fails once the score drops below
+-150), **instant** (stops on the first mistake), **fun** (never fails) and
+**practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
+replay and counts it). Scoring
 rewards chains with combo tiers and a perfect-line bonus. The difficulty is
 chosen on the start screen; both difficulty and run mode are dropdowns in the
 HUD, and both persist locally. The end screen shows the score, rank, how far
