@@ -17,7 +17,6 @@ import {
   accuracyOf,
   cueAt,
   DEFAULT_LEAD,
-  FAIL_MODES,
   GAME_MODES,
   isFailMode,
   isGameMode,
@@ -34,6 +33,7 @@ import {
   writeSetting,
 } from "../../lib/game/storage";
 import type { Track } from "../../lib/track/types";
+import type { SiteSettings } from "../../lib/site";
 import Calibration from "./Calibration";
 import CueBar from "./CueBar";
 import EndScreen from "./EndScreen";
@@ -58,31 +58,13 @@ const MODE_HELP: Record<GameMode, string> = {
   hard: "Type every word, punctuation and all.",
 };
 
-const FAIL_LABEL: Record<FailMode, string> = {
-  normal: "Normal",
-  instant: "Instant",
-  fun: "Fun",
-  practise: "Practise",
-};
-
-const FAIL_HELP: Record<FailMode, string> = {
-  normal: "Fails if your score goes negative.",
-  instant: "Stops at the first mistake.",
-  fun: "Never stops — play to the end.",
-  practise: "Rewinds 5 seconds on a mistake and counts the replay.",
-};
-
 function StartOverlay({
   mode,
   onSelectMode,
-  failMode,
-  onSelectFailMode,
   onStart,
 }: {
   mode: GameMode;
   onSelectMode(mode: GameMode): void;
-  failMode: FailMode;
-  onSelectFailMode(mode: FailMode): void;
   onStart(): void;
 }) {
   return (
@@ -106,7 +88,6 @@ function StartOverlay({
         Start
       </button>
 
-      <p className="mode-picker__heading">Difficulty</p>
       <div className="mode-picker" role="group" aria-label="Difficulty">
         {GAME_MODES.map((value) => (
           <button
@@ -121,22 +102,6 @@ function StartOverlay({
         ))}
       </div>
       <p className="mode-picker__help">{MODE_HELP[mode]}</p>
-
-      <p className="mode-picker__heading">Run mode</p>
-      <div className="mode-picker" role="group" aria-label="Run mode">
-        {FAIL_MODES.map((value) => (
-          <button
-            key={value}
-            type="button"
-            className={"mode-picker__option" + (value === failMode ? " is-active" : "")}
-            aria-pressed={value === failMode}
-            onClick={() => onSelectFailMode(value)}
-          >
-            {FAIL_LABEL[value]}
-          </button>
-        ))}
-      </div>
-      <p className="mode-picker__help">{FAIL_HELP[failMode]}</p>
     </div>
   );
 }
@@ -194,7 +159,7 @@ function StatusPanel({
   );
 }
 
-export default function GameApp() {
+export default function GameApp({ site }: { site: SiteSettings }) {
   const [videoId, setVideoId] = useState<string | null | undefined>(undefined);
   const [track, setTrack] = useState<Track | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -249,6 +214,23 @@ export default function GameApp() {
 
     return () => controller.abort();
   }, [videoId]);
+
+  // Reflect the loaded song in the page title and the page header.
+  useEffect(() => {
+    if (!track) return;
+    const artist = FEATURED_BY_ID.get(track.id)?.artist;
+    const defaultSubtitle = `${site.tagline} — YouTube supplies the music and visuals; you type the lyrics as the words arrive.`;
+    document.title = `${track.title} — ${site.name}`;
+    const titleEl = document.getElementById("play-title");
+    const subtitleEl = document.getElementById("play-subtitle");
+    if (titleEl) titleEl.textContent = track.title;
+    if (subtitleEl) subtitleEl.textContent = artist ?? defaultSubtitle;
+    return () => {
+      document.title = `Play ${site.name}`;
+      if (titleEl) titleEl.textContent = site.name;
+      if (subtitleEl) subtitleEl.textContent = defaultSubtitle;
+    };
+  }, [track, site]);
 
   const words = useMemo(() => track?.words ?? [], [track]);
   const lines = useMemo(() => track?.lines ?? [], [track]);
@@ -341,6 +323,11 @@ export default function GameApp() {
     setPhase("playing");
   }, [game, restartPlayer]);
 
+  const closeResults = useCallback(() => {
+    game.reset();
+    setPhase("idle");
+  }, [game]);
+
   const selectMode = useCallback((next: GameMode) => {
     setMode(next);
     writeSetting(SETTING_MODE, next);
@@ -428,6 +415,7 @@ export default function GameApp() {
         onTogglePause={togglePause}
         onRestart={restart}
         onSelectMode={selectMode}
+        onSelectFailMode={selectFailMode}
         onCalibrate={() => setShowCalibration(true)}
         onFullscreen={toggleFullscreen}
         onChangeSong={changeSong}
@@ -444,13 +432,7 @@ export default function GameApp() {
           onShield={() => window.focus()}
         >
           {phase === "idle" && ready ? (
-            <StartOverlay
-              mode={mode}
-              onSelectMode={selectMode}
-              failMode={failMode}
-              onSelectFailMode={selectFailMode}
-              onStart={start}
-            />
+            <StartOverlay mode={mode} onSelectMode={selectMode} onStart={start} />
           ) : null}
           {phase === "countdown" ? <CountdownOverlay value={countdown} /> : null}
           {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
@@ -484,8 +466,10 @@ export default function GameApp() {
           failMode={failMode}
           trackId={track.id}
           elapsed={time}
+          progress={progress}
           onReplay={restart}
           onChangeSong={changeSong}
+          onClose={closeResults}
         />
       ) : null}
 

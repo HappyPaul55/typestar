@@ -13,7 +13,8 @@ interface Props {
 }
 
 export default function CueBar({ cue, first }: Props) {
-  if (!cue.waiting) return null;
+  // Show for the opening wait, and for any mid-song gap longer than 3 seconds.
+  if (!cue.waiting || (!first && cue.span <= 3)) return null;
 
   return (
     <div className="cue-bar" role="status" aria-live="off">

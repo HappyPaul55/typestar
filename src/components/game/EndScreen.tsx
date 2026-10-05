@@ -17,8 +17,11 @@ interface Props {
   trackId: string;
   /** Seconds of video played. */
   elapsed: number;
+  /** How far through the words the run got, 0..1. */
+  progress: number;
   onReplay(): void;
   onChangeSong(): void;
+  onClose(): void;
 }
 
 const FAIL_REASON: Record<"score" | "mistake", string> = {
@@ -43,8 +46,10 @@ export default function EndScreen({
   failMode,
   trackId,
   elapsed,
+  progress,
   onReplay,
   onChangeSong,
+  onClose,
 }: Props) {
   const bestKey = `best:${trackId}:${mode}:${failMode}`;
   const [best, setBest] = useState<number | null>(null);
@@ -69,25 +74,38 @@ export default function EndScreen({
   return (
     <div className="game-overlay game-overlay--results">
       <div className={"results" + (failed ? " results--failed" : "")}>
-        <p className="comment">
-          <span className="slash" aria-hidden="true">
-            //
-          </span>{" "}
-          {failed ? "run over" : "results"}
-        </p>
+        <div className="results__head">
+          <p className="comment">
+            <span className="slash" aria-hidden="true">
+              //
+            </span>{" "}
+            {failed ? "run over" : "results"}
+          </p>
+          <button
+            type="button"
+            className="results__close"
+            onClick={onClose}
+            aria-label="Close results"
+          >
+            ×
+          </button>
+        </div>
 
-        {failed ? (
-          <>
-            <p className="results__verdict">Failed</p>
-            <p className="results__reason">
-              {state.failReason ? FAIL_REASON[state.failReason] : ""}
-            </p>
-          </>
-        ) : (
-          <div className="results__rank" aria-label={`Rank ${rank}`}>
-            {rank}
-          </div>
-        )}
+        <div className="results__grade">
+          {failed ? (
+            <>
+              <span className="results__verdict">Failed</span>
+              <span className="results__reason">
+                {state.failReason ? FAIL_REASON[state.failReason] : ""}
+              </span>
+            </>
+          ) : (
+            <span className="results__rank" aria-label={`Rank ${rank}`}>
+              {rank}
+            </span>
+          )}
+          <span className="results__progress">{Math.round(progress * 100)}% through</span>
+        </div>
 
         <p className="results__best">
           {newBest ? "New best!" : `Best ${best?.toLocaleString("en-GB") ?? "—"}`}

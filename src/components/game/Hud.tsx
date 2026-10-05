@@ -1,14 +1,16 @@
 /**
- * The heads-up display: score, combo multiplier, accuracy, a streak meter and
- * the controls.
+ * The heads-up display: score, combo multiplier, accuracy, progress and the
+ * controls. Difficulty and run mode are dropdowns so they can be changed
+ * mid-session.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { GAME_MODES, type FailMode, type GameMode } from "../../lib/game/engine";
+import {
+  FAIL_MODES,
+  GAME_MODES,
+  type FailMode,
+  type GameMode,
+} from "../../lib/game/engine";
 import { formatTime } from "../../lib/game/storage";
-
-/** The combo count that fills the streak meter. */
-const STREAK_MAX = 50;
 
 interface Props {
   score: number;
@@ -25,6 +27,7 @@ interface Props {
   onTogglePause(): void;
   onRestart(): void;
   onSelectMode(mode: GameMode): void;
+  onSelectFailMode(mode: FailMode): void;
   onCalibrate(): void;
   onFullscreen(): void;
   onChangeSong(): void;
@@ -77,24 +80,12 @@ export default function Hud({
   onTogglePause,
   onRestart,
   onSelectMode,
+  onSelectFailMode,
   onCalibrate,
   onFullscreen,
   onChangeSong,
 }: Props) {
   const percent = Math.round(accuracy * 100);
-  const [breaking, setBreaking] = useState(false);
-  const previousCombo = useRef(combo);
-
-  // Flash the meter when a decent chain is broken.
-  useEffect(() => {
-    const was = previousCombo.current;
-    previousCombo.current = combo;
-    if (combo === 0 && was >= 10) {
-      setBreaking(true);
-      const timer = window.setTimeout(() => setBreaking(false), 400);
-      return () => window.clearTimeout(timer);
-    }
-  }, [combo]);
 
   return (
     <div className="hud">
@@ -102,17 +93,6 @@ export default function Hud({
         <Stat label="score" value={score.toLocaleString("en-GB")} />
         <Stat label="combo" value={combo > 0 ? `×${multiplier}` : "—"} />
         <Stat label="accuracy" value={`${percent}%`} />
-      </div>
-
-      <div
-        className={"hud__streak" + (breaking ? " is-breaking" : "")}
-        title={`Combo ${combo}`}
-        aria-hidden="true"
-      >
-        <div
-          className="hud__streak-fill"
-          style={{ width: `${Math.min(100, (combo / STREAK_MAX) * 100)}%` }}
-        />
       </div>
 
       <div className="hud__progress">
@@ -151,9 +131,20 @@ export default function Hud({
             ))}
           </select>
         </label>
-        <span className="hud__badge" title="Run mode">
-          {failMode}
-        </span>
+        <label className="hud__mode" title="Run mode">
+          <span className="sr-only">Run mode</span>
+          <select
+            className="hud__select"
+            value={failMode}
+            onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
+          >
+            {FAIL_MODES.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
         <Control onClick={onCalibrate} title="Sync offset">
           sync
         </Control>

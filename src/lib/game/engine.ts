@@ -170,6 +170,8 @@ export interface CueInfo {
   remaining: number;
   /** 0..1 fill towards the typeable moment. */
   progress: number;
+  /** Length of the wait, in seconds (negative when the words are tight). */
+  span: number;
 }
 
 /**
@@ -182,15 +184,17 @@ export function cueAt(
   time: number,
 ): CueInfo {
   const word = config.words[pointer];
-  if (!word) return { waiting: false, remaining: 0, progress: 1 };
+  if (!word) return { waiting: false, remaining: 0, progress: 1, span: 0 };
 
   const to = word.start + config.offset - config.lead;
   const previous = pointer > 0 ? config.words[pointer - 1] : null;
   const from = previous ? previous.end + config.offset : 0;
+  const span = to - from;
   const waiting = time < to;
-  const span = Math.max(to - from, 0.001);
-  const progress = waiting ? Math.min(1, Math.max(0, (time - from) / span)) : 1;
-  return { waiting, remaining: Math.max(0, to - time), progress };
+  const progress = waiting
+    ? Math.min(1, Math.max(0, (time - from) / Math.max(span, 0.001)))
+    : 1;
+  return { waiting, remaining: Math.max(0, to - time), progress, span };
 }
 
 /** Whether the word at `pointer` is the last of its line. */

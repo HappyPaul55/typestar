@@ -643,31 +643,6 @@
     letter-spacing: 0.04em;
     color: rgba(250, 250, 244, 0.6);
   }
-  .hud__streak {
-    flex: 0 1 6rem;
-    min-width: 3.5rem;
-    height: 8px;
-    background: rgba(250, 250, 244, 0.16);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .hud__streak-fill {
-    height: 100%;
-    width: 0;
-    background: linear-gradient(90deg, var(--color-yellow-deep), var(--color-yellow));
-    transition: width 0.18s var(--ease-brand);
-  }
-  .hud__streak.is-breaking {
-    animation: streak-break 0.4s ease-out;
-  }
-  @keyframes streak-break {
-    0% {
-      box-shadow: 0 0 0 0 rgba(255, 212, 0, 0.75);
-    }
-    100% {
-      box-shadow: 0 0 0 9px rgba(255, 212, 0, 0);
-    }
-  }
   .perfect-flash {
     position: absolute;
     top: 50%;
@@ -931,6 +906,47 @@
     box-shadow: 8px 8px 0 0 var(--color-yellow);
     color: var(--color-ink);
   }
+  .results__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .results__close {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: var(--color-ink);
+    background: transparent;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-brand);
+    cursor: pointer;
+    transition:
+      border-color 0.2s var(--ease-brand),
+      background-color 0.2s var(--ease-brand);
+  }
+  .results__close:hover {
+    background: var(--color-yellow);
+    border-color: var(--color-ink);
+  }
+  .results__grade {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+  }
+  .results__progress {
+    margin-top: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
   .results__rank {
     display: inline-block;
     margin-top: 0.6rem;
@@ -1144,15 +1160,6 @@
     font-size: 0.72rem;
     color: rgba(250, 250, 244, 0.66);
   }
-  .mode-picker__heading {
-    margin-top: 0.3rem;
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgba(250, 250, 244, 0.5);
-  }
 
   /* Difficulty dropdown (HUD) ------------------------------------ */
   .hud__mode {
@@ -1179,19 +1186,6 @@
   .hud__select option {
     color: var(--color-ink);
     background: var(--color-cream);
-  }
-  .hud__badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.42rem 0.6rem;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--color-ink);
-    background: var(--color-yellow);
-    border-radius: 4px;
   }
 
   /* Status panels ------------------------------------------------ */

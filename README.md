@@ -12,7 +12,8 @@ typing / keyboard speed game**.
   5 seconds on a mistake and counts the replay).
 - Scoring rewards chains: a combo multiplier up to ×3 and a bonus for every
   clean line. Wrong keys cost more than a missed word.
-- Pick both on the start screen; the difficulty is also in the HUD.
+- Pick the difficulty on the start screen; both difficulty and run mode are
+  dropdowns in the HUD.
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.

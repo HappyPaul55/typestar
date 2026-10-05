@@ -322,7 +322,13 @@ describe("cueAt", () => {
       waiting: false,
       remaining: 0,
       progress: 1,
+      span: 0,
     });
+  });
+
+  test("reports the length of the wait", () => {
+    // First word starts at 1s, lead 0.35 -> typeable at 0.65s, so the wait is 0.65s.
+    expect(cueAt(cfg, 0, 0).span).toBeCloseTo(0.65, 5);
   });
 });
 

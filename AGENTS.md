@@ -39,10 +39,11 @@ punctuation optional) and **hard** (whole word, punctuation required). Four run
 modes, independent of difficulty: **normal** (fails when the score goes
 negative), **instant** (stops on the first mistake), **fun** (never fails) and
 **practise** (rewinds 5 seconds on a mistake and counts the replay). Scoring
-rewards chains with combo tiers and a perfect-line bonus. Both settings are
-chosen on the start screen and persisted locally; the difficulty is also in the
-HUD dropdown. The end screen shows the score, rank, fun stats and a local
-personal best per track + difficulty + run mode.
+rewards chains with combo tiers and a perfect-line bonus. The difficulty is
+chosen on the start screen; both difficulty and run mode are dropdowns in the
+HUD, and both persist locally. The end screen shows the score, rank, how far
+through the song you got, fun stats and a local personal best per track +
+difficulty + run mode. The page title and header show the loaded song.
 
 Captions are line-level; `src/lib/track/parse.ts` recovers word-level timing
 from the raw `json3` transcript (one word per auto-caption event, per-segment
