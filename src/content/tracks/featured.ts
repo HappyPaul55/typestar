@@ -14,10 +14,10 @@ export interface FeaturedTrack {
 }
 
 export const FEATURED_TRACKS: FeaturedTrack[] = [
+  { id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up", artist: "Rick Astley" },
   { id: "zsmUOdmm02A", title: "True Love", artist: "P!nk feat. Lily Allen" },
-  { id: "DyDfgMOUjCI", title: "bad guy", artist: "Billie Eilish" },
+  { id: "3JWTaaS7LdU", title: "I Will Always Love You", artist: "Whitney Houston" },
   { id: "VQeW62X8rEA", title: "Green Green Grass", artist: "George Ezra" },
-  { id: "E597VdaKg1A", title: "Ya Ya Ya", artist: "JONAS LOVV" },
 ];
 
 export const FEATURED_BY_ID = new Map(FEATURED_TRACKS.map((track) => [track.id, track]));

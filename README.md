@@ -13,6 +13,19 @@ typing / keyboard speed game**.
   replay and counts it).
 - Scoring rewards chains: a combo multiplier up to ×3 and a bonus for every
   clean line. Wrong keys cost more than a missed word.
+- Typing is forgiving: if you start a later word (say “stra to love” for
+  “strangers to love”), the game skips the words you passed over, counts them
+  missed and carries on instead of holding you on the old word. A key that isn't
+  on the current line but begins the next line is read as moving on to it.
+- Line boundaries are forgiving too: across the gap between one line and the
+  next (and the intro), the last word stays open and the next line's first word
+  opens early — up to one second each way — so you can catch up or get a head
+  start rather than staring at dead air.
+- Word timing inside a line is only estimated, so a whole line opens at once:
+  race ahead and the game won't stop you part-way through a line.
+- It makes a fuss: a yellow flash for a perfect line and for combo milestones
+  (10, 25, then every 100, with bigger ones every 500), plus a short blip on
+  every wrong key.
 - Pick the difficulty on the start screen; both difficulty and run mode are
   dropdowns in the HUD.
 - Share a run: the difficulty and run mode travel in the URL hash, so a friend

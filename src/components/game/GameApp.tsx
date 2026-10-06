@@ -15,6 +15,7 @@ import {
 } from "../../lib/game/client";
 import {
   accuracyOf,
+  comboMilestone,
   cueAt,
   DEFAULT_LEAD,
   GAME_MODES,
@@ -22,9 +23,11 @@ import {
   isGameMode,
   multiplierOf,
   rankOf,
+  type ComboFlash,
   type FailMode,
   type GameMode,
 } from "../../lib/game/engine";
+import { playSound, preloadSounds } from "../../lib/game/audio";
 import {
   readSetting,
   SETTING_FAIL_MODE,
@@ -58,6 +61,15 @@ const MODE_HELP: Record<GameMode, string> = {
   normal: "Type every word — punctuation is optional.",
   hard: "Type every word, punctuation and all.",
 };
+
+interface GameFlash {
+  id: number;
+  text: string;
+  tier: ComboFlash;
+}
+
+/** Ordering used to pick the headline when two flashes land on the same hit. */
+const TIER_RANK: Record<ComboFlash, number> = { small: 0, medium: 1, large: 2 };
 
 function StartOverlay({
   mode,
@@ -395,15 +407,45 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     [words, offset, game.state.pointer, time],
   );
 
-  // Flash a "Perfect line!" badge whenever a clean line is cleared.
-  const [perfectFlash, setPerfectFlash] = useState(0);
+  // Celebrations: a flash for a clean line, and for combo milestones.
+  const [flash, setFlash] = useState<GameFlash | null>(null);
+  const flashId = useRef(0);
+  const previousCombo = useRef(0);
   const previousPerfect = useRef(0);
   useEffect(() => {
-    if (game.state.perfectLines > previousPerfect.current) {
-      previousPerfect.current = game.state.perfectLines;
-      setPerfectFlash((count) => count + 1);
+    const { combo, perfectLines } = game.state;
+    let next: { text: string; tier: ComboFlash } | null = null;
+
+    if (perfectLines > previousPerfect.current) {
+      next = { text: "Perfect line!", tier: "medium" };
     }
-  }, [game.state.perfectLines]);
+    if (combo > previousCombo.current) {
+      const tier = comboMilestone(combo);
+      if (tier && (!next || TIER_RANK[tier] >= TIER_RANK[next.tier])) {
+        next = { text: `${combo} combo!`, tier };
+      }
+    }
+
+    previousCombo.current = combo;
+    previousPerfect.current = perfectLines;
+
+    if (next) {
+      flashId.current += 1;
+      setFlash({ id: flashId.current, ...next });
+    }
+  }, [game.state.combo, game.state.perfectLines]);
+
+  // A blip on every wrong key.
+  const previousErrors = useRef(0);
+  useEffect(() => {
+    if (game.state.errorKeys > previousErrors.current) playSound("error");
+    previousErrors.current = game.state.errorKeys;
+  }, [game.state.errorKeys]);
+
+  // Warm the sounds as soon as the island mounts.
+  useEffect(() => {
+    preloadSounds();
+  }, []);
 
   if (videoId === undefined) return null;
   if (videoId === null) return <TrackPicker />;
@@ -521,9 +563,13 @@ export default function GameApp({ site }: { site: SiteSettings }) {
         </div>
       </div>
 
-      {perfectFlash > 0 ? (
-        <div key={perfectFlash} className="perfect-flash" aria-hidden="true">
-          Perfect line!
+      {flash ? (
+        <div
+          key={flash.id}
+          className={`game-flash game-flash--${flash.tier}`}
+          aria-hidden="true"
+        >
+          {flash.text}
         </div>
       ) : null}
 

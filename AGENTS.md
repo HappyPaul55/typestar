@@ -40,7 +40,21 @@ modes, independent of difficulty: **normal** (fails once the score drops below
 -150), **instant** (stops on the first mistake), **fun** (never fails) and
 **practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
 replay and counts it). Scoring
-rewards chains with combo tiers and a perfect-line bonus. The difficulty is
+rewards chains with combo tiers and a perfect-line bonus. Typing is forgiving:
+when a keystroke cannot continue the current word but does begin a later word it
+skips ahead — the words passed over are marked missed (a small penalty, and the
+chain breaks) and play continues. The search covers the rest of the current
+line, then the first word of the next line, so skipping the tail of a word — or
+moving on to the next line — does not trap the player. The line boundaries are forgiving too: in the
+gap between one line and the next (and the intro) the last word of a line stays
+typeable and the first word of the next opens early, each by up to one second
+(`LINE_CATCH_UP` / `LINE_HEAD_START` in `engine.ts`), so a player can catch up or
+get a head start instead of waiting on dead air. Only the line timings are real —
+a line's internal word times are shared out by length — so a whole line opens
+together and a player who races ahead is never blocked part-way through it.
+Feedback is part of the feel: perfect lines and combo milestones flash on screen
+(small at 10/25, medium every 100, large every 500) and every wrong key plays a
+short blip. The difficulty is
 chosen on the start screen; both difficulty and run mode are dropdowns in the
 HUD, and both persist locally. The end screen shows the score, rank, how far
 through the song you got, fun stats and a local personal best per track +
@@ -96,7 +110,11 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   and the `hooks/` for the player and game loop.
 - `src/lib/track/**` — track types, caption parsing, build, validation and the
   cache abstraction. Pure and tested.
-- `src/lib/game/**` — the pure game engine, browser client and storage helpers.
+- `src/lib/game/**` — the pure game engine, browser client, audio helpers and
+  storage.
+- `src/lib/game/audio.ts` + `public/audio/` — preloaded sound effects (the
+  wrong-key blip). Voices are pooled and throttled so rapid repeats overlap
+  without machine-gunning. `public/audio/error.mp3` is the shipped sound.
 - `src/lib/tracks-api.ts` — the shared get-or-create handler (Worker + dev).
 - `src/lib/youtube-captions.ts` — caption fetch with retries and `json3`
   capture.

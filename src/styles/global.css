@@ -655,25 +655,39 @@
     letter-spacing: 0.04em;
     color: rgba(250, 250, 244, 0.6);
   }
-  .perfect-flash {
+  .game-flash {
     position: absolute;
-    top: 50%;
+    top: 42%;
     left: 50%;
     z-index: 15;
     padding: 0.5rem 1.2rem;
     font-family: var(--font-display);
-    font-size: clamp(1.4rem, 4vw, 2.4rem);
     font-weight: 700;
     letter-spacing: -0.02em;
+    white-space: nowrap;
     color: var(--color-ink);
     background: var(--color-yellow);
     border-radius: var(--radius-brand);
     box-shadow: 6px 6px 0 0 var(--color-ink);
     pointer-events: none;
     transform: translate(-50%, -50%);
-    animation: perfect-pop 1s var(--ease-brand) forwards;
+    animation: flash-pop 1s var(--ease-brand) forwards;
   }
-  @keyframes perfect-pop {
+  .game-flash--small {
+    font-size: clamp(1.1rem, 2.6vw, 1.6rem);
+  }
+  .game-flash--medium {
+    font-size: clamp(1.4rem, 4vw, 2.4rem);
+  }
+  .game-flash--large {
+    padding: 0.7rem 1.8rem;
+    font-size: clamp(2.2rem, 7vw, 4.2rem);
+    color: var(--color-yellow);
+    background: var(--color-ink);
+    box-shadow: 10px 10px 0 0 var(--color-yellow);
+    animation-duration: 1.3s;
+  }
+  @keyframes flash-pop {
     0% {
       opacity: 0;
       transform: translate(-50%, -50%) scale(0.8);
@@ -760,13 +774,21 @@
 
   /* Intro cue */
   .lyric-panel {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
     min-width: 0;
     scroll-margin-top: 0.75rem;
   }
+  /* Sits over the top of the highway rather than in flow, so it appearing and
+     disappearing never shunts the lyrics up and down. */
   .cue-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 0.7rem;
@@ -774,6 +796,7 @@
     background: var(--color-cream);
     border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-brand);
+    box-shadow: 0 8px 14px -10px rgba(12, 13, 10, 0.4);
   }
   .cue-bar__track {
     flex: 1;
@@ -1274,8 +1297,8 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    padding: 1.1rem 1.2rem;
+    overflow: hidden;
+    padding: 0;
     background: var(--color-paper);
     border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-brand);
@@ -1290,6 +1313,31 @@
     background: var(--color-cream);
     border-color: var(--color-ink);
     box-shadow: 6px 6px 0 0 var(--color-yellow);
+  }
+  .track-card__media {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--color-ink);
+    border-bottom: 1px solid var(--color-line-strong);
+  }
+  .track-card__art {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* hq/sd thumbnails are 4:3 with letterbox bars; cover crops them to 16:9. */
+    object-fit: cover;
+    transition: transform 0.28s var(--ease-brand);
+  }
+  .track-card:hover .track-card__art {
+    transform: scale(1.04);
+  }
+  .track-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.9rem 1.05rem 1.05rem;
   }
   .track-card__title {
     font-family: var(--font-display);
@@ -1307,10 +1355,19 @@
   }
   .track-card__play {
     position: absolute;
-    top: 1.05rem;
-    right: 1.15rem;
-    color: var(--color-yellow-deep);
-    font-size: 0.8rem;
+    right: 0.55rem;
+    bottom: 0.55rem;
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    padding-left: 0.1rem;
+    border-radius: 999px;
+    background: var(--color-yellow);
+    color: var(--color-ink);
+    font-size: 0.72rem;
+    line-height: 1;
+    box-shadow: 0 2px 0 0 rgba(12, 13, 10, 0.25);
   }
 
   /* Small screens: the overlay sits inside a short 16:9 frame, so shrink

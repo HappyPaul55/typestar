@@ -1,16 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import {
   accuracyOf,
+  comboMilestone,
   comboTier,
   createGameState,
   cueAt,
   gameReducer,
   LINE_BONUS,
+  LINE_CATCH_UP,
+  LINE_HEAD_START,
   MISS_PENALTY,
   progressOf,
   rankOf,
   requiredCharIndices,
   requiredText,
+  wordDeadline,
+  wordOpenTime,
   WRONG_PENALTY,
   type GameConfig,
   type GameState,
@@ -102,9 +107,13 @@ describe("gameReducer typing", () => {
   });
 
   test("typing before the word is in range is ignored", () => {
-    const cfg = config();
-    let state = createGameState(WORDS.length);
-    state = type(state, "were", 0.1, cfg);
+    // A long intro so the head start is capped and there is still a guard.
+    const words = [word("We're", 5, 5.4)];
+    const lines = [{ start: 5, end: 5.4, from: 0, to: 1 }];
+    const cfg = config({ words, lines });
+    let state = createGameState(words.length);
+    // The word opens at 5 - 0.35 - 1 = 3.65s, so 1s is too early.
+    state = type(state, "were", 1, cfg);
     expect(state.pointer).toBe(0);
     expect(state.input).toBe("");
     expect(state.correctKeys).toBe(0);
@@ -237,6 +246,30 @@ describe("scoring", () => {
   });
 });
 
+describe("comboMilestone", () => {
+  test("flags 10 and 25 as small milestones", () => {
+    expect(comboMilestone(10)).toBe("small");
+    expect(comboMilestone(25)).toBe("small");
+  });
+
+  test("flags every hundred as medium", () => {
+    expect(comboMilestone(100)).toBe("medium");
+    expect(comboMilestone(200)).toBe("medium");
+  });
+
+  test("flags every five hundred as large", () => {
+    expect(comboMilestone(500)).toBe("large");
+    expect(comboMilestone(1000)).toBe("large");
+  });
+
+  test("ignores ordinary combo counts", () => {
+    expect(comboMilestone(0)).toBeNull();
+    expect(comboMilestone(9)).toBeNull();
+    expect(comboMilestone(50)).toBeNull();
+    expect(comboMilestone(499)).toBeNull();
+  });
+});
+
 describe("failure modes", () => {
   test("normal fails once the score drops below -150", () => {
     const cfg = config({ failMode: "normal" });
@@ -343,24 +376,188 @@ describe("failure modes", () => {
   });
 });
 
+describe("forgiving skips", () => {
+  const SKIP_WORDS: TrackWord[] = [
+    word("We're", 1.0, 1.24, 0),
+    word("no", 1.3, 1.54, 0),
+    word("strangers", 1.6, 2.0, 0),
+    word("to", 2.1, 2.34, 0),
+    word("love", 2.4, 2.7, 0),
+    word("Never", 3.0, 3.4, 1),
+  ];
+  const SKIP_LINES = [
+    { start: 1.0, end: 2.7, from: 0, to: 5 },
+    { start: 3.0, end: 3.4, from: 5, to: 6 },
+  ];
+
+  function skipConfig(overrides: Partial<GameConfig> = {}): GameConfig {
+    return {
+      words: SKIP_WORDS,
+      lines: SKIP_LINES,
+      offset: 0,
+      mode: "normal",
+      failMode: "fun",
+      lead: 0.35,
+      grace: 0.6,
+      ...overrides,
+    };
+  }
+
+  test("a later word on the line lets the player skip the rest of a word", () => {
+    const cfg = skipConfig();
+    let state = createGameState(SKIP_WORDS.length);
+    state = type(state, "were", 1.05, cfg);
+    state = type(state, "no", 1.35, cfg);
+    state = type(state, "stra", 1.65, cfg);
+    expect(state.pointer).toBe(2);
+    expect(state.input).toBe("stra");
+
+    // "t" cannot continue "strangers", but it begins "to", so jump there.
+    state = type(state, "t", 2.15, cfg);
+    expect(state.pointer).toBe(3);
+    expect(state.input).toBe("t");
+    expect(state.results[2]).toBe("miss");
+    expect(state.misses).toBe(1);
+    expect(state.combo).toBe(0);
+
+    state = type(state, "o", 2.2, cfg);
+    state = type(state, "love", 2.5, cfg);
+    expect(state.pointer).toBe(5);
+    expect(state.results[4]).toBe("hit");
+    expect(state.hits).toBe(4);
+    expect(state.misses).toBe(1);
+  });
+
+  test("skipping marks every word passed over as missed", () => {
+    const cfg = skipConfig();
+    let state = createGameState(SKIP_WORDS.length);
+    state = type(state, "were", 1.05, cfg);
+    // Jump straight from "We're" to "to", skipping "no" and "strangers".
+    state = type(state, "t", 2.15, cfg);
+    expect(state.pointer).toBe(3);
+    expect(state.results[1]).toBe("miss");
+    expect(state.results[2]).toBe("miss");
+    expect(state.misses).toBe(2);
+    expect(state.input).toBe("t");
+  });
+
+  test("a wrong key that begins no later word is still just a typo", () => {
+    const cfg = skipConfig();
+    let state = type(createGameState(SKIP_WORDS.length), "were", 1.05, cfg);
+    state = type(state, "no", 1.35, cfg);
+    const before = state.score;
+    state = gameReducer(state, { type: "key", key: "z", time: 1.7 }, cfg);
+    expect(state.pointer).toBe(2);
+    expect(state.results[2]).toBe("pending");
+    expect(state.errorKeys).toBe(1);
+    expect(state.score).toBe(before - WRONG_PENALTY);
+  });
+
+  test("a key that begins the next line jumps there", () => {
+    const cfg = skipConfig();
+    // Clear line 0 up to its last word, then start the next line.
+    let state = createGameState(SKIP_WORDS.length);
+    state = type(state, "were", 1.05, cfg);
+    state = type(state, "no", 1.35, cfg);
+    state = type(state, "strangers", 1.75, cfg);
+    state = type(state, "to", 2.15, cfg);
+    expect(state.pointer).toBe(4); // "love", the last word of line 0
+
+    // "n" is not on line 0, but it begins "Never" on line 1.
+    state = type(state, "n", 2.8, cfg);
+    expect(state.pointer).toBe(5);
+    expect(state.input).toBe("n");
+    expect(state.results[4]).toBe("miss");
+    expect(state.misses).toBe(1);
+  });
+
+  test("does not jump to the next line before it is typeable", () => {
+    // Line 1 starts at 6s, so its head start opens it at 4.65s.
+    const words = [word("hold", 1.5, 2.0, 0), word("on", 6.0, 6.4, 1)];
+    const lines = [
+      { start: 1.5, end: 2.0, from: 0, to: 1 },
+      { start: 6.0, end: 6.4, from: 1, to: 2 },
+    ];
+    const cfg = skipConfig({ words, lines });
+    let state = createGameState(words.length);
+    state = gameReducer(state, { type: "key", key: "o", time: 4.0 }, cfg);
+    expect(state.pointer).toBe(0);
+    expect(state.results[1]).toBe("pending");
+    expect(state.errorKeys).toBe(1);
+  });
+
+  test("jumps to the next line once its head start opens", () => {
+    const words = [word("hold", 1.5, 2.0, 0), word("on", 6.0, 6.4, 1)];
+    const lines = [
+      { start: 1.5, end: 2.0, from: 0, to: 1 },
+      { start: 6.0, end: 6.4, from: 1, to: 2 },
+    ];
+    const cfg = skipConfig({ words, lines });
+    let state = createGameState(words.length);
+    state = gameReducer(state, { type: "key", key: "o", time: 5.0 }, cfg);
+    expect(state.pointer).toBe(1);
+    expect(state.input).toBe("o");
+    expect(state.results[0]).toBe("miss");
+  });
+
+  test("a word later in an open line is reachable before its estimated start", () => {
+    const cfg = skipConfig();
+    let state = createGameState(SKIP_WORDS.length);
+    state = type(state, "were", 1.05, cfg);
+    state = type(state, "no", 1.35, cfg);
+    state = type(state, "stra", 1.6, cfg);
+    // "to" is estimated to start at 2.1, but line 0 is already open, so the
+    // player who is ahead can jump to it anyway.
+    state = gameReducer(state, { type: "key", key: "t", time: 1.65 }, cfg);
+    expect(state.pointer).toBe(3);
+    expect(state.input).toBe("t");
+    expect(state.results[2]).toBe("miss");
+  });
+
+  test("a whole line can be typed at once once it opens", () => {
+    const cfg = skipConfig();
+    let state = createGameState(SKIP_WORDS.length);
+    // Line 0 opens at 0s (its intro head start covers the whole pre-roll), so a
+    // fast player can clear every word at 0.7s without hitting a word gate.
+    for (const text of ["were", "no", "strangers", "to", "love"]) {
+      state = type(state, text, 0.7, cfg);
+    }
+    expect(state.pointer).toBe(5);
+    expect(state.hits).toBe(5);
+    expect(state.results[4]).toBe("hit");
+  });
+
+  test("instant mode still fails when a skip misses words", () => {
+    const cfg = skipConfig({ failMode: "instant" });
+    let state = type(createGameState(SKIP_WORDS.length), "were", 1.05, cfg);
+    state = type(state, "no", 1.35, cfg);
+    state = type(state, "stra", 1.65, cfg);
+    state = gameReducer(state, { type: "key", key: "t", time: 2.15 }, cfg);
+    expect(state.failed).toBe(true);
+    expect(state.failReason).toBe("mistake");
+  });
+});
+
 describe("cueAt", () => {
-  const cfg = { words: WORDS, offset: 0, lead: 0.35 };
+  // A long intro, so the one-second head start is capped and a cue remains.
+  const CUED_WORDS = [word("We're", 6, 6.4), word("no", 6.4, 6.7)];
+  const cfg = { words: CUED_WORDS, offset: 0, lead: 0.35 };
 
   test("counts down before the first word is typeable", () => {
     const cue = cueAt(cfg, 0, 0.2);
     expect(cue.waiting).toBe(true);
-    expect(cue.remaining).toBeCloseTo(0.45, 5);
+    expect(cue.remaining).toBeCloseTo(4.45, 5);
     expect(cue.progress).toBeGreaterThan(0);
     expect(cue.progress).toBeLessThan(1);
   });
 
   test("stops waiting once the word is typeable", () => {
-    expect(cueAt(cfg, 0, 0.7).waiting).toBe(false);
-    expect(cueAt(cfg, 0, 1.2).progress).toBe(1);
+    expect(cueAt(cfg, 0, 4.7).waiting).toBe(false);
+    expect(cueAt(cfg, 0, 6).progress).toBe(1);
   });
 
   test("does nothing once the track is finished", () => {
-    expect(cueAt(cfg, WORDS.length, 5)).toEqual({
+    expect(cueAt(cfg, CUED_WORDS.length, 5)).toEqual({
       waiting: false,
       remaining: 0,
       progress: 1,
@@ -369,8 +566,78 @@ describe("cueAt", () => {
   });
 
   test("reports the length of the wait", () => {
-    // First word starts at 1s, lead 0.35 -> typeable at 0.65s, so the wait is 0.65s.
-    expect(cueAt(cfg, 0, 0).span).toBeCloseTo(0.65, 5);
+    // The word starts at 6s; the lead and the head start open it at 4.65s.
+    expect(cueAt(cfg, 0, 0).span).toBeCloseTo(4.65, 5);
+  });
+});
+
+describe("line boundary forgiveness", () => {
+  // Line 0 ends at 2s; line 1 starts at 6s — four seconds of dead air between.
+  const GAP_WORDS: TrackWord[] = [
+    word("hold", 1.5, 2.0, 0),
+    word("on", 6.0, 6.4, 1),
+  ];
+  const GAP_LINES = [
+    { start: 1.5, end: 2.0, from: 0, to: 1 },
+    { start: 6.0, end: 6.4, from: 1, to: 2 },
+  ];
+
+  function gapConfig(overrides: Partial<GameConfig> = {}): GameConfig {
+    return {
+      words: GAP_WORDS,
+      lines: GAP_LINES,
+      offset: 0,
+      mode: "normal",
+      failMode: "fun",
+      lead: 0.35,
+      grace: 0.6,
+      ...overrides,
+    };
+  }
+
+  test("opens the first word of a line up to a second early", () => {
+    // Normal open 5.65s; the capped head start opens it at 4.65s.
+    expect(wordOpenTime(1, gapConfig())).toBeCloseTo(6.0 - 0.35 - LINE_HEAD_START, 5);
+  });
+
+  test("keeps the last word of a line open up to a second late", () => {
+    // Normal deadline 2.6s; the capped catch-up extends it to 3.6s.
+    expect(wordDeadline(0, gapConfig())).toBeCloseTo(2.0 + 0.6 + LINE_CATCH_UP, 5);
+  });
+
+  test("a long gap does not extend the window any further", () => {
+    const cfg = gapConfig();
+    expect(wordOpenTime(1, cfg)).toBeCloseTo(4.65, 5);
+    expect(wordDeadline(0, cfg)).toBeCloseTo(3.6, 5);
+  });
+
+  test("a player can catch up on the last word of a line", () => {
+    const cfg = gapConfig();
+    let state = createGameState(GAP_WORDS.length);
+    // 3.2s is past the normal deadline (2.6) but inside the catch-up window (3.6).
+    state = gameReducer(state, { type: "tick", time: 3.2 }, cfg);
+    expect(state.pointer).toBe(0);
+    expect(state.results[0]).toBe("pending");
+    state = type(state, "hold", 3.2, cfg);
+    expect(state.results[0]).toBe("hit");
+    expect(state.pointer).toBe(1);
+  });
+
+  test("a player can get a head start on the next line", () => {
+    const cfg = gapConfig();
+    let state = createGameState(GAP_WORDS.length);
+    state = type(state, "hold", 1.6, cfg);
+    expect(state.pointer).toBe(1);
+    // Normal open is 5.65s; at 5.0s the head start already allows it.
+    state = type(state, "on", 5.0, cfg);
+    expect(state.results[1]).toBe("hit");
+  });
+
+  test("a long intro still caps the head start at one second", () => {
+    const words = [word("first", 10, 10.4, 0)];
+    const lines = [{ start: 10, end: 10.4, from: 0, to: 1 }];
+    const cfg = config({ words, lines });
+    expect(wordOpenTime(0, cfg)).toBeCloseTo(10 - 0.35 - LINE_HEAD_START, 5);
   });
 });
 

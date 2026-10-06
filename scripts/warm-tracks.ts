@@ -8,7 +8,7 @@
  *
  *   bun run tracks:warm            # warm the featured list (skips existing)
  *   bun run tracks:warm --force    # rebuild everything
- *   bun run tracks:warm DyDfgMOUjCI zsmUOdmm02A
+ *   bun run tracks:warm 3JWTaaS7LdU zsmUOdmm02A
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
