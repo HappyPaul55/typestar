@@ -4,7 +4,7 @@
  * best, and offers replay + share.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SPEED_LABEL } from "../../lib/game/engine";
 import type {
   FailMode,
@@ -67,6 +67,42 @@ export default function EndScreen({
   const [best, setBest] = useState<number | null>(null);
   const [newBest, setNewBest] = useState(false);
   const [copied, setCopied] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // The results overlay is modal: move focus into it, keep Tab inside it, and
+  // restore focus when it closes.
+  useEffect(() => {
+    const node = dialogRef.current;
+    if (!node) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const focusable = () =>
+      Array.from(
+        node.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+    focusable()[0]?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    node.addEventListener("keydown", onKeyDown);
+    return () => {
+      node.removeEventListener("keydown", onKeyDown);
+      previous?.focus?.();
+    };
+  }, []);
 
   // Record a personal best for this track + difficulty + run mode + speed.
   useEffect(() => {
@@ -108,7 +144,13 @@ export default function EndScreen({
 
   return (
     <div className="game-overlay game-overlay--results">
-      <div className={"results" + (failed ? " results--failed" : "")}>
+      <div
+        ref={dialogRef}
+        className={"results" + (failed ? " results--failed" : "")}
+        role="dialog"
+        aria-modal="true"
+        aria-label={failed ? "Run over" : "Results"}
+      >
         <div className="results__head">
           <p className="comment">
             <span className="slash" aria-hidden="true">

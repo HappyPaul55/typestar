@@ -90,7 +90,7 @@ function StartOverlay({
   onStart(): void;
 }) {
   return (
-    <div className="game-overlay game-overlay--start">
+    <div className="game-overlay game-overlay--start" role="dialog" aria-label="Start">
       <p className="comment on-ink">
         <span className="slash" aria-hidden="true">
           //
@@ -138,7 +138,7 @@ function CountdownOverlay({ value }: { value: number }) {
 
 function PausedOverlay({ onResume }: { onResume(): void }) {
   return (
-    <div className="game-overlay game-overlay--paused">
+    <div className="game-overlay game-overlay--paused" role="dialog" aria-label="Paused">
       <p className="game-overlay__title">Paused</p>
       <button type="button" className="btn-game btn-game--primary" onClick={onResume}>
         Resume
