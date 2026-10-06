@@ -34,3 +34,6 @@ preview.log
 
 # Track cache used by the dev server and the warm script
 .cache/
+
+# Local binaries / downloads (never part of the site)
+*.exe
