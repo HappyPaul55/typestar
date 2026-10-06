@@ -1,0 +1,148 @@
+<!doctype html>
+<!--
+  Source layout for public/og-image.png (the 1200x630 social card).
+
+  The card uses the self-hosted Space Grotesk and Space Mono fonts. To
+  regenerate: open this file in a browser at a 1200x630 viewport (or serve the
+  repo and visit it), then screenshot the viewport to public/og-image.png. It is
+  a designed asset, committed rather than built, so the site build needs no
+  image tooling.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: "Space Grotesk";
+        font-style: normal;
+        font-weight: 300 700;
+        font-display: block;
+        src: url("../public/fonts/space-grotesk-latin.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Space Mono";
+        font-style: normal;
+        font-weight: 400;
+        font-display: block;
+        src: url("../public/fonts/space-mono-latin-400.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Space Mono";
+        font-style: normal;
+        font-weight: 700;
+        font-display: block;
+        src: url("../public/fonts/space-mono-latin-700.woff2") format("woff2");
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+      }
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: #0c0d0a;
+        background-image: radial-gradient(rgba(250, 250, 244, 0.1) 1.4px, transparent 1.4px);
+        background-size: 28px 28px;
+        color: #fafaf4;
+        font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+      }
+      .rule {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 12px;
+        background: #ffd400;
+      }
+      .inner {
+        position: absolute;
+        inset: 0;
+        padding: 84px 96px;
+        display: flex;
+        flex-direction: column;
+      }
+      .tile {
+        width: 104px;
+        height: 104px;
+      }
+      h1 {
+        margin-top: auto;
+        font-size: 130px;
+        line-height: 0.95;
+        font-weight: 700;
+        letter-spacing: -0.035em;
+      }
+      .mark {
+        background: #ffd400;
+        color: #0c0d0a;
+        padding: 0 0.1em;
+        border-radius: 8px;
+      }
+      .tag {
+        margin-top: 22px;
+        font-family: "Space Mono", ui-monospace, monospace;
+        font-size: 32px;
+        color: rgba(250, 250, 244, 0.72);
+      }
+      .domain {
+        position: absolute;
+        right: 96px;
+        bottom: 62px;
+        font-family: "Space Mono", ui-monospace, monospace;
+        font-size: 23px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(250, 250, 244, 0.5);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="rule"></div>
+      <div class="inner">
+        <svg class="tile" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <clipPath id="brand-half">
+              <rect x="0" y="0" width="44" height="64" />
+            </clipPath>
+          </defs>
+          <rect width="64" height="64" rx="14" fill="#FFD400" />
+          <text
+            x="20"
+            y="44"
+            text-anchor="middle"
+            fill="#0C0D0A"
+            font-family="'Space Grotesk','Segoe UI',sans-serif"
+            font-weight="700"
+            font-size="30"
+          >
+            T
+          </text>
+          <path
+            d="M44 23 L46.704 29.279 L53.511 29.910 L48.375 34.421 L49.878 41.090 L44 37.6 L38.122 41.090 L39.625 34.421 L34.489 29.910 L41.296 29.279 Z"
+            fill="none"
+            stroke="#0C0D0A"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M44 23 L46.704 29.279 L53.511 29.910 L48.375 34.421 L49.878 41.090 L44 37.6 L38.122 41.090 L39.625 34.421 L34.489 29.910 L41.296 29.279 Z"
+            fill="#0C0D0A"
+            clip-path="url(#brand-half)"
+          />
+        </svg>
+        <h1>Type<span class="mark">Star</span></h1>
+        <p class="tag">Type the lyrics in time.</p>
+      </div>
+      <div class="domain">typestar.happypaul55.com</div>
+    </div>
+  </body>
+</html>

@@ -155,6 +155,11 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
+- `public/og-image.png` — the 1200×630 social card referenced by `Seo.astro`.
+  Its source layout is `scripts/og-card.html`, rendered in a browser at
+  1200×630 with the self-hosted fonts (a designed asset, not built).
+- `.github/workflows/ci.yml` — CI runs `check`, `test` and `build` on pushes
+  and pull requests.
 
 ## Gotchas
 

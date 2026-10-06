@@ -83,7 +83,7 @@ bun run dev      # dev server on http://localhost:4321
 bun run build    # production build into dist/
 bun run preview  # serve the built site
 bun run check    # astro check — the type gate
-bun test         # unit tests for the parser and the game engine
+bun test         # unit tests: parser, game engine, ratings and track cache
 bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 ```
 
@@ -91,6 +91,11 @@ bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 `astro.config.mjs`), using a filesystem cache in `.cache/` instead of R2, and
 serves the bundled seeds in `public/tracks/`. The pretty `/play/<id>` URLs work
 in dev too.
+
+`public/og-image.png` is the 1200×630 social card used by the Open Graph and
+Twitter tags. It is a committed design asset: its source layout is
+`scripts/og-card.html`, rendered at a 1200×630 viewport with the self-hosted
+fonts, so the build needs no image tooling.
 
 The Turnstile check is skipped in dev unless you provide keys. To exercise it,
 put Cloudflare's documented **test** keys in a git-ignored `.env.local` (or

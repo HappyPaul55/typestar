@@ -30,11 +30,8 @@ const normalise = (value: string) =>
   value === "/" ? "/" : value.replace(/\/+$/, "");
 
 const canonical = new URL(normalise(path), settings.url).href;
-const ogImage = new URL(
-  "/icons/apple-touch-icon-1024x1024.png",
-  settings.url,
-).href;
-const ogAlt = `${settings.name} — a yellow tile with a “TS” monogram`;
+const ogImage = new URL("/og-image.png", settings.url).href;
+const ogAlt = `${settings.name} — a yellow “TS” tile beside the title on a dark notebook background`;
 
 const author = {
   "@type": "Person",
@@ -112,13 +109,13 @@ const jsonLd = { "@context": "https://schema.org", "@graph": graph };
 <meta property="og:locale" content="en_GB" />
 <meta property="og:image" content={ogImage} />
 <meta property="og:image:type" content="image/png" />
-<meta property="og:image:width" content="1024" />
-<meta property="og:image:height" content="1024" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
 <meta property="og:image:secure_url" content={ogImage} />
 <meta property="og:image:alt" content={ogAlt} />
 
 <!-- Twitter -->
-<meta name="twitter:card" content="summary" />
+<meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={ogImage} />
