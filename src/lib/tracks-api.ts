@@ -152,6 +152,20 @@ export async function handleTrackRequest(
   if (request.method !== "GET" && request.method !== "HEAD") {
     return json({ error: "method-not-allowed" }, 405, { allow: "GET, HEAD" });
   }
+
+  const response = await resolveTrack(request, env, id);
+  // A HEAD response must not carry a body.
+  if (request.method === "HEAD") {
+    return new Response(null, { status: response.status, headers: response.headers });
+  }
+  return response;
+}
+
+async function resolveTrack(
+  request: Request,
+  env: TracksEnv,
+  id: string,
+): Promise<Response> {
   if (!VIDEO_ID_RE.test(id)) {
     return json({ error: "bad-video-id" }, 400);
   }
@@ -196,15 +210,11 @@ export async function handleTrackRequest(
       fallbackUrl: env.fallbackUrl,
     });
   } catch (error) {
-    // Upstream failure: return it, but never cache it.
+    // Upstream failure: return it, but never cache it. The detail is logged
+    // server-side and deliberately not sent to the browser.
     const status = error instanceof CaptionError ? error.status : 502;
-    return json(
-      {
-        error: "upstream-failed",
-        message: error instanceof Error ? error.message : String(error),
-      },
-      status,
-    );
+    console.error(`track upstream failed for ${id}/${lang}:`, error);
+    return json({ error: "upstream-failed" }, status);
   }
 
   const track = buildTrack({

@@ -384,6 +384,20 @@ export default function GameApp({
     if (phase === "playing" && playerState === 0) game.finish();
   }, [phase, playerState, game.finish]);
 
+  // If the tab is hidden the animation-frame clock stops, but the video keeps
+  // playing; pause so the run can't fast-forward while away.
+  useEffect(() => {
+    if (phase !== "playing") return;
+    const onVisibility = () => {
+      if (document.hidden) {
+        pause();
+        setPhase("paused");
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [phase, pause]);
+
   // Capture typing while playing.
   useEffect(() => {
     if (phase !== "playing") return;

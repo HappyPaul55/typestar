@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { memoryStore } from "./track/store";
 import { TRACK_VERSION, type Track } from "./track/types";
 import {
@@ -8,6 +8,15 @@ import {
   verifyTurnstile,
   type TurnstileConfig,
 } from "./tracks-api";
+
+// The upstream-failure paths log server-side; keep the test output clean.
+let errorSpy: ReturnType<typeof spyOn>;
+beforeEach(() => {
+  errorSpy = spyOn(console, "error").mockImplementation(() => {});
+});
+afterEach(() => {
+  errorSpy.mockRestore();
+});
 
 const ID = "dQw4w9WgXcQ";
 
@@ -171,5 +180,40 @@ describe("handleTrackRequest turnstile gate", () => {
     // Past the gate: an upstream failure, not a 403.
     expect(response.status).toBe(502);
     expect((await response.json() as { error: string }).error).toBe("upstream-failed");
+  });
+});
+
+describe("handleTrackRequest responses", () => {
+  test("a HEAD request returns headers with no body", async () => {
+    const store = memoryStore({ [trackKey(ID, "en")]: JSON.stringify(TRACK) });
+    const response = await handleTrackRequest(
+      new Request(`https://typestar.happypaul55.com/api/track/${ID}`, {
+        method: "HEAD",
+      }),
+      { store },
+      ID,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-typestar-cache")).toBe("hit");
+    expect(await response.text()).toBe("");
+  });
+
+  test("an upstream failure never leaks the error detail", async () => {
+    const response = await handleTrackRequest(
+      request("tok"),
+      {
+        store: memoryStore(),
+        retries: 1,
+        turnstile: { ...BASE, fetchImpl: siteverify() },
+        fetchImpl: (async () => {
+          throw new Error("internal fallback host leaked");
+        }) as unknown as typeof fetch,
+      },
+      ID,
+    );
+    expect(response.status).toBe(502);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body.error).toBe("upstream-failed");
+    expect(body.message).toBeUndefined();
   });
 });
