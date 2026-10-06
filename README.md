@@ -26,6 +26,8 @@ typing / keyboard speed game**.
 - It makes a fuss: a yellow flash for a perfect line and for combo milestones
   (10, 25, then every 100, with bigger ones every 500), plus a short blip on
   every wrong key.
+- New songs get a one-off Cloudflare **Turnstile** human check the first time
+  they are requested; songs already in the library play straight away.
 - Pick the difficulty on the start screen; both difficulty and run mode are
   dropdowns in the HUD.
 - Share a run: the difficulty and run mode travel in the URL hash, so a friend
@@ -38,8 +40,10 @@ with static assets, and it caches processed tracks in **R2**.
 
 1. You open `/play/<youtubeId>` (or paste a link on `/play`).
 2. The page calls `GET /api/track/<youtubeId>`.
-3. The Worker returns the track from **R2** if it is cached, otherwise it
-   fetches the video's captions from YouTube with
+3. The Worker returns the track from **R2** if it is cached, or from the bundled
+   seed, so songs already in the library play with no check. Otherwise it asks
+   for a Cloudflare **Turnstile** human check, then fetches the video's captions
+   from YouTube with
    [`youtube-caption-extractor`](https://github.com/devhims/youtube-caption-extractor)
    (falling back to a third-party caption service if YouTube fails or returns
    nothing), builds a word-timed track, stores it in R2 and returns it.
@@ -76,6 +80,18 @@ bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 `astro.config.mjs`), using a filesystem cache in `.cache/` instead of R2, and
 serves the bundled seeds in `public/tracks/`. The pretty `/play/<id>` URLs work
 in dev too.
+
+The Turnstile check is skipped in dev unless you provide keys. To exercise it,
+put Cloudflare's documented **test** keys in a git-ignored `.env.local` (or
+`.env`):
+
+```dotenv
+PUBLIC_TURNSTILE_SITEKEY=1x00000000000000000000AA
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+TURNSTILE_HOSTNAMES=localhost,127.0.0.1
+```
+
+Then open a song that is not in `public/tracks/` or `.cache/tracks/`.
 
 ## Tracks
 

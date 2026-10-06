@@ -5,10 +5,19 @@ import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { loadEnv } from "vite";
 
 const TRACKS_DIR = join(process.cwd(), "public", "tracks");
 const CACHE_DIR = join(process.cwd(), ".cache", "tracks");
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
+// Env for the dev-only Turnstile gate. `.env*` is git-ignored; the values are
+// ignored entirely in a production build (the plugin only runs in `serve`).
+const env = loadEnv(
+  process.env.NODE_ENV === "production" ? "production" : "development",
+  process.cwd(),
+  "",
+);
 
 /**
  * A filesystem `TrackStore` for `astro dev`, plus a seed reader that mirrors the
@@ -41,13 +50,27 @@ function fileStore() {
  * - `/play?v=<id>` redirects to `/play/<id>`;
  * - `/api/track/:id` runs the real track handler.
  *
+ * @param {Record<string, string>} env
  * @returns {import("vite").Plugin}
  */
-function devServer() {
+function devServer(env) {
   return {
     name: "typestar-dev",
     apply: "serve",
     configureServer(server) {
+      // Exercise the Turnstile gate locally when the test keys are in `.env`
+      // (see the README). Without a secret, dev skips the check entirely.
+      const turnstile = env.TURNSTILE_SECRET
+        ? {
+            secret: env.TURNSTILE_SECRET,
+            hostnames: (env.TURNSTILE_HOSTNAMES ?? "localhost")
+              .split(",")
+              .map((hostname) => hostname.trim())
+              .filter(Boolean),
+            action: "track",
+          }
+        : undefined;
+
       server.middlewares.use((req, res, next) => {
         const [path, query = ""] = (req.url ?? "").split("?");
 
@@ -100,7 +123,7 @@ function devServer() {
 
           const response = await api.handleTrackRequest(
             request,
-            { store: fileStore(), seed },
+            { store: fileStore(), seed, turnstile },
             id,
           );
 
@@ -129,6 +152,6 @@ export default defineConfig({
   trailingSlash: "never",
   integrations: [sitemap(), react()],
   vite: {
-    plugins: [tailwindcss(), devServer()],
+    plugins: [tailwindcss(), devServer(env)],
   },
 });

@@ -22,12 +22,17 @@ export async function loadTrack(
   id: string,
   lang = "en",
   signal?: AbortSignal,
+  turnstileToken?: string,
 ): Promise<Track> {
+  const headers: Record<string, string> = { accept: "application/json" };
+  // Must match TURNSTILE_TOKEN_HEADER in src/lib/tracks-api.ts.
+  if (turnstileToken) headers["x-turnstile-token"] = turnstileToken;
+
   let response: Response;
   try {
     response = await fetch(`/api/track/${encodeURIComponent(id)}?lang=${lang}`, {
       signal,
-      headers: { accept: "application/json" },
+      headers,
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
@@ -46,7 +51,9 @@ export async function loadTrack(
         ? "This video has no captions, so there is nothing to type."
         : code === "bad-video-id"
           ? "That video id looks wrong."
-          : "Could not load this track.";
+          : code === "turnstile-required" || code === "turnstile-failed"
+            ? "Please complete the quick human check to load this new song."
+            : "Could not load this track.";
     throw new TrackApiError(message, response.status, code);
   }
 

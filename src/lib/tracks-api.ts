@@ -32,6 +32,79 @@ export interface TracksEnv {
   retries?: number;
   /** Base URL of the fallback caption service. */
   fallbackUrl?: string;
+  /**
+   * When set, a track that is not already cached or seeded has to carry a valid
+   * Turnstile token before it will be fetched from YouTube. Cached and seeded
+   * tracks are served without a check, so the human test only ever appears for
+   * a genuinely new song.
+   */
+  turnstile?: TurnstileConfig;
+}
+
+/** Server-side configuration for the Turnstile human check. */
+export interface TurnstileConfig {
+  /** Widget secret (a Worker secret in production). */
+  secret: string;
+  /** Hostnames allowed to have produced the token, from siteverify. */
+  hostnames: string[];
+  /** The expected token action, e.g. `track`. */
+  action?: string;
+  /** Overridable fetch, for tests. */
+  fetchImpl?: typeof fetch;
+}
+
+/** The header the browser sends the widget token in. */
+export const TURNSTILE_TOKEN_HEADER = "x-turnstile-token";
+
+type TurnstileVerdict = "ok" | "missing" | "failed";
+
+/**
+ * Verify a Turnstile token with Cloudflare's siteverify.
+ *
+ * Fails closed: a missing token is `missing` (the client should run the
+ * widget), and anything else — a non-2xx, a network error, a bad action or an
+ * unapproved hostname — is `failed`.
+ */
+export async function verifyTurnstile(
+  request: Request,
+  config: TurnstileConfig,
+): Promise<TurnstileVerdict> {
+  const token = request.headers.get(TURNSTILE_TOKEN_HEADER)?.trim() ?? "";
+  if (!token) return "missing";
+  if (token.length > 2048) return "failed";
+
+  const allowed = new Set(
+    config.hostnames.map((hostname) => hostname.trim().toLowerCase()).filter(Boolean),
+  );
+  if (!config.secret || allowed.size === 0) return "failed";
+
+  const doFetch = config.fetchImpl ?? fetch;
+  const remoteip = request.headers.get("cf-connecting-ip");
+  let result: { success?: boolean; action?: string; hostname?: string };
+  try {
+    const response = await doFetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        signal: AbortSignal.timeout(10_000),
+        body: new URLSearchParams({
+          secret: config.secret,
+          response: token,
+          ...(remoteip ? { remoteip } : {}),
+        }),
+      },
+    );
+    if (!response.ok) return "failed";
+    result = (await response.json()) as typeof result;
+  } catch {
+    return "failed";
+  }
+
+  if (result.success !== true) return "failed";
+  if (config.action && result.action !== config.action) return "failed";
+  if (!result.hostname || !allowed.has(result.hostname.toLowerCase())) return "failed";
+  return "ok";
 }
 
 /** A YouTube video id. */
@@ -98,6 +171,20 @@ export async function handleTrackRequest(
     if (seededTrack) {
       await env.store.put(trackKey(id, lang), JSON.stringify(seededTrack));
       return trackResponse(seededTrack, "seed");
+    }
+  }
+
+  // Only a genuinely new song reaches the human check: cached and seeded tracks
+  // have already returned above.
+  if (env.turnstile) {
+    const verdict = await verifyTurnstile(request, env.turnstile);
+    if (verdict !== "ok") {
+      return json(
+        {
+          error: verdict === "missing" ? "turnstile-required" : "turnstile-failed",
+        },
+        403,
+      );
     }
   }
 

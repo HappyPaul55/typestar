@@ -28,6 +28,7 @@ import {
   type GameMode,
 } from "../../lib/game/engine";
 import { playSound, preloadSounds } from "../../lib/game/audio";
+import { TURNSTILE_ACTION, TURNSTILE_SITE_KEY } from "../../lib/game/turnstile";
 import {
   readSetting,
   SETTING_FAIL_MODE,
@@ -45,6 +46,7 @@ import Hud from "./Hud";
 import LyricHighway from "./LyricHighway";
 import PlayerStage from "./PlayerStage";
 import TrackPicker from "./TrackPicker";
+import TurnstileChallenge from "./TurnstileChallenge";
 import { useGameLoop } from "./hooks/useGameLoop";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
 
@@ -182,6 +184,13 @@ export default function GameApp({ site }: { site: SiteSettings }) {
   const [failMode, setFailMode] = useState<FailMode>("normal");
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
+  // Turnstile is only needed when a track is not already cached or bundled.
+  const [needsTurnstile, setNeedsTurnstile] = useState(false);
+  const [turnstileError, setTurnstileError] = useState<string | null>(null);
+  const [challengeId, setChallengeId] = useState(0);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const turnstileToken = useRef<string | null>(null);
+  const turnstileFailures = useRef(0);
   const shellRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lyricRef = useRef<HTMLDivElement>(null);
@@ -216,6 +225,14 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     }
   }, [videoId, mode, failMode]);
 
+  // A new song starts from a clean Turnstile slate.
+  useEffect(() => {
+    turnstileToken.current = null;
+    turnstileFailures.current = 0;
+    setNeedsTurnstile(false);
+    setTurnstileError(null);
+  }, [videoId]);
+
   // Load the track, and restore its saved sync offset.
   useEffect(() => {
     if (!videoId) {
@@ -228,13 +245,33 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     setLoadError(null);
     setPhase("idle");
 
-    loadTrack(videoId, "en", controller.signal)
+    loadTrack(videoId, "en", controller.signal, turnstileToken.current ?? undefined)
       .then((loaded) => {
         setTrack(loaded);
         setOffset(readSetting<number>(SETTING_OFFSET_PREFIX + videoId, 0));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
+        if (
+          error instanceof TrackApiError &&
+          (error.code === "turnstile-required" || error.code === "turnstile-failed")
+        ) {
+          // The token, if there was one, is now spent: ask for a fresh one.
+          turnstileToken.current = null;
+          if (error.code === "turnstile-failed") {
+            // Give up rather than loop forever if the check keeps being refused.
+            turnstileFailures.current += 1;
+            if (turnstileFailures.current > 2) {
+              setLoadError(
+                "The human check could not be completed. Please try again later.",
+              );
+              return;
+            }
+          }
+          setChallengeId((id) => id + 1);
+          setNeedsTurnstile(true);
+          return;
+        }
         setLoadError(
           error instanceof TrackApiError
             ? error.message
@@ -243,7 +280,18 @@ export default function GameApp({ site }: { site: SiteSettings }) {
       });
 
     return () => controller.abort();
-  }, [videoId]);
+  }, [videoId, reloadNonce]);
+
+  const handleTurnstileToken = useCallback((token: string) => {
+    turnstileToken.current = token;
+    setTurnstileError(null);
+    setNeedsTurnstile(false);
+    setReloadNonce((nonce) => nonce + 1);
+  }, []);
+
+  const handleTurnstileError = useCallback((message: string) => {
+    setTurnstileError(message);
+  }, []);
 
   // Reflect the loaded song in the page title and the page header.
   useEffect(() => {
@@ -460,6 +508,38 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     );
   }
   if (!track) {
+    if (needsTurnstile) {
+      return (
+        <div className="game-status">
+          <div className="panel game-status__panel">
+            <p className="comment">
+              <span className="slash" aria-hidden="true">
+                //
+              </span>{" "}
+              new song
+            </p>
+            <h2 className="panel__title mt-2">Quick human check</h2>
+            <p className="mt-2 text-ink-soft">
+              This song isn&rsquo;t in the library yet, so we just need to check
+              you&rsquo;re human before fetching it. It only ever happens once
+              per song.
+            </p>
+            <div className="mt-4">
+              <TurnstileChallenge
+                key={challengeId}
+                siteKey={TURNSTILE_SITE_KEY}
+                action={TURNSTILE_ACTION}
+                onToken={handleTurnstileToken}
+                onError={handleTurnstileError}
+              />
+            </div>
+            {turnstileError ? (
+              <p className="track-picker__error mt-2">{turnstileError}</p>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
     return (
       <StatusPanel
         title="Loading track…"

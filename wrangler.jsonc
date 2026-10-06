@@ -17,7 +17,10 @@
   // The fallback caption service, used only when YouTube's caption lookup
   // fails or returns nothing. Overridable here without touching code.
   "vars": {
-    "CAPTION_FALLBACK_URL": "https://youtube.weblinq.dev/api/videoDetails"
+    "CAPTION_FALLBACK_URL": "https://youtube.weblinq.dev/api/videoDetails",
+    // Hostnames allowed on a Turnstile token. The widget secret itself lives as
+    // a Worker secret (TURNSTILE_SECRET), not here.
+    "TURNSTILE_HOSTNAMES": "typestar.happypaul55.com"
   },
   "assets": {
     "directory": "./dist",

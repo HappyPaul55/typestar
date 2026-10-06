@@ -26,6 +26,10 @@ type Env = {
   TRACKS?: R2LikeBucket;
   /** Base URL of the fallback caption service, configured in wrangler.jsonc. */
   CAPTION_FALLBACK_URL?: string;
+  /** Turnstile widget secret. When set, new tracks require a human check. */
+  TURNSTILE_SECRET?: string;
+  /** Comma-separated hostnames allowed on the Turnstile token. */
+  TURNSTILE_HOSTNAMES?: string;
 };
 
 export default {
@@ -53,6 +57,16 @@ export default {
           store: r2Store(env.TRACKS),
           seed,
           fallbackUrl: env.CAPTION_FALLBACK_URL,
+          turnstile: env.TURNSTILE_SECRET
+            ? {
+                secret: env.TURNSTILE_SECRET,
+                hostnames: (env.TURNSTILE_HOSTNAMES ?? "typestar.happypaul55.com")
+                  .split(",")
+                  .map((hostname) => hostname.trim())
+                  .filter(Boolean),
+                action: "track",
+              }
+            : undefined,
         },
         id,
       );

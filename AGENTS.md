@@ -25,12 +25,15 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
 1. `/play/<id>` serves the static play page; the client reads the id from the
    address bar and calls `GET /api/track/<id>`.
 2. The Worker returns the track from **R2** if cached, else from the bundled
-   seed in `public/tracks/<id>.json`, else it fetches the video's captions with
-   `youtube-caption-extractor` (falling back to the `CAPTION_FALLBACK_URL`
-   service in `wrangler.jsonc` when YouTube fails or returns nothing), builds a
-   word-timed track, caches it in R2 and returns it. Only playable tracks are
-   cached — an upstream failure or an empty result is never written, so a
-   transient YouTube block cannot poison the cache.
+   seed in `public/tracks/<id>.json`. If it is in neither, the request must carry
+   a valid **Turnstile** token: the client shows the Cloudflare widget, and the
+   Worker verifies the token with siteverify before it fetches the video's
+   captions with `youtube-caption-extractor` (falling back to the
+   `CAPTION_FALLBACK_URL` service when YouTube fails or returns nothing), builds a
+   word-timed track, caches it in R2 and returns it. Cached and seeded tracks
+   never see the check, so the widget only appears for a genuinely new song. Only
+   playable tracks are cached — an upstream failure or an empty result is never
+   written, so a transient YouTube block cannot poison the cache.
 3. The React island plays the video with the YouTube IFrame API and scores
    typing against the caption timings.
 
@@ -115,7 +118,11 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/lib/game/audio.ts` + `public/audio/` — preloaded sound effects (the
   wrong-key blip). Voices are pooled and throttled so rapid repeats overlap
   without machine-gunning. `public/audio/error.mp3` is the shipped sound.
-- `src/lib/tracks-api.ts` — the shared get-or-create handler (Worker + dev).
+- `src/lib/tracks-api.ts` — the shared get-or-create handler (Worker + dev),
+  including the Turnstile gate (`verifyTurnstile`) that only runs on a cache and
+  seed miss.
+- `src/lib/game/turnstile.ts` + `src/components/game/TurnstileChallenge.tsx` —
+  the public sitekey and the on-demand widget shown for a new song.
 - `src/lib/youtube-captions.ts` — caption fetch with retries and `json3`
   capture.
 - `src/components/layout/Seo.astro` / `Header.astro` / `Footer.astro` — the
@@ -130,8 +137,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `astro.config.mjs` — the `devServer` Vite plugin reproduces the Worker routing
   and runs the real API handler locally.
 - `public/tracks/*.json` — pre-warmed seed tracks (generated, committed).
-- `public/_headers` — CSP. YouTube is allowed for `script-src`, `frame-src` and
-  `img-src`.
+- `public/_headers` — CSP. YouTube and `challenges.cloudflare.com` (Turnstile)
+  are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
 
@@ -142,6 +149,14 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   sung lyrics. Featured tracks are pre-warmed from a residential connection.
 - **YouTube egress is unreliable from Workers** (~70% per request; ~97% with
   retries). R2 caching plus the bundled seed is what makes the game reliable.
+- **Turnstile guards new tracks only.** `TURNSTILE_SECRET` is a Worker secret;
+  `TURNSTILE_HOSTNAMES` is a var (see `wrangler.jsonc`). The client sitekey is
+  public (`PUBLIC_TURNSTILE_SITEKEY`, falling back to the constant in
+  `src/lib/game/turnstile.ts`). The widget's domain list must include the site
+  hostname or it will not render. The browser sends the token in the
+  `x-turnstile-token` header; the gate is skipped entirely when no secret is
+  configured (so local dev needs no setup). To exercise it locally, put
+  Cloudflare's test keys in `.env*` (see README).
 - `nodejs_compat` is required: `youtube-caption-extractor` depends on `he` and
   `striptags`.
 - The R2 bucket is `typestar-tracks`; create it once with `bun run tracks:bucket`

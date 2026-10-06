@@ -1239,6 +1239,11 @@
   .game-status__panel {
     width: min(36rem, 100%);
   }
+  /* Cloudflare Turnstile renders into this; reserve its height so the panel
+     does not jump when the widget appears. */
+  .turnstile {
+    min-height: 65px;
+  }
 
   /* Track picker ------------------------------------------------- */
   .track-picker {

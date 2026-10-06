@@ -1,7 +1,7 @@
 ---
 title: Privacy Policy
 description: How TypeStar handles information when you play. No accounts, no analytics, no advertising.
-updated: "2026-10-05"
+updated: "2026-10-06"
 ---
 
 TypeStar is a free browser game. It has no accounts, no newsletter and no
@@ -37,9 +37,20 @@ We do not ask for, store or share any personal information. In particular:
   details of that request are handled by our host, Cloudflare, as described
   below.
 
+## Human checks for new songs
+
+Songs already in our library play straight away with no check. The first time
+you ask for a song we have not seen before, Cloudflare **Turnstile** runs a quick
+automated check to make sure the request comes from a person and not a bot.
+Turnstile may process technical signals such as your IP address and browser
+characteristics, and may set a short-lived cookie, under Cloudflare's own privacy
+policy. It is used only to keep the track service from being abused; no account
+or profile is created, and cached songs never trigger a check.
+
 ## Third parties
 
-- **Cloudflare** hosts the site, runs the track service and caches track data.
+- **Cloudflare** hosts the site, runs the track service, caches track data and
+  provides the Turnstile human check for new songs.
 - **YouTube** supplies the music and visuals. When a game is played, the video
   is embedded from YouTube, so YouTube (Google) may set cookies and see your IP
   address and the standard technical details of the request, under its own
