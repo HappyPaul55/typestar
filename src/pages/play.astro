@@ -53,7 +53,12 @@ const ratings = loadSeedRatings(FEATURED_TRACKS.map((track) => track.id));
               lyrics as the words arrive.
             </p>
           </div>
-          <p id="play-rating" class="play-rating" hidden>
+          <p
+            id="play-rating"
+            class="play-rating"
+            title="How hard the lyrics are to type, rated from the song's words per second"
+            hidden
+          >
             <span class="play-rating__caption">
               <span class="slash" aria-hidden="true">//</span> rating
             </span>

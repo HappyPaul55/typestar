@@ -93,7 +93,10 @@ export default function TrackPicker({
                     />
                   </picture>
                   {rating ? (
-                    <span className={`rating-badge rating-badge--${rating}`}>
+                    <span
+                      className={`rating-badge rating-badge--${rating}`}
+                      title={`${RATING_LABEL[rating]} — rated from the song's words per second`}
+                    >
                       {RATING_LABEL[rating]}
                     </span>
                   ) : null}
