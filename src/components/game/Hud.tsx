@@ -8,21 +8,13 @@ import {
   FAIL_MODES,
   GAME_MODES,
   PLAYBACK_SPEEDS,
+  SPEED_LABEL,
   type FailMode,
   type GameMode,
   type PlaybackSpeed,
 } from "../../lib/game/engine";
 import { formatTime } from "../../lib/game/storage";
 import Calibration from "./Calibration";
-
-/** Labels for the playback-speed selector; `1` is the unlabelled default. */
-const SPEED_LABEL: Record<PlaybackSpeed, string> = {
-  0.5: "0.5×",
-  0.75: "0.75×",
-  1: "Normal",
-  1.25: "1.25×",
-  1.5: "1.5×",
-};
 
 interface Props {
   score: number;

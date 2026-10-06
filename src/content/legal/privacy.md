@@ -23,9 +23,9 @@ We do not ask for, store or share any personal information. In particular:
   pixels.
 - There is no server-side storage of your game or scores. Scores, combos and
   results stay in your browser for the session only.
-- Your game preferences (difficulty and sync offset) are kept in your browser's
-  local storage. They never leave your device, and clearing your browser data
-  removes them.
+- Your game preferences (difficulty, run mode, playback speed and sync offset)
+  are kept in your browser's local storage. They never leave your device, and
+  clearing your browser data removes them.
 
 ## What the server stores
 

@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { SPEED_LABEL } from "../../lib/game/engine";
 import type {
   FailMode,
   GameMode,
@@ -60,12 +61,14 @@ export default function EndScreen({
   onChangeSong,
   onClose,
 }: Props) {
-  const bestKey = `best:${trackId}:${mode}:${failMode}`;
+  // Personal best per track + difficulty + run mode + speed, so a slower run is
+  // never compared against a full-speed one.
+  const bestKey = `best:${trackId}:${mode}:${failMode}:${speed}`;
   const [best, setBest] = useState<number | null>(null);
   const [newBest, setNewBest] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Record a personal best for this track + difficulty + run mode.
+  // Record a personal best for this track + difficulty + run mode + speed.
   useEffect(() => {
     const previous = readSetting<number | null>(bestKey, null);
     if (previous === null || state.score > previous) {
@@ -155,6 +158,7 @@ export default function EndScreen({
           <Metric label="time" value={formatTime(elapsed)} />
           <Metric label="difficulty" value={mode} />
           <Metric label="run mode" value={failMode} />
+          <Metric label="speed" value={SPEED_LABEL[speed]} />
           {failMode === "practise" ? (
             <Metric label="replays" value={`${state.replays}`} />
           ) : null}

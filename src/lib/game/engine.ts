@@ -38,6 +38,15 @@ export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 
 export const DEFAULT_SPEED: PlaybackSpeed = 1;
 
+/** Labels for the playback-speed selector; `1` is the normal rate. */
+export const SPEED_LABEL: Record<PlaybackSpeed, string> = {
+  0.5: "0.5×",
+  0.75: "0.75×",
+  1: "Normal",
+  1.25: "1.25×",
+  1.5: "1.5×",
+};
+
 export function isPlaybackSpeed(value: unknown): value is PlaybackSpeed {
   return (
     typeof value === "number" &&
