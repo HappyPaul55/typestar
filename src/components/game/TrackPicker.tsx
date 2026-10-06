@@ -5,8 +5,14 @@
 import { useState } from "react";
 import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import { parseVideoId } from "../../lib/game/client";
+import { RATING_LABEL, type TrackRating } from "../../lib/track/rating";
 
-export default function TrackPicker() {
+export default function TrackPicker({
+  ratings = {},
+}: {
+  /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
+  ratings?: Record<string, TrackRating>;
+}) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +76,7 @@ export default function TrackPicker() {
               `${thumb}/sddefault.jpg 640w`,
               `${thumb}/maxresdefault.jpg 1280w`,
             ].join(", ");
+            const rating = ratings[track.id];
             return (
               <a key={track.id} className="track-card" href={`/play/${track.id}`}>
                 <span className="track-card__media">
@@ -85,6 +92,11 @@ export default function TrackPicker() {
                       decoding="async"
                     />
                   </picture>
+                  {rating ? (
+                    <span className={`rating-badge rating-badge--${rating}`}>
+                      {RATING_LABEL[rating]}
+                    </span>
+                  ) : null}
                   <span className="track-card__play" aria-hidden="true">
                     ▶
                   </span>

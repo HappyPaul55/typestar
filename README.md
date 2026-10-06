@@ -7,10 +7,20 @@ typing / keyboard speed game**.
 - The video sits on the left and the timed lyrics on the right.
 - Three difficulties: **Easy** (first letter of each word), **Normal** (every
   word, punctuation optional) and **Hard** (every word, punctuation required).
+  Defaults to **Normal**.
 - Four run modes: **Normal** (fails once the score drops below −150),
   **Instant** (stops at the first mistake), **Fun** (never stops) and
   **Practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
-  replay and counts it).
+  replay and counts it). Defaults to **Fun**.
+- Playback speed from **0.5×** to **1.5×**, applied to the YouTube player, so a
+  fast song can be slowed down while learning it.
+- Every song is rated **EASY**, **MEDIUM** or **HARD** from how fast its lyrics
+  come (words per second, with long instrumental gaps capped at one second).
+  The rating shows as a large chip beside the song header and as a badge on the
+  featured cover art. It is a property of the song, separate from the difficulty
+  setting above.
+- A **Skip** tab appears under the intro cue when a song opens with more than
+  two seconds of music, jumping to just before the first lyric.
 - Scoring rewards chains: a combo multiplier up to ×3 and a bonus for every
   clean line. Wrong keys cost more than a missed word.
 - Typing is forgiving: if you start a later word (say “stra to love” for
@@ -28,10 +38,11 @@ typing / keyboard speed game**.
   every wrong key.
 - New songs get a one-off Cloudflare **Turnstile** human check the first time
   they are requested; songs already in the library play straight away.
-- Pick the difficulty on the start screen; both difficulty and run mode are
-  dropdowns in the HUD.
-- Share a run: the difficulty and run mode travel in the URL hash, so a friend
-  opens the same track with exactly the same setup.
+- Pick the difficulty on the start screen; difficulty, run mode and playback
+  speed are dropdowns in the HUD.
+- Share a run: the difficulty, run mode and speed travel in the URL hash, so a
+  friend opens the same track with exactly the same setup. Settings left at
+  their defaults are omitted, so the common link has no hash at all.
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
@@ -95,7 +106,10 @@ Then open a song that is not in `public/tracks/` or `.cache/tracks/`.
 
 ## Tracks
 
-The featured list lives in `src/content/tracks/featured.ts`.
+The featured list lives in `src/content/tracks/featured.ts`. Each song's
+EASY/MEDIUM/HARD rating is derived from the built track's word timing
+(`src/lib/track/rating.ts`); the featured cards are rated at build time from
+the pre-warmed seeds in `public/tracks/`.
 
 ```bash
 bun run tracks:warm      # fetch + build the featured tracks into public/tracks/

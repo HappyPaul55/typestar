@@ -17,15 +17,21 @@ import {
   accuracyOf,
   comboMilestone,
   cueAt,
+  DEFAULT_FAIL_MODE,
   DEFAULT_LEAD,
+  DEFAULT_MODE,
+  DEFAULT_SPEED,
   GAME_MODES,
   isFailMode,
   isGameMode,
+  isPlaybackSpeed,
   multiplierOf,
   rankOf,
+  skipIntroTarget,
   type ComboFlash,
   type FailMode,
   type GameMode,
+  type PlaybackSpeed,
 } from "../../lib/game/engine";
 import { playSound, preloadSounds } from "../../lib/game/audio";
 import { TURNSTILE_ACTION, TURNSTILE_SITE_KEY } from "../../lib/game/turnstile";
@@ -34,12 +40,13 @@ import {
   SETTING_FAIL_MODE,
   SETTING_MODE,
   SETTING_OFFSET_PREFIX,
+  SETTING_SPEED,
   writeSetting,
 } from "../../lib/game/storage";
 import type { Track } from "../../lib/track/types";
+import { RATING_LABEL, ratingOf, type TrackRating } from "../../lib/track/rating";
 import type { SiteSettings } from "../../lib/site";
 import { buildHash, parseHash } from "../../lib/game/url";
-import Calibration from "./Calibration";
 import CueBar from "./CueBar";
 import EndScreen from "./EndScreen";
 import Hud from "./Hud";
@@ -174,14 +181,22 @@ function StatusPanel({
   );
 }
 
-export default function GameApp({ site }: { site: SiteSettings }) {
+export default function GameApp({
+  site,
+  ratings = {},
+}: {
+  site: SiteSettings;
+  /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
+  ratings?: Record<string, TrackRating>;
+}) {
   const [videoId, setVideoId] = useState<string | null | undefined>(undefined);
   const [track, setTrack] = useState<Track | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [countdown, setCountdown] = useState(3);
-  const [mode, setMode] = useState<GameMode>("normal");
-  const [failMode, setFailMode] = useState<FailMode>("normal");
+  const [mode, setMode] = useState<GameMode>(DEFAULT_MODE);
+  const [failMode, setFailMode] = useState<FailMode>(DEFAULT_FAIL_MODE);
+  const [speed, setSpeed] = useState<PlaybackSpeed>(DEFAULT_SPEED);
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
   // Turnstile is only needed when a track is not already cached or bundled.
@@ -195,8 +210,8 @@ export default function GameApp({ site }: { site: SiteSettings }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const lyricRef = useRef<HTMLDivElement>(null);
 
-  const player = useYouTubePlayer(videoId ?? null);
-  const { ready, error: playerError, containerRef, play, pause, restart: restartPlayer, seekTo, getTime, time, duration, state: playerState } = player;
+  const player = useYouTubePlayer(videoId ?? null, speed);
+  const { ready, error: playerError, containerRef, play, pause, seekTo, getTime, time, duration, state: playerState } = player;
 
   // Read the id from the address bar after hydration (SSR-safe).
   useEffect(() => {
@@ -205,25 +220,33 @@ export default function GameApp({ site }: { site: SiteSettings }) {
 
   useEffect(() => {
     const parsed = parseHash(window.location.hash);
-    const storedMode = readSetting<unknown>(SETTING_MODE, "normal");
-    const storedFail = readSetting<unknown>(SETTING_FAIL_MODE, "normal");
-    const resolvedMode = parsed.mode ?? (isGameMode(storedMode) ? storedMode : "normal");
-    const resolvedFail = parsed.failMode ?? (isFailMode(storedFail) ? storedFail : "normal");
+    const storedMode = readSetting<unknown>(SETTING_MODE, DEFAULT_MODE);
+    const storedFail = readSetting<unknown>(SETTING_FAIL_MODE, DEFAULT_FAIL_MODE);
+    const storedSpeed = readSetting<unknown>(SETTING_SPEED, DEFAULT_SPEED);
+    const resolvedMode = parsed.mode ?? (isGameMode(storedMode) ? storedMode : DEFAULT_MODE);
+    const resolvedFail = parsed.failMode ?? (isFailMode(storedFail) ? storedFail : DEFAULT_FAIL_MODE);
+    const resolvedSpeed = parsed.speed ?? (isPlaybackSpeed(storedSpeed) ? storedSpeed : DEFAULT_SPEED);
     setMode(resolvedMode);
     setFailMode(resolvedFail);
+    setSpeed(resolvedSpeed);
     // Persist the resolved settings so later visits remember them.
     writeSetting(SETTING_MODE, resolvedMode);
     writeSetting(SETTING_FAIL_MODE, resolvedFail);
+    writeSetting(SETTING_SPEED, resolvedSpeed);
   }, []);
 
   // Keep the URL hash in step with the settings, so the page is shareable.
+  // Defaults produce an empty hash, which is removed for a clean URL.
   useEffect(() => {
     if (!videoId) return;
-    const hash = buildHash({ mode, failMode });
-    if (window.location.hash !== hash) {
-      window.history.replaceState(null, "", hash);
+    const hash = buildHash({ mode, failMode, speed });
+    const path = `${window.location.pathname}${window.location.search}`;
+    const target = hash || path;
+    const current = `${path}${window.location.hash}`;
+    if (current !== target) {
+      window.history.replaceState(null, "", target);
     }
-  }, [videoId, mode, failMode]);
+  }, [videoId, mode, failMode, speed]);
 
   // A new song starts from a clean Turnstile slate.
   useEffect(() => {
@@ -293,7 +316,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     setTurnstileError(message);
   }, []);
 
-  // Reflect the loaded song in the page title and the page header.
+  // Reflect the loaded song in the page title, the page header and the rating.
   useEffect(() => {
     if (!track) return;
     const artist = FEATURED_BY_ID.get(track.id)?.artist;
@@ -303,10 +326,22 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     const subtitleEl = document.getElementById("play-subtitle");
     if (titleEl) titleEl.textContent = track.title;
     if (subtitleEl) subtitleEl.textContent = artist ?? defaultSubtitle;
+
+    // The rating is a property of the song's lyrics, computed on the fly.
+    const ratingEl = document.getElementById("play-rating");
+    const ratingValueEl = document.getElementById("play-rating-value");
+    if (ratingEl) {
+      const rating = ratingOf(track);
+      ratingEl.dataset.rating = rating;
+      if (ratingValueEl) ratingValueEl.textContent = RATING_LABEL[rating];
+      ratingEl.hidden = false;
+    }
+
     return () => {
       document.title = `Play ${site.name}`;
       if (titleEl) titleEl.textContent = site.name;
       if (subtitleEl) subtitleEl.textContent = defaultSubtitle;
+      if (ratingEl) ratingEl.hidden = true;
     };
   }, [track, site]);
 
@@ -380,6 +415,9 @@ export default function GameApp({ site }: { site: SiteSettings }) {
 
   const start = useCallback(() => {
     if (!ready) return;
+    // The countdown runs before playback: park the video at the start and hold
+    // it paused, so a stray play (or a higher speed) can't run the opening away.
+    pause();
     seekTo(0);
     setCountdown(3);
     setPhase("countdown");
@@ -388,7 +426,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     if (window.matchMedia("(max-width: 919px)").matches) {
       lyricRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [ready, seekTo]);
+  }, [ready, pause, seekTo]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
@@ -400,12 +438,18 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     }
   }, [phase, pause, play]);
 
-  const restart = useCallback(() => {
+  /** Reset to the start without playing, so settings can be changed first. */
+  const resetToStart = useCallback(() => {
     game.reset();
-    restartPlayer();
-    setPhase("playing");
-    inputRef.current?.focus();
-  }, [game, restartPlayer]);
+    pause();
+    seekTo(0);
+    setPhase("idle");
+  }, [game, pause, seekTo]);
+
+  const replay = useCallback(() => {
+    game.reset();
+    start();
+  }, [game, start]);
 
   const closeResults = useCallback(() => {
     game.reset();
@@ -427,6 +471,15 @@ export default function GameApp({ site }: { site: SiteSettings }) {
       if (phase !== "idle" && phase !== "results") return;
       setFailMode(next);
       writeSetting(SETTING_FAIL_MODE, next);
+    },
+    [phase],
+  );
+
+  const selectSpeed = useCallback(
+    (next: PlaybackSpeed) => {
+      if (phase !== "idle" && phase !== "results") return;
+      setSpeed(next);
+      writeSetting(SETTING_SPEED, next);
     },
     [phase],
   );
@@ -454,6 +507,17 @@ export default function GameApp({ site }: { site: SiteSettings }) {
     () => cueAt({ words, offset, lead: DEFAULT_LEAD }, game.state.pointer, time),
     [words, offset, game.state.pointer, time],
   );
+
+  // The intro is the quiet stretch before the first lyric. When it is long
+  // enough to be worth skipping, a small tab appears under the cue bar and
+  // jumps the video to just before the words start.
+  const skipTarget = words.length ? skipIntroTarget(words[0].start, offset) : null;
+  const skipIntro = useCallback(() => {
+    if (skipTarget !== null) seekTo(skipTarget);
+    // Clicking moved focus to the button; hand it back so typing (and the
+    // on-screen keyboard) keeps working.
+    inputRef.current?.focus();
+  }, [skipTarget, seekTo]);
 
   // Celebrations: a flash for a clean line, and for combo milestones.
   const [flash, setFlash] = useState<GameFlash | null>(null);
@@ -496,7 +560,7 @@ export default function GameApp({ site }: { site: SiteSettings }) {
   }, []);
 
   if (videoId === undefined) return null;
-  if (videoId === null) return <TrackPicker />;
+  if (videoId === null) return <TrackPicker ratings={ratings} />;
   if (loadError) {
     return (
       <StatusPanel
@@ -601,14 +665,20 @@ export default function GameApp({ site }: { site: SiteSettings }) {
         duration={duration}
         mode={mode}
         failMode={failMode}
+        speed={speed}
         locked={locked}
         paused={phase === "paused"}
         playing={phase === "playing"}
         onTogglePause={togglePause}
-        onRestart={restart}
+        onReset={resetToStart}
         onSelectMode={selectMode}
         onSelectFailMode={selectFailMode}
+        onSelectSpeed={selectSpeed}
         onCalibrate={() => setShowCalibration(true)}
+        calibrationOpen={showCalibration}
+        offset={offset}
+        onChangeOffset={changeOffset}
+        onCloseCalibration={() => setShowCalibration(false)}
         onFullscreen={toggleFullscreen}
         onChangeSong={changeSong}
       />
@@ -631,7 +701,15 @@ export default function GameApp({ site }: { site: SiteSettings }) {
         </PlayerStage>
 
         <div className="lyric-panel" ref={lyricRef}>
-          <CueBar cue={cue} first={game.state.pointer === 0} />
+          <CueBar
+            cue={cue}
+            first={game.state.pointer === 0}
+            onSkip={
+              phase === "playing" && game.state.pointer === 0 && skipTarget !== null
+                ? skipIntro
+                : undefined
+            }
+          />
           <LyricHighway
             track={track}
             results={game.state.results}
@@ -660,20 +738,13 @@ export default function GameApp({ site }: { site: SiteSettings }) {
           rank={rankOf(game.state)}
           mode={mode}
           failMode={failMode}
+          speed={speed}
           trackId={track.id}
           elapsed={time}
           progress={progress}
-          onReplay={restart}
+          onReplay={replay}
           onChangeSong={changeSong}
           onClose={closeResults}
-        />
-      ) : null}
-
-      {showCalibration ? (
-        <Calibration
-          offset={offset}
-          onChange={changeOffset}
-          onClose={() => setShowCalibration(false)}
         />
       ) : null}
     </div>

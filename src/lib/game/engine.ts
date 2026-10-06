@@ -14,6 +14,8 @@ export type GameMode = "easy" | "normal" | "hard";
 
 export const GAME_MODES: GameMode[] = ["easy", "normal", "hard"];
 
+export const DEFAULT_MODE: GameMode = "normal";
+
 export function isGameMode(value: unknown): value is GameMode {
   return value === "easy" || value === "normal" || value === "hard";
 }
@@ -23,8 +25,24 @@ export type FailMode = "normal" | "instant" | "fun" | "practise";
 
 export const FAIL_MODES: FailMode[] = ["normal", "instant", "fun", "practise"];
 
+export const DEFAULT_FAIL_MODE: FailMode = "fun";
+
 export function isFailMode(value: unknown): value is FailMode {
   return value === "normal" || value === "instant" || value === "fun" || value === "practise";
+}
+
+/** Video playback speeds offered in the HUD. */
+export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5] as const;
+
+export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
+
+export const DEFAULT_SPEED: PlaybackSpeed = 1;
+
+export function isPlaybackSpeed(value: unknown): value is PlaybackSpeed {
+  return (
+    typeof value === "number" &&
+    (PLAYBACK_SPEEDS as readonly number[]).includes(value)
+  );
 }
 
 /** How far back Practise rewinds on a mistake, in seconds. */
@@ -146,6 +164,23 @@ export const LINE_HEAD_START = 1;
  * always takes over before the player can fall too far behind.
  */
 export const LINE_CATCH_UP = 1;
+
+/** An intro shorter than this is not worth offering a skip for. */
+export const MIN_SKIP_INTRO = 2;
+
+/** How far before the first lyric the Skip button lands the video. */
+export const SKIP_INTRO_LEAD = 1.5;
+
+/**
+ * Where the Skip button should send the video, or `null` when the intro is too
+ * short to bother with. Measured from the first lyric's start (plus the player's
+ * sync offset), landing just before the words become typeable.
+ */
+export function skipIntroTarget(firstWordStart: number, offset = 0): number | null {
+  const intro = firstWordStart + offset;
+  if (intro < MIN_SKIP_INTRO) return null;
+  return Math.max(0, intro - SKIP_INTRO_LEAD);
+}
 
 export function createGameState(wordCount: number): GameState {
   return {

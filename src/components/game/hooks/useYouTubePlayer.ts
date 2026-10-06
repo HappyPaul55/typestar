@@ -22,6 +22,7 @@ interface YTPlayer {
   getCurrentTime(): number;
   getDuration(): number;
   getPlayerState(): number;
+  setPlaybackRate(rate: number): void;
   destroy(): void;
 }
 
@@ -76,7 +77,10 @@ export interface YouTubePlayerHandle {
   getTime(): number;
 }
 
-export function useYouTubePlayer(videoId: string | null): YouTubePlayerHandle {
+export function useYouTubePlayer(
+  videoId: string | null,
+  playbackRate = 1,
+): YouTubePlayerHandle {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [apiReady, setApiReady] = useState(false);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -177,6 +181,16 @@ export function useYouTubePlayer(videoId: string | null): YouTubePlayerHandle {
       if (playerRef.current === player) playerRef.current = null;
     };
   }, [videoId, apiReady, container, startLoop, stopLoop]);
+
+  // Keep the player's rate in step with the chosen speed. Re-runs when the
+  // player becomes ready (a new video) and whenever the speed changes.
+  useEffect(() => {
+    try {
+      playerRef.current?.setPlaybackRate(playbackRate);
+    } catch {
+      // The player may already be gone.
+    }
+  }, [playbackRate, ready]);
 
   const play = useCallback(() => playerRef.current?.playVideo(), []);
   const pause = useCallback(() => playerRef.current?.pauseVideo(), []);

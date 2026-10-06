@@ -20,9 +20,35 @@ describe("url hash", () => {
     expect(parseHash("#")).toEqual({});
   });
 
-  test("does not carry stats", () => {
-    expect(buildHash({ mode: "normal", failMode: "fun" })).toBe(
-      "#difficulty=normal&run=fun",
+  test("omits defaults, leaving no hash", () => {
+    expect(buildHash({ mode: "normal", failMode: "fun" })).toBe("");
+    expect(buildHash({ mode: "normal", failMode: "fun", speed: 1 })).toBe("");
+  });
+
+  test("carries only the settings that differ from the defaults", () => {
+    expect(buildHash({ mode: "hard", failMode: "fun", speed: 1 })).toBe(
+      "#difficulty=hard",
     );
+    expect(buildHash({ mode: "normal", failMode: "instant", speed: 1 })).toBe(
+      "#run=instant",
+    );
+    expect(buildHash({ mode: "normal", failMode: "fun", speed: 1.25 })).toBe(
+      "#speed=1.25",
+    );
+  });
+
+  test("round-trips the playback speed", () => {
+    const parsed = parseHash(
+      buildHash({ mode: "hard", failMode: "instant", speed: 1.25 }),
+    );
+    expect(parsed).toEqual({ mode: "hard", failMode: "instant", speed: 1.25 });
+  });
+
+  test("ignores an out-of-range or non-numeric speed", () => {
+    expect(parseHash("#difficulty=easy&run=normal&speed=3")).toEqual({
+      mode: "easy",
+      failMode: "normal",
+    });
+    expect(parseHash("#speed=normal")).toEqual({});
   });
 });

@@ -5,7 +5,13 @@
  */
 
 import { useEffect, useState } from "react";
-import type { FailMode, GameMode, GameState, Rank } from "../../lib/game/engine";
+import type {
+  FailMode,
+  GameMode,
+  GameState,
+  PlaybackSpeed,
+  Rank,
+} from "../../lib/game/engine";
 import { formatTime, readSetting, writeSetting } from "../../lib/game/storage";
 import { buildHash } from "../../lib/game/url";
 
@@ -15,6 +21,7 @@ interface Props {
   rank: Rank;
   mode: GameMode;
   failMode: FailMode;
+  speed: PlaybackSpeed;
   trackId: string;
   /** Seconds of video played. */
   elapsed: number;
@@ -45,6 +52,7 @@ export default function EndScreen({
   rank,
   mode,
   failMode,
+  speed,
   trackId,
   elapsed,
   progress,
@@ -76,7 +84,7 @@ export default function EndScreen({
 
   /** Share the same track and settings so someone else can take the same run. */
   async function share() {
-    const url = `${window.location.origin}/play/${trackId}${buildHash({ mode, failMode })}`;
+    const url = `${window.location.origin}/play/${trackId}${buildHash({ mode, failMode, speed })}`;
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {

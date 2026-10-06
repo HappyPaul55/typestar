@@ -7,10 +7,22 @@
 import {
   FAIL_MODES,
   GAME_MODES,
+  PLAYBACK_SPEEDS,
   type FailMode,
   type GameMode,
+  type PlaybackSpeed,
 } from "../../lib/game/engine";
 import { formatTime } from "../../lib/game/storage";
+import Calibration from "./Calibration";
+
+/** Labels for the playback-speed selector; `1` is the unlabelled default. */
+const SPEED_LABEL: Record<PlaybackSpeed, string> = {
+  0.5: "0.5×",
+  0.75: "0.75×",
+  1: "Normal",
+  1.25: "1.25×",
+  1.5: "1.5×",
+};
 
 interface Props {
   score: number;
@@ -24,15 +36,21 @@ interface Props {
   duration: number;
   mode: GameMode;
   failMode: FailMode;
+  speed: PlaybackSpeed;
   /** True while a run is in progress, so the dropdowns are disabled. */
   locked: boolean;
   paused: boolean;
   playing: boolean;
   onTogglePause(): void;
-  onRestart(): void;
+  onReset(): void;
   onSelectMode(mode: GameMode): void;
   onSelectFailMode(mode: FailMode): void;
+  onSelectSpeed(speed: PlaybackSpeed): void;
   onCalibrate(): void;
+  calibrationOpen: boolean;
+  offset: number;
+  onChangeOffset(offset: number): void;
+  onCloseCalibration(): void;
   onFullscreen(): void;
   onChangeSong(): void;
 }
@@ -61,7 +79,8 @@ function Control({
     <button
       type="button"
       onClick={onClick}
-      title={title}
+      aria-label={title}
+      data-tooltip={title}
       className={"hud__control" + (active ? " is-active" : "")}
     >
       {children}
@@ -80,14 +99,20 @@ export default function Hud({
   duration,
   mode,
   failMode,
+  speed,
   locked,
   paused,
   playing,
   onTogglePause,
-  onRestart,
+  onReset,
   onSelectMode,
   onSelectFailMode,
+  onSelectSpeed,
   onCalibrate,
+  calibrationOpen,
+  offset,
+  onChangeOffset,
+  onCloseCalibration,
   onFullscreen,
   onChangeSong,
 }: Props) {
@@ -120,10 +145,10 @@ export default function Hud({
         <Control onClick={onTogglePause} title={paused ? "Resume" : "Pause"}>
           {playing && !paused ? "❚❚" : "▶"}
         </Control>
-        <Control onClick={onRestart} title="Restart">
+        <Control onClick={onReset} title="Reset">
           ↺
         </Control>
-        <label className="hud__mode" title="Difficulty">
+        <label className="hud__mode" data-tooltip="Difficulty">
           <span className="sr-only">Difficulty</span>
           <select
             className="hud__select"
@@ -138,7 +163,7 @@ export default function Hud({
             ))}
           </select>
         </label>
-        <label className="hud__mode" title="Run mode">
+        <label className="hud__mode" data-tooltip="Run mode">
           <span className="sr-only">Run mode</span>
           <select
             className="hud__select"
@@ -153,9 +178,35 @@ export default function Hud({
             ))}
           </select>
         </label>
-        <Control onClick={onCalibrate} title="Sync offset">
-          sync
-        </Control>
+        <label className="hud__mode" data-tooltip="Playback speed">
+          <span className="sr-only">Playback speed</span>
+          <select
+            className="hud__select"
+            value={speed}
+            disabled={locked}
+            onChange={(event) =>
+              onSelectSpeed(Number(event.target.value) as PlaybackSpeed)
+            }
+          >
+            {PLAYBACK_SPEEDS.map((value) => (
+              <option key={value} value={value}>
+                {SPEED_LABEL[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="hud__sync">
+          <Control onClick={onCalibrate} title="Sync offset">
+            sync
+          </Control>
+          {calibrationOpen ? (
+            <Calibration
+              offset={offset}
+              onChange={onChangeOffset}
+              onClose={onCloseCalibration}
+            />
+          ) : null}
+        </div>
         <Control onClick={onFullscreen} title="Fullscreen">
           ⛶
         </Control>

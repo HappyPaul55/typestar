@@ -42,7 +42,9 @@ punctuation optional) and **hard** (whole word, punctuation required). Four run
 modes, independent of difficulty: **normal** (fails once the score drops below
 -150), **instant** (stops on the first mistake), **fun** (never fails) and
 **practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
-replay and counts it). Scoring
+replay and counts it). The defaults are difficulty **normal**, run mode **fun**
+and playback speed **1**. The HUD also carries a **Speed** dropdown (0.5× to
+1.5×) applied to the YouTube player via `setPlaybackRate`. Scoring
 rewards chains with combo tiers and a perfect-line bonus. Typing is forgiving:
 when a keystroke cannot continue the current word but does begin a later word it
 skips ahead — the words passed over are marked missed (a small penalty, and the
@@ -64,9 +66,20 @@ through the song you got, fun stats and a local personal best per track +
 difficulty + run mode. The page title and header show the loaded song.
 
 Settings travel in the URL hash so a run can be shared:
-`/play/<id>#difficulty=hard&run=practise`. `src/lib/game/url.ts` builds and parses
-it, and the end screen has a Share button. Only the setup is shared, not the
-score or results.
+`/play/<id>#difficulty=hard&run=practise&speed=1.25`. Values left at their
+defaults are omitted, so the common link has no hash. `src/lib/game/url.ts`
+builds and parses it, and the end screen has a Share button. Only the setup is
+shared, not the score or results.
+
+Each song is also rated **easy**, **medium** or **hard** from its lyrics'
+words-per-second pace (`src/lib/track/rating.ts`), with long instrumental gaps
+capped at one second so a quiet break cannot make a busy song look easy. The
+rating is a property of the song, independent of the difficulty setting: it
+shows as a chip beside the play header and as a badge on the featured cards
+(rated at build time from the pre-warmed seeds via `src/lib/track/seed.ts`).
+During a long intro a small **Skip** tab hangs under the cue bar and jumps to
+1.5 seconds before the first lyric; it is hidden when the intro is under two
+seconds (`skipIntroTarget` in `engine.ts`).
 
 Captions are line-level; `src/lib/track/parse.ts` recovers word-level timing
 from the raw `json3` transcript (one word per auto-caption event, per-segment
@@ -111,8 +124,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `Hud`, `Results`, `Calibration`, `TrackPicker`
   and the `hooks/` for the player and game loop.
-- `src/lib/track/**` — track types, caption parsing, build, validation and the
-  cache abstraction. Pure and tested.
+- `src/lib/track/**` — track types, caption parsing, build, validation, the
+  song rating (`rating.ts`), the build-time seed reader (`seed.ts`) and the
+  cache abstraction. Pure and tested (the seed reader is server-only).
 - `src/lib/game/**` — the pure game engine, browser client, audio helpers and
   storage.
 - `src/lib/game/audio.ts` + `public/audio/` — preloaded sound effects (the

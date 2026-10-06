@@ -14,6 +14,7 @@ import {
   rankOf,
   requiredCharIndices,
   requiredText,
+  skipIntroTarget,
   wordDeadline,
   wordOpenTime,
   WRONG_PENALTY,
@@ -662,5 +663,22 @@ describe("scoring helpers", () => {
     const cfg = config();
     const state = type(createGameState(WORDS.length), "were", 1.2, cfg);
     expect(progressOf(state, cfg)).toBeCloseTo(1 / 3, 5);
+  });
+});
+
+describe("skip intro", () => {
+  test("lands 1.5s before the first lyric", () => {
+    expect(skipIntroTarget(10)).toBeCloseTo(8.5);
+  });
+
+  test("hides when the intro is shorter than two seconds", () => {
+    expect(skipIntroTarget(1.99)).toBeNull();
+    expect(skipIntroTarget(2)).toBeCloseTo(0.5);
+  });
+
+  test("honours the sync offset and never goes negative", () => {
+    expect(skipIntroTarget(10, -0.5)).toBeCloseTo(8);
+    expect(skipIntroTarget(2, -1)).toBeNull();
+    expect(skipIntroTarget(2, 0)).toBeCloseTo(0.5);
   });
 });

@@ -524,6 +524,90 @@
     }
   }
 
+  /* Play header rating ------------------------------------------ */
+  /* The large EASY / MEDIUM / HARD chip that sits beside the song header.
+     `data-rating` is set by the game island once the track loads. */
+  .play-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: clamp(1.2rem, 4vw, 2.5rem);
+  }
+  .play-head__text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .play-rating {
+    flex: none;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.5rem 0.95rem 0.6rem;
+    border-radius: var(--radius-brand);
+    background: var(--color-yellow);
+    color: var(--color-ink);
+    box-shadow: 4px 4px 0 0 rgba(250, 250, 244, 0.16);
+  }
+  .play-rating[data-rating="easy"] {
+    background: #35c15a;
+  }
+  .play-rating[data-rating="medium"] {
+    background: var(--color-yellow);
+  }
+  .play-rating[data-rating="hard"] {
+    background: #ff4d4f;
+  }
+  .play-rating__caption {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.72;
+  }
+  .play-rating__value {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3.2vw, 2.2rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+  @media (max-width: 640px) {
+    .play-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+  }
+
+  /* Rating badge over a featured cover (track picker) ------------ */
+  .rating-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    padding: 0.26rem 0.6rem;
+    border-radius: 999px;
+    background: var(--color-yellow);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-shadow: 0 2px 0 0 rgba(12, 13, 10, 0.35);
+  }
+  .rating-badge--easy {
+    background: #35c15a;
+  }
+  .rating-badge--medium {
+    background: var(--color-yellow);
+  }
+  .rating-badge--hard {
+    background: #ff4d4f;
+  }
+
   /* Player ------------------------------------------------------- */
   .player-stage {
     display: flex;
@@ -741,6 +825,59 @@
     color: var(--color-ink);
   }
 
+  /* Tooltips: yellow on black, shown on hover or keyboard focus. */
+  [data-tooltip] {
+    position: relative;
+  }
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 30;
+    transform: translate(-50%, -4px);
+    padding: 0.3rem 0.55rem;
+    border-radius: 4px;
+    background: var(--color-yellow);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow: 3px 3px 0 0 rgba(12, 13, 10, 0.85);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 0.15s var(--ease-brand),
+      transform 0.15s var(--ease-brand);
+  }
+  [data-tooltip]::before {
+    content: "";
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 50%;
+    z-index: 31;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-bottom-color: var(--color-yellow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s var(--ease-brand);
+  }
+  [data-tooltip]:hover::after,
+  [data-tooltip]:focus-visible::after,
+  [data-tooltip]:focus-within::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  [data-tooltip]:hover::before,
+  [data-tooltip]:focus-visible::before,
+  [data-tooltip]:focus-within::before {
+    opacity: 1;
+  }
+
   /* Lyric highway ------------------------------------------------ */
   .lyric-highway {
     position: relative;
@@ -821,6 +958,37 @@
     text-transform: uppercase;
     white-space: nowrap;
     color: var(--color-muted);
+  }
+  /* A small tab that hangs from the bar's right edge, so it never covers the
+     lyrics on the left of the highway. */
+  .cue-bar__skip {
+    position: absolute;
+    top: 100%;
+    right: 0.7rem;
+    padding: 0.28rem 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+    background: var(--color-yellow);
+    border: 1px solid var(--color-ink);
+    border-top: 0;
+    border-radius: 0 0 4px 4px;
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease-brand);
+  }
+  .cue-bar__skip:hover {
+    background: var(--color-yellow-deep);
+  }
+  /* The cue bar sits over the top of the highway. Wide screens have enough
+     top padding to clear it; the single-column layout does not, so reserve
+     the space (including the Skip tab that hangs below the bar). */
+  @media (max-width: 919px) {
+    .lyric-highway {
+      padding-top: 3.4rem;
+    }
   }
   .lyric-line {
     font-family: var(--font-display);
@@ -1063,12 +1231,17 @@
   }
 
   /* Calibration -------------------------------------------------- */
+  /* Anchored to the sync button, so the form drops straight out of it. */
+  .hud__sync {
+    position: relative;
+    display: inline-flex;
+  }
   .calibration {
     position: absolute;
+    top: calc(100% + 0.6rem);
     right: 0;
-    bottom: 0;
-    z-index: 20;
-    width: min(22rem, 100%);
+    z-index: 40;
+    width: min(22rem, calc(100vw - 2.5rem));
     padding: 1.1rem 1.2rem;
     background: var(--color-cream);
     border: 1px solid var(--color-ink);
@@ -1140,16 +1313,18 @@
   .btn-game--primary {
     background: var(--color-yellow);
   }
-  .game-overlay .btn-game {
+  /* On the dark overlays the buttons are light-on-dark; the results panel is
+     cream, so its buttons keep the default ink-on-cream styling. */
+  .game-overlay:not(.game-overlay--results) .btn-game {
     color: var(--color-cream);
     background: transparent;
     border-color: var(--color-line-ink-strong);
   }
-  .game-overlay .btn-game:hover {
+  .game-overlay:not(.game-overlay--results) .btn-game:hover {
     box-shadow: 3px 3px 0 0 var(--color-yellow);
     border-color: var(--color-yellow);
   }
-  .game-overlay .btn-game--primary {
+  .game-overlay:not(.game-overlay--results) .btn-game--primary {
     color: var(--color-ink);
     background: var(--color-yellow);
     border-color: var(--color-yellow);
