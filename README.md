@@ -43,13 +43,17 @@ typing / keyboard speed game**.
 - Share a run: the difficulty, run mode and speed travel in the URL hash, so a
   friend opens the same track with exactly the same setup. Settings left at
   their defaults are omitted, so the common link has no hash at all.
+- Accurate link previews: for a song already in the library, the play page's
+  title, description and social tags name the song and use its cover art.
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
 
 ## How it works
 
-1. You open `/play/<youtubeId>` (or paste a link on `/play`).
+1. You open `/play/<youtubeId>` (or paste a link on `/play`). If the song is
+   already cached or seeded, the Worker serves the play page with the song's own
+   title and social tags already in the HTML.
 2. The page calls `GET /api/track/<youtubeId>`.
 3. The Worker returns the track from **R2** if it is cached, or from the bundled
    seed, so songs already in the library play with no check. Otherwise it asks
@@ -138,7 +142,7 @@ live lookup.
 | --- | --- |
 | `GET /api/track/:id?lang=en` | Get-or-create a track. `422` when the video has no captions, `502` when YouTube is unreachable. |
 | `/play?v=<id>` | `301` redirect to `/play/<id>`. |
-| `/play/<id>` | Serves the static play page; the client reads the id from the path. |
+| `/play/<id>` | Serves the play page; its title and social tags name the song when it is already cached or seeded, otherwise the generic page is served. |
 
 Only `/api/*`, `/play` and `/play/*` run the Worker (`run_worker_first` in
 `wrangler.jsonc`); everything else is served from the edge asset cache.

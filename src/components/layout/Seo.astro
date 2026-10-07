@@ -84,9 +84,9 @@ if (breadcrumbs.length > 0) {
 const jsonLd = { "@context": "https://schema.org", "@graph": graph };
 ---
 
-<title>{title}</title>
-<meta name="description" content={description} />
-<link rel="canonical" href={canonical} />
+<title data-seo="title">{title}</title>
+<meta name="description" data-seo="description" content={description} />
+<link rel="canonical" data-seo="canonical" href={canonical} />
 <meta
   name="robots"
   content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"}
@@ -103,22 +103,22 @@ const jsonLd = { "@context": "https://schema.org", "@graph": graph };
 <!-- Open Graph -->
 <meta property="og:type" content={type} />
 <meta property="og:site_name" content={settings.name} />
-<meta property="og:title" content={title} />
-<meta property="og:description" content={description} />
-<meta property="og:url" content={canonical} />
+<meta property="og:title" data-seo="og:title" content={title} />
+<meta property="og:description" data-seo="og:description" content={description} />
+<meta property="og:url" data-seo="og:url" content={canonical} />
 <meta property="og:locale" content="en_GB" />
-<meta property="og:image" content={ogImage} />
-<meta property="og:image:type" content="image/png" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-<meta property="og:image:secure_url" content={ogImage} />
-<meta property="og:image:alt" content={ogAlt} />
+<meta property="og:image" data-seo="og:image" content={ogImage} />
+<meta property="og:image:type" data-seo="og:image:type" content="image/png" />
+<meta property="og:image:width" data-seo="og:image:width" content="1200" />
+<meta property="og:image:height" data-seo="og:image:height" content="630" />
+<meta property="og:image:secure_url" data-seo="og:image:secure_url" content={ogImage} />
+<meta property="og:image:alt" data-seo="og:image:alt" content={ogAlt} />
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content={title} />
-<meta name="twitter:description" content={description} />
-<meta name="twitter:image" content={ogImage} />
-<meta name="twitter:image:alt" content={ogAlt} />
+<meta name="twitter:title" data-seo="twitter:title" content={title} />
+<meta name="twitter:description" data-seo="twitter:description" content={description} />
+<meta name="twitter:image" data-seo="twitter:image" content={ogImage} />
+<meta name="twitter:image:alt" data-seo="twitter:image:alt" content={ogAlt} />
 
 <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

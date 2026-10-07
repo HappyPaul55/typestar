@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { memoryStore } from "./track/store";
 import { TRACK_VERSION, type Track } from "./track/types";
 import {
+  getCachedTrack,
   handleTrackRequest,
   trackKey,
   TURNSTILE_TOKEN_HEADER,
@@ -215,5 +216,29 @@ describe("handleTrackRequest responses", () => {
     const body = (await response.json()) as Record<string, unknown>;
     expect(body.error).toBe("upstream-failed");
     expect(body.message).toBeUndefined();
+  });
+});
+
+describe("getCachedTrack", () => {
+  test("returns a cached track", async () => {
+    const store = memoryStore({ [trackKey(ID, "en")]: JSON.stringify(TRACK) });
+    expect((await getCachedTrack({ store }, ID))?.id).toBe(ID);
+  });
+
+  test("returns a seeded track", async () => {
+    const track = await getCachedTrack(
+      { store: memoryStore(), seed: async () => JSON.stringify(TRACK) },
+      ID,
+    );
+    expect(track?.id).toBe(ID);
+  });
+
+  test("returns null when neither exists", async () => {
+    expect(await getCachedTrack({ store: memoryStore() }, ID)).toBeNull();
+  });
+
+  test("returns null for an unusable cached value", async () => {
+    const store = memoryStore({ [trackKey(ID, "en")]: "{not json" });
+    expect(await getCachedTrack({ store }, ID)).toBeNull();
   });
 });

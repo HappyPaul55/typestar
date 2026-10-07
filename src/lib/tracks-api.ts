@@ -117,6 +117,26 @@ export function trackKey(id: string, lang: string): string {
   return `tracks/${id}/${lang}.json`;
 }
 
+/**
+ * Read a track from the cache or the bundled seed, without fetching anything.
+ *
+ * Used to fill per-track SEO on the pretty play route: it never triggers a live
+ * lookup or a human check, so an unknown song simply keeps the generic tags.
+ */
+export async function getCachedTrack(
+  env: Pick<TracksEnv, "store" | "seed">,
+  id: string,
+  lang = "en",
+): Promise<Track | null> {
+  const cached = await env.store.get(trackKey(id, lang));
+  const cachedTrack = cached ? parseTrack(cached) : null;
+  if (cachedTrack) return cachedTrack;
+
+  if (!env.seed) return null;
+  const seeded = await env.seed(id, lang).catch(() => null);
+  return seeded ? parseTrack(seeded) : null;
+}
+
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,

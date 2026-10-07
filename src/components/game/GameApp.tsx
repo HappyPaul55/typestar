@@ -45,6 +45,7 @@ import {
 } from "../../lib/game/storage";
 import type { Track } from "../../lib/track/types";
 import { RATING_LABEL, ratingOf, type TrackRating } from "../../lib/track/rating";
+import { seoTagValues, trackSeo } from "../../lib/seo";
 import type { SiteSettings } from "../../lib/site";
 import { buildHash, parseHash } from "../../lib/game/url";
 import CueBar from "./CueBar";
@@ -327,6 +328,29 @@ export default function GameApp({
     if (titleEl) titleEl.textContent = track.title;
     if (subtitleEl) subtitleEl.textContent = artist ?? defaultSubtitle;
 
+    // Keep the social/meta tags accurate. In production the Worker renders them
+    // server-side; this covers `astro dev` (and keeps the browser tab in step).
+    const restores: Array<() => void> = [];
+    const origin = window.location.origin;
+    for (const [key, value] of Object.entries(
+      seoTagValues(trackSeo(track, origin)),
+    )) {
+      const el = document.querySelector<HTMLElement>(`[data-seo="${key}"]`);
+      if (!el) continue;
+      if (el.tagName === "TITLE") {
+        const before = el.textContent ?? "";
+        restores.push(() => {
+          el.textContent = before;
+        });
+        el.textContent = value;
+      } else {
+        const attr = el.hasAttribute("href") ? "href" : "content";
+        const before = el.getAttribute(attr) ?? "";
+        restores.push(() => el.setAttribute(attr, before));
+        el.setAttribute(attr, value);
+      }
+    }
+
     // The rating is a property of the song's lyrics, computed on the fly.
     const ratingEl = document.getElementById("play-rating");
     const ratingValueEl = document.getElementById("play-rating-value");
@@ -342,6 +366,7 @@ export default function GameApp({
       if (titleEl) titleEl.textContent = site.name;
       if (subtitleEl) subtitleEl.textContent = defaultSubtitle;
       if (ratingEl) ratingEl.hidden = true;
+      for (const restore of restores) restore();
     };
   }, [track, site]);
 

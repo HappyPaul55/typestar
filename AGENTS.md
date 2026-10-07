@@ -22,8 +22,10 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
 
 ## How the game works
 
-1. `/play/<id>` serves the static play page; the client reads the id from the
-   address bar and calls `GET /api/track/<id>`.
+1. `/play/<id>` serves the play page; the client reads the id from the address
+   bar and calls `GET /api/track/<id>`. When the song is already cached or
+   seeded, the Worker fills the page's title and social tags first, so crawlers
+   and link previews are accurate.
 2. The Worker returns the track from **R2** if cached, else from the bundled
    seed in `public/tracks/<id>.json`. If it is in neither, the request must carry
    a valid **Turnstile** token: the client shows the Cloudflare widget, and the
@@ -139,13 +141,15 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   the public sitekey and the on-demand widget shown for a new song.
 - `src/lib/youtube-captions.ts` — caption fetch with retries and `json3`
   capture.
+- `src/lib/seo.ts` — pure per-track SEO values and the `data-seo` tag rewriter
+  used by the Worker (and by the client in `astro dev`).
 - `src/components/layout/Seo.astro` / `Header.astro` / `Footer.astro` — the
   notebook shell. Nav is Privacy + Play.
 - `src/layouts/BaseLayout.astro` — loads settings, preloads the display font.
 - `src/styles/global.css` — Tailwind v4 tokens, the notebook components and the
   game styles.
 - `worker/index.ts` — Worker routes: `/api/track/:id`, `/play?v=` → 301,
-  `/play/<id>` → the static page.
+  `/play/<id>` → the play page, with per-track SEO when the song is known.
 - `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding and
   `run_worker_first: ["/api/*", "/play", "/play/*"]`.
 - `astro.config.mjs` — the `devServer` Vite plugin reproduces the Worker routing
