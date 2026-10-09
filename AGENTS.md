@@ -146,7 +146,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `src/components/game/GameApp.tsx`.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `Hud`, `Results`, `Calibration`, `TrackPicker`,
-  `LocalLibrary` (the local-folder picker) and the `hooks/` for the YouTube
+  `LocalLibrary` (the local-folder picker), `TrackCard` (the shared song card
+  used by both pickers) and the `hooks/` for the YouTube
   player, the HTML5 media player (`useMediaPlayer`), the UltraStar player
   (`useUltraStarPlayer`) and the game loop.
 - `src/lib/track/**` — track types, caption parsing, build, validation, the

@@ -651,8 +651,8 @@
     }
   }
 
-  /* Rating badge over a featured cover (track picker) ------------ */
-  .rating-badge {
+  /* A pill over a card's cover: the featured rating, or the Lyrics/Video tag. */
+  .track-card__badge {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
@@ -668,13 +668,13 @@
     text-transform: uppercase;
     box-shadow: 0 2px 0 0 rgba(12, 13, 10, 0.35);
   }
-  .rating-badge--easy {
+  .track-card__badge--easy {
     background: #35c15a;
   }
-  .rating-badge--medium {
+  .track-card__badge--medium {
     background: var(--color-yellow);
   }
-  .rating-badge--hard {
+  .track-card__badge--hard {
     background: #ff4d4f;
   }
 
@@ -1571,6 +1571,9 @@
     flex-direction: column;
     overflow: hidden;
     padding: 0;
+    text-align: left;
+    color: var(--color-ink);
+    text-decoration: none;
     background: var(--color-paper);
     border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-brand);
@@ -1585,6 +1588,10 @@
     background: var(--color-cream);
     border-color: var(--color-ink);
     box-shadow: 6px 6px 0 0 var(--color-yellow);
+  }
+  .track-card--busy {
+    opacity: 0.5;
+    pointer-events: none;
   }
   .track-card__media {
     position: relative;
@@ -1854,7 +1861,7 @@
   }
   /* The cover image fills the 16:9 media area; without one, a muted glyph sits
      on paper. */
-  .local-card__placeholder {
+  .track-card__placeholder {
     display: grid;
     place-items: center;
     width: 100%;
@@ -1874,23 +1881,6 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--color-muted);
-  }
-  /* The Lyrics/Video pill sits over the cover, like the featured rating badge. */
-  .local-card__badge {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    z-index: 2;
-    padding: 0.26rem 0.6rem;
-    border-radius: 999px;
-    background: var(--color-yellow);
-    color: var(--color-ink);
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    box-shadow: 0 2px 0 0 rgba(12, 13, 10, 0.35);
   }
   /* The footer lists every folder and how many songs it contributes; each name
      is a button that drops the folder. */

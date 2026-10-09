@@ -32,6 +32,7 @@ import {
   type LocalUltraStarSong,
 } from "../../lib/local/library";
 import { loadDirectoryHandles, saveDirectoryHandles } from "../../lib/local/idb";
+import TrackCard from "./TrackCard";
 
 export interface LocalSelection {
   track: Track;
@@ -443,14 +444,14 @@ export default function LocalLibrary({
               <p className="local-library__group-label">UltraStar</p>
               <div className="local-library__grid">
                 {shownSongs.map((song) => (
-                  <button
+                  <TrackCard
                     key={song.id}
-                    type="button"
-                    className="track-card"
-                    onClick={() => openItem(song)}
-                    disabled={busy}
-                  >
-                    <span className="track-card__media">
+                    href={`/play/local?file=${encodeURIComponent(song.ref)}`}
+                    title={song.title}
+                    subtitle={song.artist}
+                    busy={busy}
+                    onOpen={() => openItem(song)}
+                    media={
                       <LocalCover
                         handle={
                           song.coverPath
@@ -459,20 +460,13 @@ export default function LocalLibrary({
                         }
                         kind="lyrics"
                       />
-                      <span className="local-card__badge">
+                    }
+                    badge={
+                      <span className="track-card__badge">
                         {song.videoPath ? "Video" : "Lyrics"}
                       </span>
-                      <span className="track-card__play" aria-hidden="true">
-                        ▶
-                      </span>
-                    </span>
-                    <span className="track-card__body">
-                      <span className="track-card__title">{song.title}</span>
-                      {song.artist ? (
-                        <span className="track-card__artist">{song.artist}</span>
-                      ) : null}
-                    </span>
-                  </button>
+                    }
+                  />
                 ))}
               </div>
             </div>
@@ -485,26 +479,15 @@ export default function LocalLibrary({
                 {shownVideos.map((pair) => {
                   const album = parentPath(pair.base);
                   return (
-                    <button
+                    <TrackCard
                       key={pair.id}
-                      type="button"
-                      className="track-card"
-                      onClick={() => openItem(pair)}
-                      disabled={busy}
-                    >
-                      <span className="track-card__media">
-                        <LocalCover kind="video" />
-                        <span className="track-card__play" aria-hidden="true">
-                          ▶
-                        </span>
-                      </span>
-                      <span className="track-card__body">
-                        <span className="track-card__title">{pair.title}</span>
-                        {album ? (
-                          <span className="track-card__artist">{album}</span>
-                        ) : null}
-                      </span>
-                    </button>
+                      href={`/play/local?file=${encodeURIComponent(pair.ref)}`}
+                      title={pair.title}
+                      subtitle={album}
+                      busy={busy}
+                      onOpen={() => openItem(pair)}
+                      media={<LocalCover kind="video" />}
+                    />
                   );
                 })}
               </div>
@@ -671,7 +654,7 @@ function LocalCover({
     );
   }
   return (
-    <span className="local-card__placeholder" aria-hidden="true">
+    <span className="track-card__placeholder" aria-hidden="true">
       {kind === "video" ? <FilmGlyph /> : <NoteGlyph />}
     </span>
   );
