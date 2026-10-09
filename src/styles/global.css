@@ -1676,7 +1676,75 @@
   .local-library__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  /* The landing offers two ways in: YouTube, then the local hero card. */
+  .local-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.1rem;
+    flex: 1 1 18rem;
+    padding: 1.5rem 1.6rem;
+    text-align: left;
+    font: inherit;
+    color: var(--color-ink);
+    background: var(--color-cream);
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-brand);
+    cursor: pointer;
+    transition:
+      transform 0.28s var(--ease-brand),
+      box-shadow 0.28s var(--ease-brand),
+      background-color 0.28s var(--ease-brand);
+  }
+  .local-choice:hover:not(:disabled) {
+    transform: translate(-3px, -3px);
+    box-shadow: 7px 7px 0 0 var(--color-yellow);
+  }
+  .local-choice:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .local-choice__icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: var(--radius-brand);
+    background: var(--color-paper-2);
+    color: var(--color-ink);
+  }
+  .local-choice__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .local-choice__title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .local-choice__desc {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+  }
+  /* The local folder is the hero: it grows more and reads bigger. */
+  .local-choice--primary {
+    flex: 2 1 26rem;
+    padding: 2rem 2.1rem;
+  }
+  .local-choice--primary .local-choice__icon {
+    width: 3.8rem;
+    height: 3.8rem;
+    background: var(--color-yellow);
+  }
+  .local-choice--primary .local-choice__title {
+    font-size: 1.75rem;
   }
   /* The count on the left; the search box and folder buttons on the right.
      `flex: 1` gives the tools the whole remaining width, so the search cannot

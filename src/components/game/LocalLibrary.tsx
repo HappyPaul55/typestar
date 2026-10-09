@@ -394,22 +394,90 @@ export default function LocalLibrary({
         </div>
       ) : (
         <div className="local-library__actions">
+          <a className="local-choice" href="/play">
+            <span className="local-choice__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+                <rect
+                  x="2"
+                  y="5"
+                  width="20"
+                  height="14"
+                  rx="4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                />
+                <path d="M10 9l5 3-5 3z" fill="currentColor" />
+              </svg>
+            </span>
+            <span className="local-choice__body">
+              <span className="local-choice__title">YouTube</span>
+              <span className="local-choice__desc">
+                Pick a featured track, or paste a YouTube link.
+              </span>
+            </span>
+          </a>
+
           <button
             type="button"
-            className="btn-game btn-game--primary"
+            className="local-choice local-choice--primary"
             onClick={chooseFolder}
             disabled={busy}
           >
-            Choose folder
+            <span className="local-choice__icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="28"
+                height="28"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              </svg>
+            </span>
+            <span className="local-choice__body">
+              <span className="local-choice__title">Choose a folder</span>
+              <span className="local-choice__desc">
+                Play UltraStar songs, or videos with matching .vtt captions,
+                from this device. Nothing is uploaded.
+              </span>
+            </span>
           </button>
+
           {remembered ? (
             <button
               type="button"
-              className="btn-game"
+              className="local-choice"
               onClick={reopenFolder}
               disabled={busy}
             >
-              Reopen {remembered.name}
+              <span className="local-choice__icon" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 12a8 8 0 0 1 13.7-5.6L20 8" />
+                  <path d="M20 4v4h-4" />
+                  <path d="M20 12a8 8 0 0 1-13.7 5.6L4 16" />
+                  <path d="M4 20v-4h4" />
+                </svg>
+              </span>
+              <span className="local-choice__body">
+                <span className="local-choice__title">
+                  Reopen {remembered.name}
+                </span>
+                <span className="local-choice__desc">
+                  Use the folder from your last visit.
+                </span>
+              </span>
             </button>
           ) : null}
         </div>
