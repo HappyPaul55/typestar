@@ -1423,8 +1423,8 @@
     box-shadow: 3px 3px 0 0 var(--color-yellow);
     border-color: var(--color-yellow);
   }
-  /* The primary button keeps its ink border on hover: a yellow border would
-     vanish into the yellow fill and the button would look borderless. */
+  /* The primary button matches the track picker's Play button: a yellow fill
+     with an ink border, and an ink offset shadow on hover (not yellow). */
   .game-overlay:not(.game-overlay--results) .btn-game--primary {
     color: var(--color-ink);
     background: var(--color-yellow);
@@ -1432,6 +1432,7 @@
   }
   .game-overlay:not(.game-overlay--results) .btn-game--primary:hover {
     border-color: var(--color-ink);
+    box-shadow: 3px 3px 0 0 var(--color-ink);
   }
   .btn-game--start {
     margin-top: 0.6rem;
