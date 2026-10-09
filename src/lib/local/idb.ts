@@ -15,6 +15,8 @@ const DB_NAME = "typestar";
 const DB_VERSION = 1;
 const STORE = "handles";
 const DIRECTORIES_KEY = "local-directories";
+/** The key an earlier single-folder version stored its one handle under. */
+const LEGACY_DIRECTORY_KEY = "local-directory";
 
 function isDirectoryHandle(value: unknown): value is LocalDirectoryHandle {
   return (
@@ -68,11 +70,17 @@ export async function loadDirectoryHandles(): Promise<LocalDirectoryHandle[]> {
     store.get(DIRECTORIES_KEY),
   );
   if (Array.isArray(value)) return value.filter(isDirectoryHandle);
-  // A handle saved by an earlier single-folder version.
   if (isDirectoryHandle(value)) return [value];
-  return [];
+  // An earlier single-folder version stored its one handle under its own key.
+  const legacy = await withStore<unknown>("readonly", (store) =>
+    store.get(LEGACY_DIRECTORY_KEY),
+  );
+  return isDirectoryHandle(legacy) ? [legacy] : [];
 }
 
 export async function clearDirectoryHandles(): Promise<void> {
-  await withStore("readwrite", (store) => store.delete(DIRECTORIES_KEY));
+  await withStore("readwrite", (store) => {
+    store.delete(DIRECTORIES_KEY);
+    return store.delete(LEGACY_DIRECTORY_KEY);
+  });
 }
