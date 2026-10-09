@@ -6,6 +6,7 @@ import {
   MAX_SCAN_DEPTH,
   pairLocalFiles,
   pairUltraStarSongs,
+  pruneNestedFolders,
   resolveRelativePath,
   scanDirectory,
   stripExtension,
@@ -55,38 +56,59 @@ describe("path helpers", () => {
 });
 
 describe("pairLocalFiles", () => {
+  const file = (folderId: string, folderName: string, path: string) => ({
+    folderId,
+    folderName,
+    path,
+  });
+
   test("pairs a video with its same-named caption file", () => {
     const pairs = pairLocalFiles([
-      { path: "Album/Song.mp4" },
-      { path: "Album/Song.vtt" },
+      file("0", "Movies", "Album/Song.mp4"),
+      file("0", "Movies", "Album/Song.vtt"),
     ]);
     expect(pairs).toHaveLength(1);
     expect(pairs[0]).toMatchObject({
       base: "Album/Song",
       title: "Song",
+      folderId: "0",
+      folderName: "Movies",
+      ref: "Movies/Album/Song.mp4",
       videoPath: "Album/Song.mp4",
       captionPath: "Album/Song.vtt",
     });
   });
 
-  test("matches case-insensitively and sorts by path", () => {
+  test("matches case-insensitively and sorts by folder then path", () => {
     const pairs = pairLocalFiles([
-      { path: "b/Song.mp4" },
-      { path: "b/song.VTT" },
-      { path: "a/Other.webm" },
-      { path: "a/other.vtt" },
+      file("1", "B", "b/Song.mp4"),
+      file("1", "B", "b/song.VTT"),
+      file("0", "A", "a/Other.webm"),
+      file("0", "A", "a/other.vtt"),
     ]);
     expect(pairs.map((pair) => pair.base)).toEqual(["a/Other", "b/Song"]);
+    expect(pairs.map((pair) => pair.folderName)).toEqual(["A", "B"]);
+  });
+
+  test("keeps equal paths in different folders separate", () => {
+    const pairs = pairLocalFiles([
+      file("0", "One", "song.mp4"),
+      file("0", "One", "song.vtt"),
+      file("1", "Two", "song.mp4"),
+      file("1", "Two", "song.vtt"),
+    ]);
+    expect(pairs).toHaveLength(2);
+    expect(pairs.map((pair) => pair.folderName).sort()).toEqual(["One", "Two"]);
   });
 
   test("drops files without a partner and ignores unrelated files", () => {
     const pairs = pairLocalFiles([
-      { path: "only-video.mp4" },
-      { path: "only-captions.vtt" },
-      { path: "cover.jpg" },
-      { path: "notes.txt" },
-      { path: "ok.mp4" },
-      { path: "ok.vtt" },
+      file("0", "F", "only-video.mp4"),
+      file("0", "F", "only-captions.vtt"),
+      file("0", "F", "cover.jpg"),
+      file("0", "F", "notes.txt"),
+      file("0", "F", "ok.mp4"),
+      file("0", "F", "ok.vtt"),
     ]);
     expect(pairs.map((pair) => pair.base)).toEqual(["ok"]);
   });
@@ -112,20 +134,28 @@ describe("resolveRelativePath", () => {
 });
 
 describe("pairUltraStarSongs", () => {
-  test("pairs charts with their referenced audio and video", () => {
+  test("pairs charts with their referenced audio, video and cover", () => {
     const available = new Map([
-      ["album/song.txt", "Album/song.txt"],
-      ["album/audio.mp3", "Album/Audio.MP3"],
-      ["album/bg.mp4", "Album/bg.mp4"],
+      ["0:album/song.txt", "Album/song.txt"],
+      ["0:album/audio.mp3", "Album/Audio.MP3"],
+      ["0:album/bg.mp4", "Album/bg.mp4"],
+      ["0:album/cover.jpg", "Album/Cover.JPG"],
     ]);
     const songs = pairUltraStarSongs(
       [
         {
+          folderId: "0",
+          folderName: "Songs",
           path: "Album/song.txt",
-          text: "#TITLE:T\n#ARTIST:A\n#MP3:audio.mp3\n#VIDEO:bg.mp4\n",
+          text: "#TITLE:T\n#ARTIST:A\n#MP3:audio.mp3\n#VIDEO:bg.mp4\n#COVER:cover.jpg\n",
         },
         // No matching audio: skipped.
-        { path: "Album/other.txt", text: "#MP3:missing.mp3\n" },
+        {
+          folderId: "0",
+          folderName: "Songs",
+          path: "Album/other.txt",
+          text: "#MP3:missing.mp3\n",
+        },
       ],
       available,
     );
@@ -134,9 +164,103 @@ describe("pairUltraStarSongs", () => {
       kind: "ultrastar",
       title: "T",
       artist: "A",
+      folderId: "0",
+      folderName: "Songs",
+      ref: "Songs/Album/song.txt",
       audioPath: "Album/Audio.MP3",
       videoPath: "Album/bg.mp4",
+      coverPath: "Album/Cover.JPG",
     });
+  });
+
+  test("leaves the cover null when the chart has none, or it is missing", () => {
+    const available = new Map([
+      ["0:a.txt", "a.txt"],
+      ["0:a.mp3", "a.mp3"],
+      ["0:b.txt", "b.txt"],
+      ["0:b.mp3", "b.mp3"],
+    ]);
+    const songs = pairUltraStarSongs(
+      [
+        { folderId: "0", folderName: "F", path: "a.txt", text: "#MP3:a.mp3\n" },
+        {
+          folderId: "0",
+          folderName: "F",
+          path: "b.txt",
+          text: "#MP3:b.mp3\n#COVER:gone.jpg\n",
+        },
+      ],
+      available,
+    );
+    expect(songs.map((song) => song.coverPath)).toEqual([null, null]);
+  });
+
+  test("never resolves audio across folders", () => {
+    const available = new Map([["1:audio.mp3", "audio.mp3"]]);
+    const songs = pairUltraStarSongs(
+      [
+        {
+          folderId: "0",
+          folderName: "A",
+          path: "song.txt",
+          text: "#MP3:audio.mp3\n",
+        },
+      ],
+      available,
+    );
+    expect(songs).toHaveLength(0);
+  });
+});
+
+describe("pruneNestedFolders", () => {
+  const dir = (
+    name: string,
+    resolve: (other: LocalDirectoryHandle) => string[] | null,
+  ): LocalDirectoryHandle => ({
+    kind: "directory",
+    name,
+    entries() {
+      return (async function* () {})();
+    },
+    resolve: async (other) => resolve(other),
+  });
+
+  test("drops a folder nested inside another, either order", async () => {
+    const foo = dir("foo", (o) => (o.name === "bar" ? ["bar"] : null));
+    const bar = dir("bar", (o) => (o.name === "foo" ? null : o.name === "bar" ? [] : null));
+    expect(await pruneNestedFolders([foo, bar])).toEqual([foo]);
+    expect(await pruneNestedFolders([bar, foo])).toEqual([foo]);
+  });
+
+  test("drops exact duplicates", async () => {
+    const a1 = dir("a", (o) => (o.name === "a" ? [] : null));
+    const a2 = dir("a", (o) => (o.name === "a" ? [] : null));
+    const kept = await pruneNestedFolders([a1, a2]);
+    expect(kept).toEqual([a1]);
+  });
+
+  test("keeps unrelated folders", async () => {
+    const a = dir("a", (o) => (o.name === "a" ? [] : null));
+    const b = dir("b", (o) => (o.name === "b" ? [] : null));
+    expect(await pruneNestedFolders([a, b])).toEqual([a, b]);
+  });
+
+  test("keeps everything when resolve is unavailable", async () => {
+    const a: LocalDirectoryHandle = {
+      kind: "directory",
+      name: "a",
+      entries() {
+        return (async function* () {})();
+      },
+    };
+    const b: LocalDirectoryHandle = {
+      kind: "directory",
+      name: "b",
+      entries() {
+        return (async function* () {})();
+      },
+    };
+    expect(await pruneNestedFolders([a, b])).toEqual([a, b]);
   });
 });
 

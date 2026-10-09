@@ -7,6 +7,7 @@ import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import { parseVideoId } from "../../lib/game/client";
 import { supportsLocalLibrary } from "../../lib/local/library";
 import { RATING_LABEL, type TrackRating } from "../../lib/track/rating";
+import TrackCard from "./TrackCard";
 
 export default function TrackPicker({
   ratings = {},
@@ -125,10 +126,18 @@ export default function TrackPicker({
             ].join(", ");
             const rating = ratings[track.id];
             return (
-              <a key={track.id} className="track-card" href={`/play/${track.id}`}>
-                <span className="track-card__media">
+              <TrackCard
+                key={track.id}
+                href={`/play/${track.id}`}
+                title={track.title}
+                subtitle={track.artist}
+                media={
                   <picture>
-                    <source type="image/jpeg" srcSet={srcSet} sizes="(min-width: 640px) 20rem, 92vw" />
+                    <source
+                      type="image/jpeg"
+                      srcSet={srcSet}
+                      sizes="(min-width: 640px) 20rem, 92vw"
+                    />
                     <img
                       className="track-card__art"
                       src={`${thumb}/hqdefault.jpg`}
@@ -139,23 +148,18 @@ export default function TrackPicker({
                       decoding="async"
                     />
                   </picture>
-                  {rating ? (
+                }
+                badge={
+                  rating ? (
                     <span
-                      className={`rating-badge rating-badge--${rating}`}
+                      className={`track-card__badge track-card__badge--${rating}`}
                       title={`${RATING_LABEL[rating]} — rated from the song's words per second`}
                     >
                       {RATING_LABEL[rating]}
                     </span>
-                  ) : null}
-                  <span className="track-card__play" aria-hidden="true">
-                    ▶
-                  </span>
-                </span>
-                <span className="track-card__body">
-                  <span className="track-card__title">{track.title}</span>
-                  <span className="track-card__artist">{track.artist}</span>
-                </span>
-              </a>
+                  ) : null
+                }
+              />
             );
           })}
         </div>

@@ -52,6 +52,8 @@ export interface LocalDirectoryHandle {
   entries(): AsyncIterableIterator<[string, LocalFileHandle | LocalDirectoryHandle]>;
   queryPermission?(descriptor?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
   requestPermission?(descriptor?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
+  /** Path from this directory to a descendant, `[]` for itself, or `null`. */
+  resolve?(possibleDescendant: LocalDirectoryHandle): Promise<string[] | null>;
 }
 
 type DirectoryPicker = (options?: {
@@ -103,28 +105,76 @@ export async function ensureReadPermission(
   return true;
 }
 
-/**
- * Whether read permission is already granted, without prompting. Safe to call
- * outside a user gesture (unlike {@link ensureReadPermission}).
- */
-export async function hasReadPermission(handle: LocalDirectoryHandle): Promise<boolean> {
-  if (!handle.queryPermission) return false;
-  try {
-    return (await handle.queryPermission({ mode: "read" })) === "granted";
-  } catch {
-    return false;
+type FolderRelation = "same" | "inside" | "contains" | "unrelated";
+
+/** How `b` sits relative to `a`: same, inside it, containing it, or unrelated. */
+async function folderRelation(
+  a: LocalDirectoryHandle,
+  b: LocalDirectoryHandle,
+): Promise<FolderRelation> {
+  if (a.resolve) {
+    try {
+      const path = await a.resolve(b);
+      if (path) return path.length === 0 ? "same" : "inside";
+    } catch {
+      // Not a descendant, or no permission: fall through.
+    }
   }
+  if (b.resolve) {
+    try {
+      const path = await b.resolve(a);
+      if (path) return path.length === 0 ? "same" : "contains";
+    } catch {
+      // ignore
+    }
+  }
+  return "unrelated";
+}
+
+/**
+ * Drop folders that another already covers: an exact duplicate, or a folder
+ * nested inside one in the list. Uses `resolve()` where the browser provides
+ * it; without it, every folder is kept as-is.
+ */
+export async function pruneNestedFolders(
+  folders: readonly LocalDirectoryHandle[],
+): Promise<LocalDirectoryHandle[]> {
+  const keep: LocalDirectoryHandle[] = [];
+  for (const folder of folders) {
+    let covered = false;
+    for (let i = keep.length - 1; i >= 0; i--) {
+      const relation = await folderRelation(keep[i], folder);
+      if (relation === "same" || relation === "inside") {
+        covered = true;
+        break;
+      }
+      // This folder contains an earlier one, so the earlier is redundant.
+      if (relation === "contains") keep.splice(i, 1);
+    }
+    if (!covered) keep.push(folder);
+  }
+  return keep;
 }
 
 export interface LocalFileEntry {
+  /** Id of the folder this file belongs to. */
+  folderId: string;
+  /** Display name of that folder. */
+  folderName: string;
   /** Path relative to the chosen folder, using `/` separators. */
   path: string;
 }
 
 export interface LocalPair {
   kind: "video";
-  /** Stable id derived from the relative path (without its extension). */
+  /** Unique id, e.g. `local:Movies:Song`. */
   id: string;
+  /** Deep-link reference, `<folder>/<video path>`. */
+  ref: string;
+  /** Id of the folder this pair lives in. */
+  folderId: string;
+  /** Display name of that folder. */
+  folderName: string;
   /** Relative path without its extension, e.g. `Album/Song`. */
   base: string;
   /** Display title: the file's base name. */
@@ -139,6 +189,10 @@ export interface LocalPair {
 export interface LocalUltraStarSong {
   kind: "ultrastar";
   id: string;
+  /** Deep-link reference, `<folder>/<chart path>`. */
+  ref: string;
+  folderId: string;
+  folderName: string;
   base: string;
   title: string;
   artist: string;
@@ -148,6 +202,8 @@ export interface LocalUltraStarSong {
   audioPath: string;
   /** Relative path of the `#VIDEO`, when present and found. */
   videoPath: string | null;
+  /** Relative path of the `#COVER` image, when present and found. */
+  coverPath: string | null;
 }
 
 export type LocalItem = LocalPair | LocalUltraStarSong;
@@ -184,13 +240,16 @@ export function isCaptionPath(path: string): boolean {
 }
 
 /**
- * Pair videos with same-named WebVTT captions. Matching is case-insensitive on
- * the relative path, so `Song.mp4` pairs with `song.vtt`. Any file without a
- * partner is dropped, and the result is sorted by path.
+ * Pair videos with same-named WebVTT captions, within the same folder. Matching
+ * is case-insensitive on the relative path, so `Song.mp4` pairs with `song.vtt`.
+ * Any file without a partner is dropped, and the result is sorted by folder and
+ * path.
  */
 export function pairLocalFiles(files: readonly LocalFileEntry[]): LocalPair[] {
   interface Slot {
     base: string;
+    folderId: string;
+    folderName: string;
     videoPath?: string;
     captionPath?: string;
   }
@@ -200,8 +259,11 @@ export function pairLocalFiles(files: readonly LocalFileEntry[]): LocalPair[] {
     const isVideo = isVideoPath(file.path);
     if (!isVideo && !isCaptionPath(file.path)) continue;
     const base = stripExtension(file.path);
-    const key = base.toLowerCase();
-    const slot = slots.get(key) ?? { base };
+    // Scope the key to the folder so equal paths in two folders stay separate.
+    const key = `${file.folderId}\u0000${base.toLowerCase()}`;
+    const slot =
+      slots.get(key) ??
+      ({ base, folderId: file.folderId, folderName: file.folderName } satisfies Slot);
     if (isVideo) slot.videoPath = file.path;
     else slot.captionPath = file.path;
     slots.set(key, slot);
@@ -212,14 +274,19 @@ export function pairLocalFiles(files: readonly LocalFileEntry[]): LocalPair[] {
     if (!slot.videoPath || !slot.captionPath) continue;
     pairs.push({
       kind: "video",
-      id: `local:${slot.base}`,
+      id: `local:${slot.folderName}:${slot.base}`,
+      ref: `${slot.folderName}/${slot.videoPath}`,
+      folderId: slot.folderId,
+      folderName: slot.folderName,
       base: slot.base,
       title: fileNameOf(slot.base),
       videoPath: slot.videoPath,
       captionPath: slot.captionPath,
     });
   }
-  return pairs.sort((a, b) => a.base.localeCompare(b.base));
+  return pairs.sort(
+    (a, b) => a.folderName.localeCompare(b.folderName) || a.base.localeCompare(b.base),
+  );
 }
 
 /** Whether a path could be an UltraStar chart (a `.txt` file). */
@@ -246,12 +313,17 @@ export function resolveRelativePath(fromPath: string, reference: string): string
 
 /**
  * Pair UltraStar `.txt` charts with their referenced audio (and optional
- * video). `available` maps a lower-cased relative path to its real path, so
- * lookups match Windows/macOS case-insensitivity. Charts without a findable
- * `#MP3` are skipped.
+ * video). `available` maps `<folderId>:<lower-cased relative path>` to its real
+ * path, so lookups match Windows/macOS case-insensitivity and never cross
+ * folders. Charts without a findable `#MP3` are skipped.
  */
 export function pairUltraStarSongs(
-  charts: readonly { path: string; text: string }[],
+  charts: readonly {
+    folderId: string;
+    folderName: string;
+    path: string;
+    text: string;
+  }[],
   available: ReadonlyMap<string, string>,
 ): LocalUltraStarSong[] {
   const songs: LocalUltraStarSong[] = [];
@@ -259,25 +331,33 @@ export function pairUltraStarSongs(
     const headers = parseUltraStarHeaders(chart.text);
     const mp3 = headers.MP3;
     if (!mp3) continue;
-    const audioPath = available.get(resolveRelativePath(chart.path, mp3).toLowerCase());
+    const lookup = (reference: string) =>
+      available.get(
+        `${chart.folderId}:${resolveRelativePath(chart.path, reference).toLowerCase()}`,
+      );
+    const audioPath = lookup(mp3);
     if (!audioPath) continue;
-    const videoRef = headers.VIDEO;
-    const videoPath = videoRef
-      ? (available.get(resolveRelativePath(chart.path, videoRef).toLowerCase()) ?? null)
-      : null;
+    const videoPath = headers.VIDEO ? (lookup(headers.VIDEO) ?? null) : null;
+    const coverPath = headers.COVER ? (lookup(headers.COVER) ?? null) : null;
     const base = stripExtension(chart.path);
     songs.push({
       kind: "ultrastar",
-      id: `ultrastar:${base}`,
+      id: `ultrastar:${chart.folderName}:${base}`,
+      ref: `${chart.folderName}/${chart.path}`,
+      folderId: chart.folderId,
+      folderName: chart.folderName,
       base,
       title: headers.TITLE || fileNameOf(base),
       artist: headers.ARTIST ?? "",
       songPath: chart.path,
       audioPath,
       videoPath,
+      coverPath,
     });
   }
-  return songs.sort((a, b) => a.base.localeCompare(b.base));
+  return songs.sort(
+    (a, b) => a.folderName.localeCompare(b.folderName) || a.base.localeCompare(b.base),
+  );
 }
 
 /**

@@ -6,7 +6,14 @@
  * All the interesting rules live in `src/lib/game/engine.ts`.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { FEATURED_BY_ID } from "../../content/tracks/featured";
 import {
   isLocalRoute,
@@ -140,10 +147,25 @@ function StartOverlay({
   );
 }
 
+/** The countdown runs from 3 in 650ms steps, then a 500ms beat before play. */
+const COUNTDOWN_FROM = 3;
+const COUNTDOWN_STEP_MS = 650;
+const COUNTDOWN_LEAD_MS = 500;
+
 function CountdownOverlay({ value }: { value: number }) {
+  // The veil fades out across the whole countdown, so it never jumps between
+  // numbers and the lyrics show through before the song starts.
   return (
-    <div className="game-overlay game-overlay--countdown" aria-live="assertive">
-      <span className="countdown__number">{value > 0 ? value : "Go"}</span>
+    <div
+      className="game-overlay game-overlay--countdown"
+      aria-live="assertive"
+      style={
+        {
+          "--countdown-ms": `${COUNTDOWN_FROM * COUNTDOWN_STEP_MS}ms`,
+        } as CSSProperties
+      }
+    >
+      <span className="countdown__number">{value}</span>
     </div>
   );
 }
@@ -470,15 +492,22 @@ export default function GameApp({
     seek: seekTo,
   });
 
-  // Countdown, then play.
+  // Countdown, then play. After the last number, wait a beat before starting so
+  // the countdown is fully gone 0.5s before the song does — the player can read
+  // the opening lyrics without the overlay in the way.
   useEffect(() => {
     if (phase !== "countdown") return;
-    if (countdown <= 0) {
-      play();
-      setPhase("playing");
-      return;
-    }
-    const timer = window.setTimeout(() => setCountdown((value) => value - 1), 650);
+    const timer = window.setTimeout(
+      () => {
+        if (countdown <= 0) {
+          play();
+          setPhase("playing");
+        } else {
+          setCountdown((value) => value - 1);
+        }
+      },
+      countdown <= 0 ? COUNTDOWN_LEAD_MS : COUNTDOWN_STEP_MS,
+    );
     return () => window.clearTimeout(timer);
   }, [phase, countdown, play]);
 
@@ -544,7 +573,7 @@ export default function GameApp({
     // it paused, so a stray play (or a higher speed) can't run the opening away.
     pause();
     seekTo(0);
-    setCountdown(3);
+    setCountdown(COUNTDOWN_FROM);
     setPhase("countdown");
     // Bring up the on-screen keyboard, then show the lyrics on small screens.
     inputRef.current?.focus();
@@ -777,7 +806,9 @@ export default function GameApp({
       {phase === "idle" && ready ? (
         <StartOverlay mode={mode} onSelectMode={selectMode} onStart={start} />
       ) : null}
-      {phase === "countdown" ? <CountdownOverlay value={countdown} /> : null}
+      {phase === "countdown" && countdown > 0 ? (
+        <CountdownOverlay value={countdown} />
+      ) : null}
       {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
     </>
   );

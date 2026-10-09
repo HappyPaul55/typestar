@@ -44,16 +44,21 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    player chooses a folder and TypeStar finds two kinds of song (up to four
    folders deep — `MAX_SCAN_DEPTH` in `src/lib/local/library.ts`): a video paired
    with a same-named `.vtt` caption, and an **UltraStar** `.txt` chart whose
-   `#MP3` names its audio (and optional `#VIDEO`). Both are built into the same
+   `#MP3` names its audio (and optional `#VIDEO` and `#COVER`). Both are built
+   into the same
    word-timed track shape in the browser. A `.vtt` video plays from an object URL
    in an HTML5 `<video>` (`useMediaPlayer`); an UltraStar song plays its audio
    (`useUltraStarPlayer`, the master clock) with an optional muted background
    video synced via `#VIDEOGAP`. A song with no video hides the stage and lets
-   the lyric highway fill the width. The picker has a search filter, and
-   selecting a song reflects it in the URL (`/play/local?file=<relative path>`),
-   so the Back button returns to the picker and a song can be bookmarked. The
-   chosen folder handle is remembered in IndexedDB. No server, no R2 and no
-   Turnstile are involved.
+   the lyric highway fill the width. Several folders can be added; they are
+   remembered in IndexedDB, and the header shows the folder count with a hover
+   list of their names. A footer lists each folder and how many songs it
+   contributes; clicking a folder name there removes it. Songs appear as cards
+   in the featured style, with `#COVER` art or a placeholder. Selecting a song
+   reflects it in the URL
+   (`/play/local?file=<folder>/<relative path>`), so the Back button returns to
+   the picker and a song can be bookmarked. No server, no R2 and no Turnstile are
+   involved.
 
 Three difficulty modes: **easy** (first letter only), **normal** (whole word,
 punctuation optional) and **hard** (whole word, punctuation required). Four run
@@ -141,7 +146,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `src/components/game/GameApp.tsx`.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `Hud`, `Results`, `Calibration`, `TrackPicker`,
-  `LocalLibrary` (the local-folder picker) and the `hooks/` for the YouTube
+  `LocalLibrary` (the local-folder picker), `TrackCard` (the shared song card
+  used by both pickers) and the `hooks/` for the YouTube
   player, the HTML5 media player (`useMediaPlayer`), the UltraStar player
   (`useUltraStarPlayer`) and the game loop.
 - `src/lib/track/**` — track types, caption parsing, build, validation, the
@@ -206,7 +212,7 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is
-  involved. The folder handle is persisted in IndexedDB and read permission is
+  involved. Folder handles are persisted in IndexedDB and read permission is
   re-requested on a user gesture. `media-src blob:` in `public/_headers` is
   required for the video to load under the CSP. Pairing is by relative path
   (case-insensitive, capped at `MAX_SCAN_DEPTH = 4`). UltraStar charts are found

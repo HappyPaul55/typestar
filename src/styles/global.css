@@ -651,8 +651,8 @@
     }
   }
 
-  /* Rating badge over a featured cover (track picker) ------------ */
-  .rating-badge {
+  /* A pill over a card's cover: the featured rating, or the Lyrics/Video tag. */
+  .track-card__badge {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
@@ -668,13 +668,13 @@
     text-transform: uppercase;
     box-shadow: 0 2px 0 0 rgba(12, 13, 10, 0.35);
   }
-  .rating-badge--easy {
+  .track-card__badge--easy {
     background: #35c15a;
   }
-  .rating-badge--medium {
+  .track-card__badge--medium {
     background: var(--color-yellow);
   }
-  .rating-badge--hard {
+  .track-card__badge--hard {
     background: #ff4d4f;
   }
 
@@ -1152,6 +1152,22 @@
     background: rgba(12, 13, 10, 0.6);
     backdrop-filter: blur(3px);
   }
+  /* The countdown's veil fades out smoothly across the whole countdown (the
+     overlay sets `--countdown-ms`), so it never jumps between numbers and the
+     lyrics show through before the song starts. */
+  .game-overlay--countdown {
+    background-color: transparent;
+    backdrop-filter: blur(2px);
+    animation: countdown-veil var(--countdown-ms, 1950ms) linear forwards;
+  }
+  @keyframes countdown-veil {
+    from {
+      background-color: rgba(12, 13, 10, 0.5);
+    }
+    to {
+      background-color: rgba(12, 13, 10, 0);
+    }
+  }
   .game-overlay__title {
     font-family: var(--font-display);
     font-size: clamp(1.3rem, 3.4vw, 2rem);
@@ -1172,12 +1188,19 @@
     gap: 0.6rem;
     margin-top: 0.4rem;
   }
+  /* The countdown number borrows the yellow highlighter used for the active
+     lyric word (and the brand mark): an ink digit on a yellow block, so it
+     stays bold and legible as the veil fades over bright video. */
   .countdown__number {
     font-family: var(--font-display);
     font-size: clamp(4rem, 15vw, 8rem);
     font-weight: 700;
     line-height: 1;
-    color: var(--color-yellow);
+    color: var(--color-ink);
+    background: var(--color-yellow);
+    padding: 0 0.14em;
+    border-radius: 8px;
+    box-shadow: 4px 4px 0 0 rgba(12, 13, 10, 0.35);
   }
 
   /* Results ------------------------------------------------------ */
@@ -1400,10 +1423,16 @@
     box-shadow: 3px 3px 0 0 var(--color-yellow);
     border-color: var(--color-yellow);
   }
+  /* The primary button matches the track picker's Play button: a yellow fill
+     with an ink border, and an ink offset shadow on hover (not yellow). */
   .game-overlay:not(.game-overlay--results) .btn-game--primary {
     color: var(--color-ink);
     background: var(--color-yellow);
-    border-color: var(--color-yellow);
+    border-color: var(--color-ink);
+  }
+  .game-overlay:not(.game-overlay--results) .btn-game--primary:hover {
+    border-color: var(--color-ink);
+    box-shadow: 3px 3px 0 0 var(--color-ink);
   }
   .btn-game--start {
     margin-top: 0.6rem;
@@ -1571,6 +1600,9 @@
     flex-direction: column;
     overflow: hidden;
     padding: 0;
+    text-align: left;
+    color: var(--color-ink);
+    text-decoration: none;
     background: var(--color-paper);
     border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-brand);
@@ -1585,6 +1617,10 @@
     background: var(--color-cream);
     border-color: var(--color-ink);
     box-shadow: 6px 6px 0 0 var(--color-yellow);
+  }
+  .track-card--busy {
+    opacity: 0.5;
+    pointer-events: none;
   }
   .track-card__media {
     position: relative;
@@ -1676,7 +1712,75 @@
   .local-library__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  /* The landing offers two ways in: YouTube, then the local hero card. */
+  .local-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.1rem;
+    flex: 1 1 18rem;
+    padding: 1.5rem 1.6rem;
+    text-align: left;
+    font: inherit;
+    color: var(--color-ink);
+    background: var(--color-cream);
+    border: 2px solid var(--color-ink);
+    border-radius: var(--radius-brand);
+    cursor: pointer;
+    transition:
+      transform 0.28s var(--ease-brand),
+      box-shadow 0.28s var(--ease-brand),
+      background-color 0.28s var(--ease-brand);
+  }
+  .local-choice:hover:not(:disabled) {
+    transform: translate(-3px, -3px);
+    box-shadow: 7px 7px 0 0 var(--color-yellow);
+  }
+  .local-choice:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .local-choice__icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: var(--radius-brand);
+    background: var(--color-paper-2);
+    color: var(--color-ink);
+  }
+  .local-choice__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .local-choice__title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .local-choice__desc {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+  }
+  /* The local folder is the hero: it grows more and reads bigger. */
+  .local-choice--primary {
+    flex: 2 1 26rem;
+    padding: 2rem 2.1rem;
+  }
+  .local-choice--primary .local-choice__icon {
+    width: 3.8rem;
+    height: 3.8rem;
+    background: var(--color-yellow);
+  }
+  .local-choice--primary .local-choice__title {
+    font-size: 1.75rem;
   }
   /* The count on the left; the search box and folder buttons on the right.
      `flex: 1` gives the tools the whole remaining width, so the search cannot
@@ -1712,6 +1816,58 @@
   .local-library__results-head .group-label {
     margin-top: 0;
   }
+  /* The folder count reveals which folders are loaded on hover/focus. */
+  .local-library__folders {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted currentColor;
+  }
+  /* With a single folder the name is already shown, so no tooltip affordance. */
+  .local-library__folders--single {
+    cursor: default;
+    border-bottom: 0;
+  }
+  .local-library__folders-tip {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 12rem;
+    max-width: min(24rem, 70vw);
+    padding: 0.55rem 0.7rem;
+    background: var(--color-ink);
+    color: var(--color-cream);
+    border-radius: var(--radius-brand);
+    box-shadow: 3px 3px 0 0 var(--color-yellow);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-0.25rem);
+    transition:
+      opacity 0.15s var(--ease-brand),
+      transform 0.15s var(--ease-brand);
+    pointer-events: none;
+  }
+  .local-library__folders:hover .local-library__folders-tip,
+  .local-library__folders:focus-visible .local-library__folders-tip,
+  .local-library__folders:focus-within .local-library__folders-tip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  .local-library__folders-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .local-library__search {
     flex: 1 1 14rem;
     max-width: 22rem;
@@ -1732,61 +1888,15 @@
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
     gap: 0.9rem;
   }
-  .local-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    padding: 0.95rem 1.05rem 1.05rem;
-    text-align: left;
-    font: inherit;
-    cursor: pointer;
-    background: var(--color-paper);
-    border: 1px solid var(--color-line-strong);
-    border-radius: var(--radius-brand);
-    transition:
-      transform 0.28s var(--ease-brand),
-      border-color 0.28s var(--ease-brand),
-      box-shadow 0.28s var(--ease-brand),
-      background-color 0.28s var(--ease-brand);
-  }
-  .local-card:hover:not(:disabled) {
-    transform: translate(-3px, -3px);
-    background: var(--color-cream);
-    border-color: var(--color-ink);
-    box-shadow: 6px 6px 0 0 var(--color-yellow);
-  }
-  .local-card:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .local-card__title {
-    font-family: var(--font-display);
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: var(--color-ink);
-  }
-  .local-card__path {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.04em;
+  /* The cover image fills the 16:9 media area; without one, a muted glyph sits
+     on paper. */
+  .track-card__placeholder {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    background: var(--color-paper-2);
     color: var(--color-muted);
-    word-break: break-word;
-  }
-  .local-card__files {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    margin-top: 0.35rem;
-  }
-  .local-card__file {
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.03em;
-    color: var(--color-ink-soft);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .local-library__group {
     display: flex;
@@ -1801,25 +1911,34 @@
     text-transform: uppercase;
     color: var(--color-muted);
   }
-  .local-card__artist {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--color-muted);
+  /* The footer lists every folder and how many songs it contributes; each name
+     is a button that drops the folder. */
+  .local-library__foot {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--color-ink-soft);
   }
-  .local-card__badge {
-    align-self: flex-start;
-    margin-top: 0.4rem;
-    padding: 0.15rem 0.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
+  .local-library__remove {
+    padding: 0 0.05rem;
+    font: inherit;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
     color: var(--color-ink);
+    background: none;
+    border: 0;
+    border-bottom: 2px solid var(--color-yellow);
+    cursor: pointer;
+    transition:
+      background-color 0.2s var(--ease-brand),
+      border-color 0.2s var(--ease-brand);
+  }
+  .local-library__remove:hover:not(:disabled) {
     background: var(--color-yellow);
-    border-radius: 999px;
+    border-bottom-color: var(--color-ink);
+  }
+  .local-library__remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   /* Small screens: the overlay sits inside a short 16:9 frame, so shrink

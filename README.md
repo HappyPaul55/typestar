@@ -143,11 +143,12 @@ live lookup.
 
 In a browser that supports the File System Access API (Chromium-based), the
 picker on `/play` offers **Open local files** (`/play/local`). It scans the
-chosen folder (up to four deep) and finds two kinds of song:
+chosen folders (up to four deep each) and finds two kinds of song:
 
 - **UltraStar** charts — a `.txt` file in the
   [UltraStar format](https://github.com/UltraStar-Deluxe/format). Its `#MP3`
-  header names the audio (and an optional `#VIDEO` background). Because
+  header names the audio (and an optional `#VIDEO` background, plus an optional
+  `#COVER` image shown on the song's card). Because
   UltraStar times every syllable, the words line up exactly with the music
   rather than being estimated. Syllables are merged into whole words using the
   format's leading-space and `~` rules; `-` markers (or, when absent, musical
@@ -157,12 +158,16 @@ chosen folder (up to four deep) and finds two kinds of song:
 - **Video + WebVTT** — a video file and a same-named `.vtt` caption file,
   matched case-insensitively (`song.mp4` with `song.vtt`).
 
-The chosen folder is remembered (its handle is kept in IndexedDB) and its read
-permission is re-requested on the next visit. The picker has a search box for
-large libraries. Selecting a song puts its relative path in the URL
+Folders are remembered (their handles are kept in IndexedDB) and can be added
+to with **Add another folder**; read permission is re-requested on the next
+visit. The header shows how many folders are loaded — hover it for the list. A
+footer lists each folder with the number of songs it contributes, and clicking
+a folder name removes it. Songs are shown as cards like the featured ones, with
+the UltraStar `#COVER` (or a plain placeholder) as their art.
+Selecting a song puts its folder and relative path in the URL
 (`/play/local?file=Album/song.txt`), so the browser's Back button returns to the
-picker and a song can be bookmarked — reopening the link needs the folder to
-still be remembered and its permission granted. Nothing is uploaded: the audio
+picker and a song can be bookmarked — reopening the link needs the folders to
+still be remembered and their permission granted. Nothing is uploaded: the audio
 or video plays from a local object URL, and the lyrics are parsed in the browser
 into the same word-timed track shape as a YouTube song, so the game, scoring and
 ratings all work unchanged. WebVTT inline word timestamps (`<00:00:05.000>`) are
