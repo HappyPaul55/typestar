@@ -147,7 +147,8 @@ chosen folders (up to four deep each) and finds two kinds of song:
 
 - **UltraStar** charts — a `.txt` file in the
   [UltraStar format](https://github.com/UltraStar-Deluxe/format). Its `#MP3`
-  header names the audio (and an optional `#VIDEO` background). Because
+  header names the audio (and an optional `#VIDEO` background, plus an optional
+  `#COVER` image shown on the song's card). Because
   UltraStar times every syllable, the words line up exactly with the music
   rather than being estimated. Syllables are merged into whole words using the
   format's leading-space and `~` rules; `-` markers (or, when absent, musical
@@ -161,7 +162,8 @@ Folders are remembered (their handles are kept in IndexedDB) and can be added
 to with **Add another folder**; read permission is re-requested on the next
 visit. The header shows how many folders are loaded — hover it for the list. A
 footer lists each folder with the number of songs it contributes, and clicking
-a folder name removes it.
+a folder name removes it. Songs are shown as cards like the featured ones, with
+the UltraStar `#COVER` (or a plain placeholder) as their art.
 Selecting a song puts its folder and relative path in the URL
 (`/play/local?file=Album/song.txt`), so the browser's Back button returns to the
 picker and a song can be bookmarked — reopening the link needs the folders to

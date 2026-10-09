@@ -134,11 +134,12 @@ describe("resolveRelativePath", () => {
 });
 
 describe("pairUltraStarSongs", () => {
-  test("pairs charts with their referenced audio and video", () => {
+  test("pairs charts with their referenced audio, video and cover", () => {
     const available = new Map([
       ["0:album/song.txt", "Album/song.txt"],
       ["0:album/audio.mp3", "Album/Audio.MP3"],
       ["0:album/bg.mp4", "Album/bg.mp4"],
+      ["0:album/cover.jpg", "Album/Cover.JPG"],
     ]);
     const songs = pairUltraStarSongs(
       [
@@ -146,7 +147,7 @@ describe("pairUltraStarSongs", () => {
           folderId: "0",
           folderName: "Songs",
           path: "Album/song.txt",
-          text: "#TITLE:T\n#ARTIST:A\n#MP3:audio.mp3\n#VIDEO:bg.mp4\n",
+          text: "#TITLE:T\n#ARTIST:A\n#MP3:audio.mp3\n#VIDEO:bg.mp4\n#COVER:cover.jpg\n",
         },
         // No matching audio: skipped.
         {
@@ -168,7 +169,30 @@ describe("pairUltraStarSongs", () => {
       ref: "Songs/Album/song.txt",
       audioPath: "Album/Audio.MP3",
       videoPath: "Album/bg.mp4",
+      coverPath: "Album/Cover.JPG",
     });
+  });
+
+  test("leaves the cover null when the chart has none, or it is missing", () => {
+    const available = new Map([
+      ["0:a.txt", "a.txt"],
+      ["0:a.mp3", "a.mp3"],
+      ["0:b.txt", "b.txt"],
+      ["0:b.mp3", "b.mp3"],
+    ]);
+    const songs = pairUltraStarSongs(
+      [
+        { folderId: "0", folderName: "F", path: "a.txt", text: "#MP3:a.mp3\n" },
+        {
+          folderId: "0",
+          folderName: "F",
+          path: "b.txt",
+          text: "#MP3:b.mp3\n#COVER:gone.jpg\n",
+        },
+      ],
+      available,
+    );
+    expect(songs.map((song) => song.coverPath)).toEqual([null, null]);
   });
 
   test("never resolves audio across folders", () => {

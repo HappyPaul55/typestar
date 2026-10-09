@@ -202,6 +202,8 @@ export interface LocalUltraStarSong {
   audioPath: string;
   /** Relative path of the `#VIDEO`, when present and found. */
   videoPath: string | null;
+  /** Relative path of the `#COVER` image, when present and found. */
+  coverPath: string | null;
 }
 
 export type LocalItem = LocalPair | LocalUltraStarSong;
@@ -336,6 +338,7 @@ export function pairUltraStarSongs(
     const audioPath = lookup(mp3);
     if (!audioPath) continue;
     const videoPath = headers.VIDEO ? (lookup(headers.VIDEO) ?? null) : null;
+    const coverPath = headers.COVER ? (lookup(headers.COVER) ?? null) : null;
     const base = stripExtension(chart.path);
     songs.push({
       kind: "ultrastar",
@@ -349,6 +352,7 @@ export function pairUltraStarSongs(
       songPath: chart.path,
       audioPath,
       videoPath,
+      coverPath,
     });
   }
   return songs.sort(

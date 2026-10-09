@@ -44,7 +44,8 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    player chooses a folder and TypeStar finds two kinds of song (up to four
    folders deep — `MAX_SCAN_DEPTH` in `src/lib/local/library.ts`): a video paired
    with a same-named `.vtt` caption, and an **UltraStar** `.txt` chart whose
-   `#MP3` names its audio (and optional `#VIDEO`). Both are built into the same
+   `#MP3` names its audio (and optional `#VIDEO` and `#COVER`). Both are built
+   into the same
    word-timed track shape in the browser. A `.vtt` video plays from an object URL
    in an HTML5 `<video>` (`useMediaPlayer`); an UltraStar song plays its audio
    (`useUltraStarPlayer`, the master clock) with an optional muted background
@@ -52,7 +53,8 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    the lyric highway fill the width. Several folders can be added; they are
    remembered in IndexedDB, and the header shows the folder count with a hover
    list of their names. A footer lists each folder and how many songs it
-   contributes; clicking a folder name there removes it. Selecting a song
+   contributes; clicking a folder name there removes it. Songs appear as cards
+   in the featured style, with `#COVER` art or a placeholder. Selecting a song
    reflects it in the URL
    (`/play/local?file=<folder>/<relative path>`), so the Back button returns to
    the picker and a song can be bookmarked. No server, no R2 and no Turnstile are

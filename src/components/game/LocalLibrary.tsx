@@ -446,20 +446,32 @@ export default function LocalLibrary({
                   <button
                     key={song.id}
                     type="button"
-                    className="local-card"
+                    className="track-card"
                     onClick={() => openItem(song)}
                     disabled={busy}
                   >
-                    <span className="local-card__top">
-                      <span className="local-card__title">{song.title}</span>
+                    <span className="track-card__media">
+                      <LocalCover
+                        handle={
+                          song.coverPath
+                            ? handles.get(key(song.folderId, song.coverPath))
+                            : undefined
+                        }
+                        kind="lyrics"
+                      />
                       <span className="local-card__badge">
                         {song.videoPath ? "Video" : "Lyrics"}
                       </span>
+                      <span className="track-card__play" aria-hidden="true">
+                        ▶
+                      </span>
                     </span>
-                    {song.artist ? (
-                      <span className="local-card__artist">{song.artist}</span>
-                    ) : null}
-                    <span className="local-card__path">{song.base}</span>
+                    <span className="track-card__body">
+                      <span className="track-card__title">{song.title}</span>
+                      {song.artist ? (
+                        <span className="track-card__artist">{song.artist}</span>
+                      ) : null}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -470,18 +482,31 @@ export default function LocalLibrary({
             <div className="local-library__group">
               <p className="local-library__group-label">Video + captions</p>
               <div className="local-library__grid">
-                {shownVideos.map((pair) => (
-                  <button
-                    key={pair.id}
-                    type="button"
-                    className="local-card"
-                    onClick={() => openItem(pair)}
-                    disabled={busy}
-                  >
-                    <span className="local-card__title">{pair.title}</span>
-                    <span className="local-card__path">{pair.base}</span>
-                  </button>
-                ))}
+                {shownVideos.map((pair) => {
+                  const album = parentPath(pair.base);
+                  return (
+                    <button
+                      key={pair.id}
+                      type="button"
+                      className="track-card"
+                      onClick={() => openItem(pair)}
+                      disabled={busy}
+                    >
+                      <span className="track-card__media">
+                        <LocalCover kind="video" />
+                        <span className="track-card__play" aria-hidden="true">
+                          ▶
+                        </span>
+                      </span>
+                      <span className="track-card__body">
+                        <span className="track-card__title">{pair.title}</span>
+                        {album ? (
+                          <span className="track-card__artist">{album}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : null}
@@ -590,4 +615,97 @@ function key(folderId: string, path: string): string {
 function songCountLabel(count: number): string {
   if (count === 0) return "no songs";
   return `${count} ${count === 1 ? "song" : "songs"}`;
+}
+
+/** The directory part of a relative path, or `""` when it sits at the root. */
+function parentPath(path: string): string {
+  const slash = path.lastIndexOf("/");
+  return slash > 0 ? path.slice(0, slash) : "";
+}
+
+/**
+ * A song's cover: the UltraStar `#COVER` image when one is found, otherwise a
+ * grey placeholder. The image is read from its local file handle and shown via
+ * an object URL, which is revoked when the card unmounts or the cover changes.
+ */
+function LocalCover({
+  handle,
+  kind,
+}: {
+  handle?: LocalFileHandle;
+  kind: "lyrics" | "video";
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSrc(null);
+    if (!handle) return;
+    let url: string | null = null;
+    let cancelled = false;
+    void handle
+      .getFile()
+      .then((file) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(file);
+        setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc(null);
+      });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [handle]);
+
+  if (src) {
+    return (
+      <img
+        className="track-card__art"
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onError={() => setSrc(null)}
+      />
+    );
+  }
+  return (
+    <span className="local-card__placeholder" aria-hidden="true">
+      {kind === "video" ? <FilmGlyph /> : <NoteGlyph />}
+    </span>
+  );
+}
+
+function NoteGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" aria-hidden="true">
+      <path
+        d="M9 17V5l9-2v12"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <ellipse cx="6.6" cy="17.6" rx="2.5" ry="2" stroke="currentColor" strokeWidth="1.8" />
+      <ellipse cx="15.6" cy="15.6" rx="2.5" ry="2" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function FilmGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" aria-hidden="true">
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path d="M8 5v14M16 5v14" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
 }
