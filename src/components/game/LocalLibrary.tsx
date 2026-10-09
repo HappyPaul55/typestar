@@ -23,6 +23,7 @@ import {
   pairLocalFiles,
   pairUltraStarSongs,
   pickDirectory,
+  pruneNestedFolders,
   scanDirectory,
   type LocalDirectoryHandle,
   type LocalFileHandle,
@@ -78,10 +79,15 @@ export default function LocalLibrary({
     setStatus("scanning");
     setError(null);
     try {
+      // A folder inside another would list its songs twice. Keep every folder in
+      // the list, but only scan the outermost ones; the nested ones just
+      // contribute nothing new.
+      const outermost = new Set(await pruneNestedFolders(folderList));
       const entries: ScannedEntry[] = [];
       const denied: string[] = [];
       for (let index = 0; index < folderList.length; index++) {
         const folder = folderList[index];
+        if (!outermost.has(folder)) continue;
         const folderId = String(index);
         try {
           const files = await scanDirectory(folder);
@@ -416,22 +422,16 @@ export default function LocalLibrary({
                     onClick={() => openItem(song)}
                     disabled={busy}
                   >
-                    <span className="local-card__title">{song.title}</span>
+                    <span className="local-card__top">
+                      <span className="local-card__title">{song.title}</span>
+                      <span className="local-card__badge">
+                        {song.videoPath ? "Video" : "Lyrics"}
+                      </span>
+                    </span>
                     {song.artist ? (
                       <span className="local-card__artist">{song.artist}</span>
                     ) : null}
                     <span className="local-card__path">{song.base}</span>
-                    <span className="local-card__files">
-                      <span className="local-card__file">
-                        {song.songPath.split("/").pop()}
-                      </span>
-                      <span className="local-card__file">
-                        {song.audioPath.split("/").pop()}
-                      </span>
-                    </span>
-                    <span className="local-card__badge">
-                      {song.videoPath ? "Video" : "Lyrics"}
-                    </span>
                   </button>
                 ))}
               </div>
@@ -452,14 +452,6 @@ export default function LocalLibrary({
                   >
                     <span className="local-card__title">{pair.title}</span>
                     <span className="local-card__path">{pair.base}</span>
-                    <span className="local-card__files">
-                      <span className="local-card__file">
-                        {pair.videoPath.split("/").pop()}
-                      </span>
-                      <span className="local-card__file">
-                        {pair.captionPath.split("/").pop()}
-                      </span>
-                    </span>
                   </button>
                 ))}
               </div>

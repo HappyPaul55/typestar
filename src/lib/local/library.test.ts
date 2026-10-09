@@ -6,6 +6,7 @@ import {
   MAX_SCAN_DEPTH,
   pairLocalFiles,
   pairUltraStarSongs,
+  pruneNestedFolders,
   resolveRelativePath,
   scanDirectory,
   stripExtension,
@@ -184,6 +185,58 @@ describe("pairUltraStarSongs", () => {
       available,
     );
     expect(songs).toHaveLength(0);
+  });
+});
+
+describe("pruneNestedFolders", () => {
+  const dir = (
+    name: string,
+    resolve: (other: LocalDirectoryHandle) => string[] | null,
+  ): LocalDirectoryHandle => ({
+    kind: "directory",
+    name,
+    entries() {
+      return (async function* () {})();
+    },
+    resolve: async (other) => resolve(other),
+  });
+
+  test("drops a folder nested inside another, either order", async () => {
+    const foo = dir("foo", (o) => (o.name === "bar" ? ["bar"] : null));
+    const bar = dir("bar", (o) => (o.name === "foo" ? null : o.name === "bar" ? [] : null));
+    expect(await pruneNestedFolders([foo, bar])).toEqual([foo]);
+    expect(await pruneNestedFolders([bar, foo])).toEqual([foo]);
+  });
+
+  test("drops exact duplicates", async () => {
+    const a1 = dir("a", (o) => (o.name === "a" ? [] : null));
+    const a2 = dir("a", (o) => (o.name === "a" ? [] : null));
+    const kept = await pruneNestedFolders([a1, a2]);
+    expect(kept).toEqual([a1]);
+  });
+
+  test("keeps unrelated folders", async () => {
+    const a = dir("a", (o) => (o.name === "a" ? [] : null));
+    const b = dir("b", (o) => (o.name === "b" ? [] : null));
+    expect(await pruneNestedFolders([a, b])).toEqual([a, b]);
+  });
+
+  test("keeps everything when resolve is unavailable", async () => {
+    const a: LocalDirectoryHandle = {
+      kind: "directory",
+      name: "a",
+      entries() {
+        return (async function* () {})();
+      },
+    };
+    const b: LocalDirectoryHandle = {
+      kind: "directory",
+      name: "b",
+      entries() {
+        return (async function* () {})();
+      },
+    };
+    expect(await pruneNestedFolders([a, b])).toEqual([a, b]);
   });
 });
 

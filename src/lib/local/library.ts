@@ -52,6 +52,8 @@ export interface LocalDirectoryHandle {
   entries(): AsyncIterableIterator<[string, LocalFileHandle | LocalDirectoryHandle]>;
   queryPermission?(descriptor?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
   requestPermission?(descriptor?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
+  /** Path from this directory to a descendant, `[]` for itself, or `null`. */
+  resolve?(possibleDescendant: LocalDirectoryHandle): Promise<string[] | null>;
 }
 
 type DirectoryPicker = (options?: {
@@ -101,6 +103,57 @@ export async function ensureReadPermission(
   }
   // No permission API: assume a plain read handle is usable.
   return true;
+}
+
+type FolderRelation = "same" | "inside" | "contains" | "unrelated";
+
+/** How `b` sits relative to `a`: same, inside it, containing it, or unrelated. */
+async function folderRelation(
+  a: LocalDirectoryHandle,
+  b: LocalDirectoryHandle,
+): Promise<FolderRelation> {
+  if (a.resolve) {
+    try {
+      const path = await a.resolve(b);
+      if (path) return path.length === 0 ? "same" : "inside";
+    } catch {
+      // Not a descendant, or no permission: fall through.
+    }
+  }
+  if (b.resolve) {
+    try {
+      const path = await b.resolve(a);
+      if (path) return path.length === 0 ? "same" : "contains";
+    } catch {
+      // ignore
+    }
+  }
+  return "unrelated";
+}
+
+/**
+ * Drop folders that another already covers: an exact duplicate, or a folder
+ * nested inside one in the list. Uses `resolve()` where the browser provides
+ * it; without it, every folder is kept as-is.
+ */
+export async function pruneNestedFolders(
+  folders: readonly LocalDirectoryHandle[],
+): Promise<LocalDirectoryHandle[]> {
+  const keep: LocalDirectoryHandle[] = [];
+  for (const folder of folders) {
+    let covered = false;
+    for (let i = keep.length - 1; i >= 0; i--) {
+      const relation = await folderRelation(keep[i], folder);
+      if (relation === "same" || relation === "inside") {
+        covered = true;
+        break;
+      }
+      // This folder contains an earlier one, so the earlier is redundant.
+      if (relation === "contains") keep.splice(i, 1);
+    }
+    if (!covered) keep.push(folder);
+  }
+  return keep;
 }
 
 export interface LocalFileEntry {

@@ -1893,20 +1893,15 @@
     color: var(--color-muted);
     word-break: break-word;
   }
-  .local-card__files {
+  .local-card__top {
     display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    margin-top: 0.35rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
-  .local-card__file {
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.03em;
-    color: var(--color-ink-soft);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .local-card__top .local-card__title {
+    flex: 1 1 auto;
+    min-width: 0;
   }
   .local-library__group {
     display: flex;
@@ -1929,8 +1924,7 @@
     color: var(--color-muted);
   }
   .local-card__badge {
-    align-self: flex-start;
-    margin-top: 0.4rem;
+    flex: none;
     padding: 0.15rem 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.58rem;
