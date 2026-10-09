@@ -1152,6 +1152,22 @@
     background: rgba(12, 13, 10, 0.6);
     backdrop-filter: blur(3px);
   }
+  /* The countdown's veil fades out smoothly across the whole countdown (the
+     overlay sets `--countdown-ms`), so it never jumps between numbers and the
+     lyrics show through before the song starts. */
+  .game-overlay--countdown {
+    background-color: transparent;
+    backdrop-filter: blur(2px);
+    animation: countdown-veil var(--countdown-ms, 1950ms) linear forwards;
+  }
+  @keyframes countdown-veil {
+    from {
+      background-color: rgba(12, 13, 10, 0.5);
+    }
+    to {
+      background-color: rgba(12, 13, 10, 0);
+    }
+  }
   .game-overlay__title {
     font-family: var(--font-display);
     font-size: clamp(1.3rem, 3.4vw, 2rem);
@@ -1178,6 +1194,8 @@
     font-weight: 700;
     line-height: 1;
     color: var(--color-yellow);
+    /* Keep the number readable as the veil fades over bright video. */
+    text-shadow: 0 0.15rem 1.5rem rgba(12, 13, 10, 0.9);
   }
 
   /* Results ------------------------------------------------------ */
@@ -1400,10 +1418,15 @@
     box-shadow: 3px 3px 0 0 var(--color-yellow);
     border-color: var(--color-yellow);
   }
+  /* The primary button keeps its ink border on hover: a yellow border would
+     vanish into the yellow fill and the button would look borderless. */
   .game-overlay:not(.game-overlay--results) .btn-game--primary {
     color: var(--color-ink);
     background: var(--color-yellow);
-    border-color: var(--color-yellow);
+    border-color: var(--color-ink);
+  }
+  .game-overlay:not(.game-overlay--results) .btn-game--primary:hover {
+    border-color: var(--color-ink);
   }
   .btn-game--start {
     margin-top: 0.6rem;
