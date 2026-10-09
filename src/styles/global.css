@@ -1935,6 +1935,35 @@
     background: var(--color-yellow);
     border-radius: 999px;
   }
+  /* The footer lists every folder and how many songs it contributes; each name
+     is a button that drops the folder. */
+  .local-library__foot {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--color-ink-soft);
+  }
+  .local-library__remove {
+    padding: 0 0.05rem;
+    font: inherit;
+    font-weight: 700;
+    color: var(--color-ink);
+    background: none;
+    border: 0;
+    border-bottom: 2px solid var(--color-yellow);
+    cursor: pointer;
+    transition:
+      background-color 0.2s var(--ease-brand),
+      border-color 0.2s var(--ease-brand);
+  }
+  .local-library__remove:hover:not(:disabled) {
+    background: var(--color-yellow);
+    border-bottom-color: var(--color-ink);
+  }
+  .local-library__remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   /* Small screens: the overlay sits inside a short 16:9 frame, so shrink
      everything and let the start panel scroll rather than overflow. */

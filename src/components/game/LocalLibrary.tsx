@@ -9,8 +9,8 @@
  * - **Video + WebVTT** — a video file and a same-named `.vtt` caption file.
  *
  * Reachable at `/play/local` (only offered when the browser supports the File
- * System Access API). Folders are remembered in IndexedDB and can be added to;
- * their read permission is re-requested on a click.
+ * System Access API). Folders are remembered in IndexedDB; they can be added
+ * and removed, and read permission is re-requested on a click.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -197,6 +197,26 @@ export default function LocalLibrary({
     }
   }, [folders, scan]);
 
+  const removeFolder = useCallback(
+    async (folder: LocalDirectoryHandle) => {
+      const next = folders.filter((item) => item !== folder);
+      setError(null);
+      await saveDirectoryHandles(next);
+      setFolders(next);
+      if (next.length) {
+        await scan(next);
+      } else {
+        // Nothing left: clear the results so the landing shows again.
+        setSongs([]);
+        setVideos([]);
+        setHandles(new Map());
+        setBlocked([]);
+        setQuery("");
+      }
+    },
+    [folders, scan],
+  );
+
   const openVideo = useCallback(
     async (pair: LocalPair) => {
       const videoHandle = handles.get(key(pair.folderId, pair.videoPath));
@@ -311,6 +331,14 @@ export default function LocalLibrary({
   const singleFolder = folders.length === 1;
   // One folder shows its name; two or more show the count (with the tooltip).
   const folderLabel = singleFolder ? folders[0].name : `${folders.length} folders`;
+  // How many songs each folder contributes, by its id (its index in the list).
+  const countByFolder = new Map<string, number>();
+  for (const song of songs) {
+    countByFolder.set(song.folderId, (countByFolder.get(song.folderId) ?? 0) + 1);
+  }
+  for (const pair of videos) {
+    countByFolder.set(pair.folderId, (countByFolder.get(pair.folderId) ?? 0) + 1);
+  }
   // A deep link whose file is not in these folders (or not readable yet).
   const missing =
     requestedFile &&
@@ -457,6 +485,34 @@ export default function LocalLibrary({
               </div>
             </div>
           ) : null}
+
+          <p className="local-library__foot">
+            This page is made up of{" "}
+            {folders.map((folder, index) => {
+              const count = countByFolder.get(String(index)) ?? 0;
+              const separator =
+                index === folders.length - 1
+                  ? ""
+                  : index === folders.length - 2
+                    ? " and "
+                    : ", ";
+              return (
+                <span key={`${folder.name}-${index}`}>
+                  <button
+                    type="button"
+                    className="local-library__remove"
+                    onClick={() => removeFolder(folder)}
+                    disabled={busy}
+                    title={`Remove ${folder.name}`}
+                  >
+                    {folder.name}
+                  </button>{" "}
+                  ({songCountLabel(count)}){separator}
+                </span>
+              );
+            })}
+            . To remove a folder, click its name.
+          </p>
         </div>
       ) : (
         <div className="local-library__actions">
@@ -528,4 +584,10 @@ export default function LocalLibrary({
 /** Key for the per-file handle map, scoped to its folder. */
 function key(folderId: string, path: string): string {
   return `${folderId}:${path}`;
+}
+
+/** `2 songs`, `1 song`, or `no songs` for the folder summary. */
+function songCountLabel(count: number): string {
+  if (count === 0) return "no songs";
+  return `${count} ${count === 1 ? "song" : "songs"}`;
 }

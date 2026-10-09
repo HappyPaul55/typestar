@@ -51,7 +51,9 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    video synced via `#VIDEOGAP`. A song with no video hides the stage and lets
    the lyric highway fill the width. Several folders can be added; they are
    remembered in IndexedDB, and the header shows the folder count with a hover
-   list of their names. Selecting a song reflects it in the URL
+   list of their names. A footer lists each folder and how many songs it
+   contributes; clicking a folder name there removes it. Selecting a song
+   reflects it in the URL
    (`/play/local?file=<folder>/<relative path>`), so the Back button returns to
    the picker and a song can be bookmarked. No server, no R2 and no Turnstile are
    involved.

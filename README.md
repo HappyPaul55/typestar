@@ -159,7 +159,9 @@ chosen folders (up to four deep each) and finds two kinds of song:
 
 Folders are remembered (their handles are kept in IndexedDB) and can be added
 to with **Add another folder**; read permission is re-requested on the next
-visit. The header shows how many folders are loaded — hover it for the list.
+visit. The header shows how many folders are loaded — hover it for the list. A
+footer lists each folder with the number of songs it contributes, and clicking
+a folder name removes it.
 Selecting a song puts its folder and relative path in the URL
 (`/play/local?file=Album/song.txt`), so the browser's Back button returns to the
 picker and a song can be bookmarked — reopening the link needs the folders to
