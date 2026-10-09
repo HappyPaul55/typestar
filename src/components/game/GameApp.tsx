@@ -9,7 +9,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FEATURED_BY_ID } from "../../content/tracks/featured";
 import {
+  isLocalRoute,
   loadTrack,
+  localFileFromLocation,
   TrackApiError,
   videoIdFromLocation,
 } from "../../lib/game/client";
@@ -36,6 +38,7 @@ import {
 import { playSound, preloadSounds } from "../../lib/game/audio";
 import { TURNSTILE_ACTION, TURNSTILE_SITE_KEY } from "../../lib/game/turnstile";
 import {
+  formatDuration,
   readSetting,
   SETTING_FAIL_MODE,
   SETTING_MODE,
@@ -51,11 +54,14 @@ import { buildHash, parseHash } from "../../lib/game/url";
 import CueBar from "./CueBar";
 import EndScreen from "./EndScreen";
 import Hud from "./Hud";
+import LocalLibrary, { type LocalSelection } from "./LocalLibrary";
 import LyricHighway from "./LyricHighway";
 import PlayerStage from "./PlayerStage";
 import TrackPicker from "./TrackPicker";
 import TurnstileChallenge from "./TurnstileChallenge";
 import { useGameLoop } from "./hooks/useGameLoop";
+import { useMediaPlayer } from "./hooks/useMediaPlayer";
+import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
 
 type Phase = "idle" | "countdown" | "playing" | "paused" | "results";
@@ -71,6 +77,11 @@ const MODE_HELP: Record<GameMode, string> = {
   normal: "Type every word — punctuation is optional.",
   hard: "Type every word, punctuation and all.",
 };
+
+/** The hero copy shown on `/play/local` while no song is open. */
+const LOCAL_PICKER_TITLE = "Play from this device";
+const LOCAL_PICKER_SUBTITLE =
+  "Point TypeStar at a folder of songs. It reads UltraStar charts (.txt) and videos paired with a same-named .vtt caption. Nothing is uploaded, and the folder stays on your machine.";
 
 interface GameFlash {
   id: number;
@@ -192,6 +203,9 @@ export default function GameApp({
 }) {
   const [videoId, setVideoId] = useState<string | null | undefined>(undefined);
   const [track, setTrack] = useState<Track | null>(null);
+  const [localMode, setLocalMode] = useState(false);
+  const [local, setLocal] = useState<LocalSelection | null>(null);
+  const [localRequest, setLocalRequest] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [countdown, setCountdown] = useState(3);
@@ -211,13 +225,60 @@ export default function GameApp({
   const inputRef = useRef<HTMLInputElement>(null);
   const lyricRef = useRef<HTMLDivElement>(null);
 
-  const player = useYouTubePlayer(videoId ?? null, speed);
+  const localKind = local?.kind ?? null;
+  const localVideoFile = local && local.kind === "video" ? local.media : null;
+  const localAudioFile = local && local.kind === "audio" ? local.media : null;
+  const backgroundVideoFile = local?.backgroundVideo ?? null;
+  const videoGap = local?.videoGap ?? 0;
+
+  const youtubePlayer = useYouTubePlayer(local ? null : (videoId ?? null), speed);
+  const mediaPlayer = useMediaPlayer(localVideoFile, speed);
+  const ultraStarPlayer = useUltraStarPlayer(
+    localAudioFile,
+    backgroundVideoFile,
+    videoGap,
+    speed,
+  );
+  const player =
+    localKind === "video"
+      ? mediaPlayer
+      : localKind === "audio"
+        ? ultraStarPlayer
+        : youtubePlayer;
   const { ready, error: playerError, containerRef, play, pause, seekTo, getTime, time, duration, state: playerState } = player;
 
-  // Read the id from the address bar after hydration (SSR-safe).
+  // Read the route from the address bar after hydration (SSR-safe).
   useEffect(() => {
-    setVideoId(videoIdFromLocation());
+    const onLocalRoute = isLocalRoute();
+    setLocalMode(onLocalRoute);
+    setVideoId(onLocalRoute ? null : videoIdFromLocation());
+    setLocalRequest(onLocalRoute ? localFileFromLocation() : null);
+
+    // The hero breadcrumb is `// play`; the local route reveals `/ local`.
+    const tail = document.getElementById("play-breadcrumb-tail");
+    if (tail) tail.hidden = !onLocalRoute;
   }, []);
+
+  // The browser Back/Forward buttons move between local songs (each selection
+  // pushes `/play/local?file=…`), so mirror them back into state.
+  useEffect(() => {
+    if (!localMode) return;
+    const onPop = () => {
+      if (!isLocalRoute()) {
+        window.location.reload();
+        return;
+      }
+      setLocal(null);
+      setLocalRequest(localFileFromLocation());
+      setPhase("idle");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [localMode]);
+
+  // The track actually in play: a local file when one is open, otherwise the
+  // track fetched from the API.
+  const activeTrack = local?.track ?? track;
 
   useEffect(() => {
     const parsed = parseHash(window.location.hash);
@@ -237,9 +298,10 @@ export default function GameApp({
   }, []);
 
   // Keep the URL hash in step with the settings, so the page is shareable.
-  // Defaults produce an empty hash, which is removed for a clean URL.
+  // Defaults produce an empty hash, which is removed for a clean URL. Local
+  // runs are not shareable, so they keep the plain `/play/local` URL.
   useEffect(() => {
-    if (!videoId) return;
+    if (local || !videoId) return;
     const hash = buildHash({ mode, failMode, speed });
     const path = `${window.location.pathname}${window.location.search}`;
     const target = hash || path;
@@ -247,7 +309,7 @@ export default function GameApp({
     if (current !== target) {
       window.history.replaceState(null, "", target);
     }
-  }, [videoId, mode, failMode, speed]);
+  }, [local, videoId, mode, failMode, speed]);
 
   // A new song starts from a clean Turnstile slate.
   useEffect(() => {
@@ -317,61 +379,85 @@ export default function GameApp({
     setTurnstileError(message);
   }, []);
 
-  // Reflect the loaded song in the page title, the page header and the rating.
+  // Reflect the current song — or the local picker — in the page title and the
+  // shared page header. The header is one static element for every /play route,
+  // so it is set from state here.
   useEffect(() => {
-    if (!track) return;
-    const artist = FEATURED_BY_ID.get(track.id)?.artist;
-    const defaultSubtitle = `${site.tagline} — YouTube supplies the music and visuals; you type the lyrics as the words arrive.`;
-    document.title = `${track.title} — ${site.name}`;
     const titleEl = document.getElementById("play-title");
     const subtitleEl = document.getElementById("play-subtitle");
-    if (titleEl) titleEl.textContent = track.title;
-    if (subtitleEl) subtitleEl.textContent = artist ?? defaultSubtitle;
+    const defaultSubtitle = `${site.tagline} — YouTube supplies the music and visuals; you type the lyrics as the words arrive.`;
+
+    if (activeTrack) {
+      document.title = `${activeTrack.title} — ${site.name}`;
+      if (titleEl) titleEl.textContent = activeTrack.title;
+      if (subtitleEl) {
+        if (local) {
+          // Something about the file: its artist and how long it runs.
+          const parts: string[] = [];
+          if (local.artist) parts.push(local.artist);
+          if (duration > 0) parts.push(formatDuration(duration));
+          subtitleEl.textContent = parts.join(" · ") || activeTrack.description;
+        } else {
+          const artist = FEATURED_BY_ID.get(activeTrack.id)?.artist;
+          subtitleEl.textContent = artist ?? defaultSubtitle;
+        }
+      }
+    } else if (localMode) {
+      if (titleEl) titleEl.textContent = LOCAL_PICKER_TITLE;
+      if (subtitleEl) subtitleEl.textContent = LOCAL_PICKER_SUBTITLE;
+    } else {
+      if (titleEl) titleEl.textContent = site.name;
+      if (subtitleEl) subtitleEl.textContent = defaultSubtitle;
+    }
 
     // Keep the social/meta tags accurate. In production the Worker renders them
     // server-side; this covers `astro dev` (and keeps the browser tab in step).
+    // A local file has no shareable URL, so its tags are left alone.
     const restores: Array<() => void> = [];
-    const origin = window.location.origin;
-    for (const [key, value] of Object.entries(
-      seoTagValues(trackSeo(track, origin)),
-    )) {
-      const el = document.querySelector<HTMLElement>(`[data-seo="${key}"]`);
-      if (!el) continue;
-      if (el.tagName === "TITLE") {
-        const before = el.textContent ?? "";
-        restores.push(() => {
-          el.textContent = before;
-        });
-        el.textContent = value;
-      } else {
-        const attr = el.hasAttribute("href") ? "href" : "content";
-        const before = el.getAttribute(attr) ?? "";
-        restores.push(() => el.setAttribute(attr, before));
-        el.setAttribute(attr, value);
+    let ratingEl: HTMLElement | null = null;
+    if (activeTrack) {
+      if (!local) {
+        const origin = window.location.origin;
+        for (const [key, value] of Object.entries(
+          seoTagValues(trackSeo(activeTrack, origin)),
+        )) {
+          const el = document.querySelector<HTMLElement>(`[data-seo="${key}"]`);
+          if (!el) continue;
+          if (el.tagName === "TITLE") {
+            const before = el.textContent ?? "";
+            restores.push(() => {
+              el.textContent = before;
+            });
+            el.textContent = value;
+          } else {
+            const attr = el.hasAttribute("href") ? "href" : "content";
+            const before = el.getAttribute(attr) ?? "";
+            restores.push(() => el.setAttribute(attr, before));
+            el.setAttribute(attr, value);
+          }
+        }
       }
-    }
 
-    // The rating is a property of the song's lyrics, computed on the fly.
-    const ratingEl = document.getElementById("play-rating");
-    const ratingValueEl = document.getElementById("play-rating-value");
-    if (ratingEl) {
-      const rating = ratingOf(track);
-      ratingEl.dataset.rating = rating;
-      if (ratingValueEl) ratingValueEl.textContent = RATING_LABEL[rating];
-      ratingEl.hidden = false;
+      // The rating is a property of the song's lyrics, computed on the fly.
+      ratingEl = document.getElementById("play-rating");
+      const ratingValueEl = document.getElementById("play-rating-value");
+      if (ratingEl) {
+        const rating = ratingOf(activeTrack);
+        ratingEl.dataset.rating = rating;
+        if (ratingValueEl) ratingValueEl.textContent = RATING_LABEL[rating];
+        ratingEl.hidden = false;
+      }
     }
 
     return () => {
       document.title = `Play ${site.name}`;
-      if (titleEl) titleEl.textContent = site.name;
-      if (subtitleEl) subtitleEl.textContent = defaultSubtitle;
       if (ratingEl) ratingEl.hidden = true;
       for (const restore of restores) restore();
     };
-  }, [track, site]);
+  }, [activeTrack, local, localMode, site, duration]);
 
-  const words = useMemo(() => track?.words ?? [], [track]);
-  const lines = useMemo(() => track?.lines ?? [], [track]);
+  const words = useMemo(() => activeTrack?.words ?? [], [activeTrack]);
+  const lines = useMemo(() => activeTrack?.lines ?? [], [activeTrack]);
   const game = useGameLoop({
     words,
     lines,
@@ -531,9 +617,27 @@ export default function GameApp({
     [videoId],
   );
 
-  const changeSong = useCallback(() => {
-    window.location.href = "/play";
+  /** Open a local song and reflect it in the URL, so it can be bookmarked. */
+  const selectLocal = useCallback((selection: LocalSelection) => {
+    setLocal(selection);
+    setLocalRequest(selection.filePath);
+    setPhase("idle");
+    const target = `/play/local?file=${encodeURIComponent(selection.filePath)}`;
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== target) window.history.pushState(null, "", target);
   }, []);
+
+  const changeSong = useCallback(() => {
+    // A local run returns to the local library rather than the YouTube picker.
+    if (local) {
+      window.history.pushState(null, "", "/play/local");
+      setLocal(null);
+      setLocalRequest(null);
+      setPhase("idle");
+      return;
+    }
+    window.location.href = "/play";
+  }, [local]);
 
   const toggleFullscreen = useCallback(() => {
     const element = shellRef.current;
@@ -599,7 +703,12 @@ export default function GameApp({
   }, []);
 
   if (videoId === undefined) return null;
-  if (videoId === null) return <TrackPicker ratings={ratings} />;
+  if (localMode && !local) {
+    return (
+      <LocalLibrary requestedFile={localRequest} onSelect={selectLocal} />
+    );
+  }
+  if (videoId === null && !local) return <TrackPicker ratings={ratings} />;
   if (loadError) {
     return (
       <StatusPanel
@@ -610,7 +719,7 @@ export default function GameApp({
       />
     );
   }
-  if (!track) {
+  if (!activeTrack) {
     if (needsTurnstile) {
       return (
         <div className="game-status">
@@ -654,8 +763,24 @@ export default function GameApp({
   const accuracy = accuracyOf(game.state);
   const multiplier = multiplierOf(game.state);
   const progress = words.length ? game.state.pointer / words.length : 0;
-  const featured = FEATURED_BY_ID.get(track.id);
+  const featured = FEATURED_BY_ID.get(activeTrack.id);
   const locked = phase === "playing" || phase === "countdown" || phase === "paused";
+
+  // A local UltraStar song without a background video has no stage: the lyric
+  // highway takes the full width instead. The overlays move with it.
+  const hasStage =
+    !local || localKind === "video" || (localKind === "audio" && !!backgroundVideoFile);
+  const stageMode: "youtube" | "video" | "audio" =
+    localKind === "video" ? "video" : localKind === "audio" ? "audio" : "youtube";
+  const overlays = (
+    <>
+      {phase === "idle" && ready ? (
+        <StartOverlay mode={mode} onSelectMode={selectMode} onStart={start} />
+      ) : null}
+      {phase === "countdown" ? <CountdownOverlay value={countdown} /> : null}
+      {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
+    </>
+  );
 
   return (
     <div ref={shellRef} className="game-shell">
@@ -722,24 +847,33 @@ export default function GameApp({
         onChangeSong={changeSong}
       />
 
-      <div className="game-shell__grid">
-        <PlayerStage
-          containerRef={containerRef}
-          ready={ready}
-          error={playerError}
-          title={track.title}
-          artist={featured?.artist}
-          shielded={phase === "playing"}
-          onShield={() => inputRef.current?.focus()}
-        >
-          {phase === "idle" && ready ? (
-            <StartOverlay mode={mode} onSelectMode={selectMode} onStart={start} />
-          ) : null}
-          {phase === "countdown" ? <CountdownOverlay value={countdown} /> : null}
-          {phase === "paused" ? <PausedOverlay onResume={togglePause} /> : null}
-        </PlayerStage>
+      {/* The hidden audio that drives a local UltraStar song. */}
+      {localKind === "audio" ? <audio ref={containerRef} hidden /> : null}
+
+      <div className={"game-shell__grid" + (hasStage ? "" : " game-shell__grid--wide")}>
+        {hasStage ? (
+          <PlayerStage
+            containerRef={containerRef}
+            videoRef={ultraStarPlayer.videoRef}
+            mode={stageMode}
+            ready={ready}
+            error={playerError}
+            errorMessage={
+              local && playerError !== null
+                ? "This file could not be played. The browser may not support its format."
+                : undefined
+            }
+            title={activeTrack.title}
+            artist={featured?.artist}
+            shielded={phase === "playing"}
+            onShield={() => inputRef.current?.focus()}
+          >
+            {overlays}
+          </PlayerStage>
+        ) : null}
 
         <div className="lyric-panel" ref={lyricRef}>
+          {!hasStage ? overlays : null}
           <CueBar
             cue={cue}
             first={game.state.pointer === 0}
@@ -750,7 +884,7 @@ export default function GameApp({
             }
           />
           <LyricHighway
-            track={track}
+            track={activeTrack}
             results={game.state.results}
             pointer={game.state.pointer}
             input={game.state.input}
@@ -778,7 +912,7 @@ export default function GameApp({
           mode={mode}
           failMode={failMode}
           speed={speed}
-          trackId={track.id}
+          trackId={activeTrack.id}
           elapsed={time}
           progress={progress}
           onReplay={replay}

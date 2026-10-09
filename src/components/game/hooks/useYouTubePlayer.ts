@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { PlayerHandle } from "./player";
 
 interface YTPlayer {
   playVideo(): void;
@@ -61,27 +62,16 @@ function loadYouTubeApi(): Promise<void> {
   return apiPromise;
 }
 
-export interface YouTubePlayerHandle {
+export interface YouTubePlayerHandle extends PlayerHandle {
   /** Ref callback for the element YouTube replaces with the iframe. */
-  containerRef: (node: HTMLDivElement | null) => void;
-  ready: boolean;
-  /** YouTube player state: -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering. */
-  state: number;
-  time: number;
-  duration: number;
-  error: number | null;
-  play(): void;
-  pause(): void;
-  restart(): void;
-  seekTo(seconds: number): void;
-  getTime(): number;
+  containerRef: (node: HTMLElement | null) => void;
 }
 
 export function useYouTubePlayer(
   videoId: string | null,
   playbackRate = 1,
 ): YouTubePlayerHandle {
-  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
   const [apiReady, setApiReady] = useState(false);
   const playerRef = useRef<YTPlayer | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -119,8 +109,10 @@ export function useYouTubePlayer(
     rafRef.current = requestAnimationFrame(tick);
   }, []);
 
-  // Load the IFrame API once per page.
+  // Load the IFrame API once per page, and only when a YouTube video is
+  // actually in play (the local library never needs it).
   useEffect(() => {
+    if (!videoId) return;
     let cancelled = false;
     void loadYouTubeApi().then(() => {
       if (!cancelled) setApiReady(true);
@@ -128,7 +120,7 @@ export function useYouTubePlayer(
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [videoId]);
 
   // Create the player once the API and the container are both ready.
   useEffect(() => {
@@ -209,7 +201,7 @@ export function useYouTubePlayer(
     () => playerRef.current?.getCurrentTime() ?? timeRef.current,
     [],
   );
-  const containerRef = useCallback((node: HTMLDivElement | null) => {
+  const containerRef = useCallback((node: HTMLElement | null) => {
     setContainer(node);
   }, []);
 

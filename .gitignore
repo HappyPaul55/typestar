@@ -37,3 +37,6 @@ preview.log
 
 # Local binaries / downloads (never part of the site)
 *.exe
+
+# Local UltraStar song downloads used for testing (never part of the site)
+songs/

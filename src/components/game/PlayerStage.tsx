@@ -6,9 +6,19 @@
 import type { ReactNode } from "react";
 
 interface Props {
-  containerRef: (node: HTMLDivElement | null) => void;
+  containerRef: (node: HTMLElement | null) => void;
+  /** Ref for the background video in `audio` mode (synced to the audio). */
+  videoRef?: (node: HTMLElement | null) => void;
+  /**
+   * `youtube` mounts the IFrame player; `video` mounts an HTML5 `<video>` that
+   * is the master clock; `audio` shows a muted background video while the
+   * hidden `<audio>` (rendered by the caller) drives the game.
+   */
+  mode?: "youtube" | "video" | "audio";
   ready: boolean;
   error: number | null;
+  /** Overrides the generic message when the source is not YouTube. */
+  errorMessage?: string;
   title: string;
   artist?: string;
   /**
@@ -30,8 +40,11 @@ const ERROR_MESSAGES: Record<number, string> = {
 
 export default function PlayerStage({
   containerRef,
+  videoRef,
+  mode = "youtube",
   ready,
   error,
+  errorMessage,
   title,
   artist,
   shielded = false,
@@ -41,7 +54,19 @@ export default function PlayerStage({
   return (
     <div className="player-stage">
       <div className="player-stage__frame">
-        <div ref={containerRef} className="player-stage__player" />
+        {mode === "audio" ? (
+          <video ref={videoRef} className="player-stage__player" playsInline muted />
+        ) : mode === "video" ? (
+          <video
+            ref={containerRef}
+            className="player-stage__player"
+            playsInline
+            controls
+            preload="metadata"
+          />
+        ) : (
+          <div ref={containerRef} className="player-stage__player" />
+        )}
 
         {shielded ? (
           <button
@@ -67,7 +92,9 @@ export default function PlayerStage({
           <div className="player-stage__placeholder player-stage__placeholder--error">
             <p className="font-display text-lg font-bold">Video unavailable</p>
             <p className="mt-2 text-sm">
-              {ERROR_MESSAGES[error] ?? "The player could not start this video."}
+              {errorMessage ??
+                ERROR_MESSAGES[error] ??
+                "The player could not start this video."}
             </p>
           </div>
         ) : null}

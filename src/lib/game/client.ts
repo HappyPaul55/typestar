@@ -105,3 +105,20 @@ export function videoIdFromLocation(): string | null {
   const params = new URLSearchParams(window.location.search);
   return parseVideoId(params.get("v") ?? params.get("id") ?? "");
 }
+
+/** Whether the current URL is the local-file route (`/play/local`). */
+export function isLocalRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return /^\/play\/local\/?$/.test(window.location.pathname);
+}
+
+/**
+ * The local song requested in the URL (`/play/local?file=<relative path>`), or
+ * `null` for the plain picker. Used to bookmark and share a local song.
+ */
+export function localFileFromLocation(): string | null {
+  if (typeof window === "undefined") return null;
+  const value = new URLSearchParams(window.location.search).get("file");
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}

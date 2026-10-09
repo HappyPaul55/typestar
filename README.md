@@ -38,6 +38,9 @@ typing / keyboard speed game**.
   every wrong key.
 - New songs get a one-off Cloudflare **Turnstile** human check the first time
   they are requested; songs already in the library play straight away.
+- Play **local files**: in a browser with the File System Access API, point
+  TypeStar at a folder of **UltraStar** songs or videos with matching `.vtt`
+  captions and play them from disk — nothing is uploaded.
 - Pick the difficulty on the start screen; difficulty, run mode and playback
   speed are dropdowns in the HUD.
 - Share a run: the difficulty, run mode and speed travel in the URL hash, so a
@@ -136,6 +139,36 @@ live lookup.
 `tracks:bucket` and `tracks:publish` need Cloudflare credentials
 (`wrangler login`, or `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`).
 
+## Local files
+
+In a browser that supports the File System Access API (Chromium-based), the
+picker on `/play` offers **Open local files** (`/play/local`). It scans the
+chosen folder (up to four deep) and finds two kinds of song:
+
+- **UltraStar** charts — a `.txt` file in the
+  [UltraStar format](https://github.com/UltraStar-Deluxe/format). Its `#MP3`
+  header names the audio (and an optional `#VIDEO` background). Because
+  UltraStar times every syllable, the words line up exactly with the music
+  rather than being estimated. Syllables are merged into whole words using the
+  format's leading-space and `~` rules; `-` markers (or, when absent, musical
+  gaps) define the lines. If the chart has a video it plays behind the lyrics,
+  kept in step with the audio and offset by `#VIDEOGAP`; if not, the lyric
+  highway fills the width.
+- **Video + WebVTT** — a video file and a same-named `.vtt` caption file,
+  matched case-insensitively (`song.mp4` with `song.vtt`).
+
+The chosen folder is remembered (its handle is kept in IndexedDB) and its read
+permission is re-requested on the next visit. The picker has a search box for
+large libraries. Selecting a song puts its relative path in the URL
+(`/play/local?file=Album/song.txt`), so the browser's Back button returns to the
+picker and a song can be bookmarked — reopening the link needs the folder to
+still be remembered and its permission granted. Nothing is uploaded: the audio
+or video plays from a local object URL, and the lyrics are parsed in the browser
+into the same word-timed track shape as a YouTube song, so the game, scoring and
+ratings all work unchanged. WebVTT inline word timestamps (`<00:00:05.000>`) are
+honoured where a caption file provides them. If the browser has no
+`showDirectoryPicker`, the picker shows a short notice in place of the button.
+
 ## API
 
 | Route | Description |
@@ -143,6 +176,7 @@ live lookup.
 | `GET /api/track/:id?lang=en` | Get-or-create a track. `422` when the video has no captions, `502` when YouTube is unreachable. |
 | `/play?v=<id>` | `301` redirect to `/play/<id>`. |
 | `/play/<id>` | Serves the play page; its title and social tags name the song when it is already cached or seeded, otherwise the generic page is served. |
+| `/play/local` | Serves the play page for the in-browser local-file picker (no server involvement). |
 
 Only `/api/*`, `/play` and `/play/*` run the Worker (`run_worker_first` in
 `wrangler.jsonc`); everything else is served from the edge asset cache.

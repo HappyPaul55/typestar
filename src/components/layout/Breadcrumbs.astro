@@ -1,0 +1,50 @@
+---
+/**
+ * The hero breadcrumb, kept in the old `//` comment style: lowercase, and just
+ * the section — `// play`, or `// play / local` on the local route.
+ *
+ * The play page is one static document served for `/play`, `/play/<id>` and
+ * `/play/local`, so the deeper `local` crumb cannot be baked in; the game island
+ * fills the trailing element at runtime (the same way it sets the title and
+ * rating). Every crumb is a link, so a song always has a way back to the picker.
+ */
+interface Crumb {
+  name: string;
+  path: string;
+}
+
+interface Props {
+  items: Crumb[];
+  /** id of the trailing item the game island reveals for deeper routes. */
+  tailId?: string;
+  /** Label and target for that trailing item (e.g. `local` → `/play/local`). */
+  tailLabel?: string;
+  tailHref?: string;
+}
+
+const { items, tailId, tailLabel = "", tailHref = "" } = Astro.props;
+---
+
+<nav class="comment breadcrumbs" aria-label="Breadcrumb">
+  <span class="slash" aria-hidden="true">//</span>
+  <ol class="breadcrumbs__list">
+    {
+      items.map((crumb) => (
+        <li class="breadcrumbs__item">
+          <a class="breadcrumbs__link" href={crumb.path}>
+            {crumb.name}
+          </a>
+        </li>
+      ))
+    }
+    {
+      tailId ? (
+        <li id={tailId} class="breadcrumbs__item" hidden>
+          <a class="breadcrumbs__link" href={tailHref}>
+            {tailLabel}
+          </a>
+        </li>
+      ) : null
+    }
+  </ol>
+</nav>
