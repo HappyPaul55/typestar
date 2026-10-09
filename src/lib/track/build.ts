@@ -13,6 +13,7 @@ import {
   type CaptionSegment,
   type Track,
 } from "./types";
+import { parseVtt } from "./vtt";
 
 export interface BuildTrackInput {
   id: string;
@@ -66,4 +67,31 @@ export function buildTrack(input: BuildTrackInput): Track {
     lines,
     words,
   };
+}
+
+export interface BuildLocalTrackInput {
+  id: string;
+  lang: string;
+  title: string;
+  description: string;
+  /** Raw WebVTT caption text from a local file. */
+  vtt: string;
+}
+
+/**
+ * Build a track from a local video's WebVTT caption file. The cues are fed
+ * through the same line-level pipeline as YouTube's human captions, so local
+ * and remote tracks behave identically in the game.
+ */
+export function buildLocalTrack(input: BuildLocalTrackInput): Track {
+  return buildTrack({
+    id: input.id,
+    lang: input.lang,
+    title: input.title,
+    description: input.description,
+    subtitles: parseVtt(input.vtt),
+    json3: null,
+    // A local `.vtt` is treated as authored captions; we cannot know better.
+    captionKind: "manual",
+  });
 }

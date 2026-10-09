@@ -405,6 +405,37 @@
     }
   }
 
+  /* Breadcrumbs: the hero's `//` section label, but as links. It reuses the
+     `.comment` class for its look, so only the list and links need styling. */
+  .breadcrumbs__list {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .breadcrumbs__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  /* `display: inline-flex` above would otherwise beat the `hidden` attribute. */
+  .breadcrumbs__item[hidden] {
+    display: none;
+  }
+  .breadcrumbs__item + .breadcrumbs__item::before {
+    content: "/";
+    opacity: 0.5;
+  }
+  .breadcrumbs__link {
+    color: inherit;
+    transition: color 0.2s var(--ease-brand);
+  }
+  .breadcrumbs__link:hover {
+    color: var(--color-yellow-deep);
+  }
+  .on-ink .breadcrumbs__link:hover {
+    color: var(--color-yellow);
+  }
+
   /* Alerts */
   .alert {
     padding: 0.75rem 1rem;
@@ -490,9 +521,36 @@
     gap: clamp(0.9rem, 2.2vw, 1.4rem);
   }
   .game-shell:fullscreen {
+    box-sizing: border-box;
+    height: 100vh;
     padding: clamp(1rem, 3vw, 2rem);
     background: var(--color-paper);
-    overflow-y: auto;
+    overflow: hidden;
+  }
+  /* Fullscreen fills the viewport: the grid takes the leftover height and the
+     lyric highway grows with it, instead of being capped by its usual clamp. */
+  .game-shell:fullscreen .game-shell__grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .game-shell:fullscreen .lyric-panel {
+    height: 100%;
+    min-height: 0;
+  }
+  .game-shell:fullscreen .lyric-highway {
+    height: 100%;
+    min-height: 0;
+    /* No edge fade in fullscreen: the whole lyric column is in view. */
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  .game-shell:fullscreen .player-stage {
+    min-height: 0;
+  }
+  .game-shell:fullscreen .player-stage__frame {
+    max-height: 100%;
   }
   /* Keystroke sink for the game. Pinned inside the viewport (not pushed
      off-screen) so focusing it never scrolls the page — an off-screen field
@@ -522,6 +580,18 @@
     .game-shell:fullscreen .game-shell__grid {
       grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     }
+    /* An UltraStar song without a background video has no stage, so the lyric
+       highway takes the whole width. */
+    .game-shell__grid--wide,
+    .game-shell:fullscreen .game-shell__grid--wide {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .game-shell__grid--wide .lyric-highway {
+    height: clamp(420px, 74vh, 820px);
+  }
+  .game-shell__grid--wide .lyric-line {
+    font-size: clamp(1.7rem, 5vw, 3rem);
   }
 
   /* Play header rating ------------------------------------------ */
@@ -634,6 +704,12 @@
   .player-stage__player {
     position: absolute;
     inset: 0;
+  }
+  video.player-stage__player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: var(--color-ink);
   }
   .player-stage__shield {
     position: absolute;
@@ -1429,8 +1505,21 @@
     flex-direction: column;
     gap: clamp(2rem, 5vw, 3rem);
   }
+  /* YouTube is the main path, so it takes the row; local files sit alongside
+     as a smaller aside. They stack on narrow screens. */
+  .track-picker__top {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+    gap: clamp(1.2rem, 3vw, 2.25rem);
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .track-picker__top {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
   .track-picker__form {
-    width: min(42rem, 100%);
+    width: 100%;
   }
   .track-picker__label {
     font-family: var(--font-mono);
@@ -1551,6 +1640,186 @@
     font-size: 0.72rem;
     line-height: 1;
     box-shadow: 0 2px 0 0 rgba(12, 13, 10, 0.25);
+  }
+
+  /* Local library ------------------------------------------------ */
+  .track-picker__local {
+    width: 100%;
+    padding: 1rem 1.1rem 1.1rem;
+    background: var(--color-cream);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-brand);
+  }
+  /* The panel's padding provides the space; the shared label's section margin
+     is for the page, not inside a card. */
+  .track-picker__local .group-label {
+    margin-top: 0;
+  }
+  .track-picker__local-action {
+    margin-top: 0.75rem;
+  }
+  .track-picker__local-action .btn-game {
+    width: 100%;
+  }
+  .track-picker__local--unsupported {
+    background: var(--color-paper-2);
+    border-style: dashed;
+  }
+  .track-picker__local-checking {
+    color: var(--color-muted);
+  }
+  .local-library {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1.5rem, 4vw, 2.5rem);
+  }
+  .local-library__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  /* The count on the left; the search box and folder buttons on the right.
+     `flex: 1` gives the tools the whole remaining width, so the search cannot
+     grow and push the button onto a new line. */
+  .local-library__tools {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.6rem;
+  }
+  .local-library__status {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .local-library__results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .local-library__results-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+  /* The shared label's section margin is for the page, not this row. */
+  .local-library__results-head .group-label {
+    margin-top: 0;
+  }
+  .local-library__search {
+    flex: 1 1 14rem;
+    max-width: 22rem;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--color-ink);
+    background: var(--color-cream);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-brand);
+  }
+  .local-library__search:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+  .local-library__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.9rem;
+  }
+  .local-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.95rem 1.05rem 1.05rem;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    background: var(--color-paper);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-brand);
+    transition:
+      transform 0.28s var(--ease-brand),
+      border-color 0.28s var(--ease-brand),
+      box-shadow 0.28s var(--ease-brand),
+      background-color 0.28s var(--ease-brand);
+  }
+  .local-card:hover:not(:disabled) {
+    transform: translate(-3px, -3px);
+    background: var(--color-cream);
+    border-color: var(--color-ink);
+    box-shadow: 6px 6px 0 0 var(--color-yellow);
+  }
+  .local-card:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .local-card__title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .local-card__path {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    color: var(--color-muted);
+    word-break: break-word;
+  }
+  .local-card__files {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-top: 0.35rem;
+  }
+  .local-card__file {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.03em;
+    color: var(--color-ink-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .local-library__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .local-library__group-label {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .local-card__artist {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .local-card__badge {
+    align-self: flex-start;
+    margin-top: 0.4rem;
+    padding: 0.15rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+    background: var(--color-yellow);
+    border-radius: 999px;
   }
 
   /* Small screens: the overlay sits inside a short 16:9 frame, so shrink

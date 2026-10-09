@@ -84,6 +84,12 @@ function devServer(env) {
           }
         }
 
+        if (path === "/play/local" || path === "/play/local/") {
+          req.url = "/play";
+          next();
+          return;
+        }
+
         if (/^\/play\/[A-Za-z0-9_-]{11}\/?$/.test(path)) {
           req.url = "/play";
           next();

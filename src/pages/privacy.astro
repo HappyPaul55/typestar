@@ -2,6 +2,7 @@
 import { getEntry, render } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Container from "../components/ui/Container.astro";
+import Breadcrumbs from "../components/layout/Breadcrumbs.astro";
 
 const site = (await getEntry("site", "main"))!.data;
 const entry = await getEntry("legal", "privacy");
@@ -11,25 +12,26 @@ if (!entry) {
 }
 
 const { Content } = await render(entry);
+// SEO JSON-LD keeps Home → Privacy; the visible crumb is `// privacy`.
+const breadcrumbs = [
+  { name: "Home", path: "/" },
+  { name: "Privacy", path: "/privacy" },
+];
+const crumbs = [{ name: "privacy", path: "/privacy" }];
 ---
 
 <BaseLayout
   title={`${entry.data.title} — ${site.name}`}
   description={entry.data.description}
   path="/privacy"
-  breadcrumbs={[
-    { name: "Home", path: "/" },
-    { name: "Privacy", path: "/privacy" },
-  ]}
+  breadcrumbs={breadcrumbs}
 >
   <main id="main">
     <section
       class="on-ink grid-ink border-b border-line-ink bg-ink pt-[clamp(3rem,8vw,5rem)] pb-[clamp(2.5rem,6vw,4rem)]"
     >
       <Container>
-        <p class="comment">
-          <span class="slash" aria-hidden="true">//</span> legal
-        </p>
+        <Breadcrumbs items={crumbs} />
         <h1
           class="mt-4 font-display text-[clamp(2rem,5.5vw,3.4rem)] leading-[1] font-bold tracking-[-0.03em] text-cream"
         >

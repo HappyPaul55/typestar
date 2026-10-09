@@ -18,7 +18,8 @@ holds the game (`src/components/game/GameApp.tsx`). A **Cloudflare Worker**
 (`worker/index.ts`) serves the track API and the pretty play routes.
 
 Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
-`/privacy`, `/404`, and `GET /api/track/<youtubeId>`.
+`/play/local` (the in-browser local-file picker), `/privacy`, `/404`, and
+`GET /api/track/<youtubeId>`.
 
 ## How the game works
 
@@ -38,6 +39,21 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    written, so a transient YouTube block cannot poison the cache.
 3. The React island plays the video with the YouTube IFrame API and scores
    typing against the caption timings.
+4. `/play/local` is a separate, serverless path. When the browser provides
+   `window.showDirectoryPicker`, the picker offers **Open local files**. The
+   player chooses a folder and TypeStar finds two kinds of song (up to four
+   folders deep — `MAX_SCAN_DEPTH` in `src/lib/local/library.ts`): a video paired
+   with a same-named `.vtt` caption, and an **UltraStar** `.txt` chart whose
+   `#MP3` names its audio (and optional `#VIDEO`). Both are built into the same
+   word-timed track shape in the browser. A `.vtt` video plays from an object URL
+   in an HTML5 `<video>` (`useMediaPlayer`); an UltraStar song plays its audio
+   (`useUltraStarPlayer`, the master clock) with an optional muted background
+   video synced via `#VIDEOGAP`. A song with no video hides the stage and lets
+   the lyric highway fill the width. The picker has a search filter, and
+   selecting a song reflects it in the URL (`/play/local?file=<relative path>`),
+   so the Back button returns to the picker and a song can be bookmarked. The
+   chosen folder handle is remembered in IndexedDB. No server, no R2 and no
+   Turnstile are involved.
 
 Three difficulty modes: **easy** (first letter only), **normal** (whole word,
 punctuation optional) and **hard** (whole word, punctuation required). Four run
@@ -124,11 +140,17 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/pages/play.astro` — page shell that mounts the React island
   `src/components/game/GameApp.tsx`.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
-  `PlayerStage`, `LyricHighway`, `Hud`, `Results`, `Calibration`, `TrackPicker`
-  and the `hooks/` for the player and game loop.
+  `PlayerStage`, `LyricHighway`, `Hud`, `Results`, `Calibration`, `TrackPicker`,
+  `LocalLibrary` (the local-folder picker) and the `hooks/` for the YouTube
+  player, the HTML5 media player (`useMediaPlayer`), the UltraStar player
+  (`useUltraStarPlayer`) and the game loop.
 - `src/lib/track/**` — track types, caption parsing, build, validation, the
-  song rating (`rating.ts`), the build-time seed reader (`seed.ts`) and the
-  cache abstraction. Pure and tested (the seed reader is server-only).
+  WebVTT parser (`vtt.ts`), the UltraStar parser (`ultrastar.ts`), the song
+  rating (`rating.ts`), the build-time seed reader (`seed.ts`) and the cache
+  abstraction. Pure and tested (the seed reader is server-only).
+- `src/lib/local/**` — the local library: pairing videos with `.vtt` captions and
+  UltraStar charts with their audio/video (`library.ts`, pure and tested) and
+  the IndexedDB folder-handle store (`idb.ts`).
 - `src/lib/game/**` — the pure game engine, browser client, audio helpers and
   storage.
 - `src/lib/game/audio.ts` + `public/audio/` — preloaded sound effects (the
@@ -156,7 +178,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   and runs the real API handler locally.
 - `public/tracks/*.json` — pre-warmed seed tracks (generated, committed).
 - `public/_headers` — CSP. YouTube and `challenges.cloudflare.com` (Turnstile)
-  are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`.
+  are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`;
+  `media-src` allows `blob:` for the local video.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
 - `public/og-image.png` — the 1200×630 social card referenced by `Seo.astro`.
@@ -180,6 +203,16 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `x-turnstile-token` header; the gate is skipped entirely when no secret is
   configured (so local dev needs no setup). To exercise it locally, put
   Cloudflare's test keys in `.env*` (see README).
+- **Local files are browser-only and Chromium-first.** `/play/local` is offered
+  only when `window.showDirectoryPicker` exists; media plays from object URLs
+  and the lyrics are parsed in the browser, so no server, R2 or Turnstile is
+  involved. The folder handle is persisted in IndexedDB and read permission is
+  re-requested on a user gesture. `media-src blob:` in `public/_headers` is
+  required for the video to load under the CSP. Pairing is by relative path
+  (case-insensitive, capped at `MAX_SCAN_DEPTH = 4`). UltraStar charts are found
+  by their `#MP3`/`#VIDEO` headers (resolved relative to the `.txt`), and the
+  background video is synced to the audio with `#VIDEOGAP` (`audioTime -
+  videoGap`); freestyle notes are dropped and duets sing voice 1.
 - `nodejs_compat` is required: `youtube-caption-extractor` depends on `he` and
   `striptags`.
 - The R2 bucket is `typestar-tracks`; create it once with `bun run tracks:bucket`
@@ -197,8 +230,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `index.html` / `play.html` / etc.; canonical and sitemap URLs have no trailing
   slash. Active-nav logic in `Header.astro` normalises both `.html` and trailing
   slashes.
-- The pretty `/play/<id>` route depends on the Worker rewrite; there is no
-  Astro dynamic route. In dev the `devServer` plugin rewrites it.
+- The pretty `/play/<id>` and `/play/local` routes depend on the Worker
+  rewrite; there is no Astro dynamic route. In dev the `devServer` plugin
+  rewrites both (the Worker already falls through `/play/*` to the play page).
 - TypeScript is on 6.x: `astro check` refuses TypeScript 7 (`@astrojs/check` peer
   range is `^5.0.0 || ^6.0.0`). Do not bump to 7.
 - The pretty 404 depends on `wrangler.jsonc` setting

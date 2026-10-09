@@ -2,9 +2,10 @@
  * The no-track state: paste a YouTube link, or pick a featured track.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import { parseVideoId } from "../../lib/game/client";
+import { supportsLocalLibrary } from "../../lib/local/library";
 import { RATING_LABEL, type TrackRating } from "../../lib/track/rating";
 
 export default function TrackPicker({
@@ -15,6 +16,16 @@ export default function TrackPicker({
 }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // The File System Access API only exists in some browsers. Checking during
+  // SSR would cause a hydration mismatch, so probe after mount and show a
+  // neutral placeholder until we know.
+  const [localSupport, setLocalSupport] = useState<"unknown" | "yes" | "no">(
+    "unknown",
+  );
+
+  useEffect(() => {
+    setLocalSupport(supportsLocalLibrary() ? "yes" : "no");
+  }, []);
 
   function go(raw: string) {
     const id = parseVideoId(raw);
@@ -27,41 +38,77 @@ export default function TrackPicker({
 
   return (
     <div className="track-picker">
-      <form
-        className="track-picker__form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          go(value);
-        }}
-      >
-        <label className="track-picker__label" htmlFor="track-url">
-          Paste a YouTube link
-        </label>
-        <div className="track-picker__row">
-          <input
-            id="track-url"
-            className="track-picker__input"
-            type="text"
-            inputMode="url"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="https://www.youtube.com/watch?v=…"
-            value={value}
-            onChange={(event) => {
-              setValue(event.target.value);
-              setError(null);
-            }}
-          />
-          <button type="submit" className="btn-game btn-game--primary">
-            Play
-          </button>
-        </div>
-        {error ? <p className="track-picker__error">{error}</p> : null}
-        <p className="track-picker__note">
-          TypeStar reads the video&rsquo;s captions to time the words. Tracks
-          with clear, human-written captions work best.
-        </p>
-      </form>
+      <div className="track-picker__top">
+        <form
+          className="track-picker__form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            go(value);
+          }}
+        >
+          <label className="track-picker__label" htmlFor="track-url">
+            Paste a YouTube link
+          </label>
+          <div className="track-picker__row">
+            <input
+              id="track-url"
+              className="track-picker__input"
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="https://www.youtube.com/watch?v=…"
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                setError(null);
+              }}
+            />
+            <button type="submit" className="btn-game btn-game--primary">
+              Play
+            </button>
+          </div>
+          {error ? <p className="track-picker__error">{error}</p> : null}
+          <p className="track-picker__note">
+            TypeStar reads the video&rsquo;s captions to time the words. Tracks
+            with clear, human-written captions work best.
+          </p>
+        </form>
+
+        <aside
+          className={
+            "track-picker__local" +
+            (localSupport === "no" ? " track-picker__local--unsupported" : "")
+          }
+          aria-label="Local files"
+        >
+          <p className="group-label">On this device</p>
+          {localSupport === "yes" ? (
+            <>
+              <p className="track-picker__note">
+                Play songs you already have. Pick a folder of{" "}
+                <strong>UltraStar</strong> charts or videos with matching{" "}
+                <code>.vtt</code> captions — nothing is uploaded.
+              </p>
+              <div className="track-picker__local-action">
+                <a className="btn-game btn-game--primary" href="/play/local">
+                  Open local files
+                </a>
+              </div>
+            </>
+          ) : localSupport === "no" ? (
+            <p className="track-picker__note track-picker__local-warning">
+              Local playback isn&rsquo;t available in this browser — it needs the
+              File System Access API. Try Chrome, Edge or Brave to play local
+              files.
+            </p>
+          ) : (
+            <p className="track-picker__note track-picker__local-checking">
+              Checking this browser&hellip;
+            </p>
+          )}
+        </aside>
+      </div>
 
       <div className="track-picker__featured">
         <p className="group-label">Featured</p>
