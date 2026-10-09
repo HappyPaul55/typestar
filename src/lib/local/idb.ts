@@ -1,12 +1,12 @@
 /**
- * Persist the chosen local-folder handle in IndexedDB.
+ * Persist the chosen local-folder handles in IndexedDB.
  *
  * Directory handles are structured-cloneable, so IndexedDB can remember which
- * folder the player picked between visits. The browser still asks for read
+ * folders the player picked between visits. The browser still asks for read
  * permission again before the files are touched (see `ensureReadPermission`).
  *
  * Every call is best-effort: private mode or a blocked database must never
- * break the local library, it just means the folder is not remembered.
+ * break the local library, it just means the folders are not remembered.
  */
 
 import type { LocalDirectoryHandle } from "./library";
@@ -14,7 +14,15 @@ import type { LocalDirectoryHandle } from "./library";
 const DB_NAME = "typestar";
 const DB_VERSION = 1;
 const STORE = "handles";
-const DIRECTORY_KEY = "local-directory";
+const DIRECTORIES_KEY = "local-directories";
+
+function isDirectoryHandle(value: unknown): value is LocalDirectoryHandle {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as LocalDirectoryHandle).kind === "directory"
+  );
+}
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -49,17 +57,22 @@ async function withStore<T>(
   }
 }
 
-export async function saveDirectoryHandle(handle: LocalDirectoryHandle): Promise<void> {
-  await withStore("readwrite", (store) => store.put(handle, DIRECTORY_KEY));
+export async function saveDirectoryHandles(
+  handles: readonly LocalDirectoryHandle[],
+): Promise<void> {
+  await withStore("readwrite", (store) => store.put([...handles], DIRECTORIES_KEY));
 }
 
-export async function loadDirectoryHandle(): Promise<LocalDirectoryHandle | null> {
-  const value = await withStore<LocalDirectoryHandle>("readonly", (store) =>
-    store.get(DIRECTORY_KEY),
+export async function loadDirectoryHandles(): Promise<LocalDirectoryHandle[]> {
+  const value = await withStore<unknown>("readonly", (store) =>
+    store.get(DIRECTORIES_KEY),
   );
-  return value && value.kind === "directory" ? value : null;
+  if (Array.isArray(value)) return value.filter(isDirectoryHandle);
+  // A handle saved by an earlier single-folder version.
+  if (isDirectoryHandle(value)) return [value];
+  return [];
 }
 
-export async function clearDirectoryHandle(): Promise<void> {
-  await withStore("readwrite", (store) => store.delete(DIRECTORY_KEY));
+export async function clearDirectoryHandles(): Promise<void> {
+  await withStore("readwrite", (store) => store.delete(DIRECTORIES_KEY));
 }

@@ -1,5 +1,5 @@
 /**
- * The local-file picker: choose a folder of songs.
+ * The local-file picker: choose one or more folders of songs.
  *
  * Two kinds of local song are recognised:
  *
@@ -9,9 +9,8 @@
  * - **Video + WebVTT** — a video file and a same-named `.vtt` caption file.
  *
  * Reachable at `/play/local` (only offered when the browser supports the File
- * System Access API). The chosen folder handle is remembered in IndexedDB, and
- * its read permission is re-requested on a click so the files can be scanned
- * again on a later visit.
+ * System Access API). Folders are remembered in IndexedDB and can be added to;
+ * their read permission is re-requested on a click.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,7 +19,6 @@ import { parseUltraStar, ultraStarTrack } from "../../lib/track/ultrastar";
 import type { Track } from "../../lib/track/types";
 import {
   ensureReadPermission,
-  hasReadPermission,
   isSongTextPath,
   pairLocalFiles,
   pairUltraStarSongs,
@@ -32,7 +30,7 @@ import {
   type LocalPair,
   type LocalUltraStarSong,
 } from "../../lib/local/library";
-import { loadDirectoryHandle, saveDirectoryHandle } from "../../lib/local/idb";
+import { loadDirectoryHandles, saveDirectoryHandles } from "../../lib/local/idb";
 
 export interface LocalSelection {
   track: Track;
@@ -44,13 +42,20 @@ export interface LocalSelection {
   backgroundVideo?: File;
   /** UltraStar `#VIDEOGAP`, in seconds. */
   videoGap?: number;
-  /** Relative path used to deep-link the song (`/play/local?file=…`). */
+  /** Deep-link reference (`<folder>/<path>`), used in `/play/local?file=…`. */
   filePath: string;
   /** The song's artist, when the chart names one. */
   artist?: string;
 }
 
 type Status = "idle" | "scanning" | "loading";
+
+interface ScannedEntry {
+  folderId: string;
+  folderName: string;
+  path: string;
+  handle: LocalFileHandle;
+}
 
 export default function LocalLibrary({
   requestedFile = null,
@@ -60,65 +65,100 @@ export default function LocalLibrary({
   requestedFile?: string | null;
   onSelect(selection: LocalSelection): void;
 }) {
-  const [folder, setFolder] = useState<string | null>(null);
+  const [folders, setFolders] = useState<LocalDirectoryHandle[]>([]);
+  const [blocked, setBlocked] = useState<string[]>([]);
   const [songs, setSongs] = useState<LocalUltraStarSong[]>([]);
   const [videos, setVideos] = useState<LocalPair[]>([]);
   const [handles, setHandles] = useState<Map<string, LocalFileHandle>>(new Map());
-  const [remembered, setRemembered] = useState<LocalDirectoryHandle | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
-  const scan = useCallback(async (directory: LocalDirectoryHandle) => {
+  const scan = useCallback(async (folderList: LocalDirectoryHandle[]) => {
     setStatus("scanning");
     setError(null);
     try {
-      const files = await scanDirectory(directory);
-      const map = new Map(files.map((file) => [file.path, file.handle]));
-      const available = new Map(files.map((file) => [file.path.toLowerCase(), file.path]));
+      const entries: ScannedEntry[] = [];
+      const denied: string[] = [];
+      for (let index = 0; index < folderList.length; index++) {
+        const folder = folderList[index];
+        const folderId = String(index);
+        try {
+          const files = await scanDirectory(folder);
+          for (const file of files) {
+            entries.push({
+              folderId,
+              folderName: folder.name,
+              path: file.path,
+              handle: file.handle,
+            });
+          }
+        } catch {
+          // Permission not granted (or the folder is gone): note it and move on.
+          denied.push(folder.name);
+        }
+      }
+
+      const map = new Map(entries.map((entry) => [key(entry.folderId, entry.path), entry.handle]));
+      const available = new Map(
+        entries.map((entry) => [key(entry.folderId, entry.path.toLowerCase()), entry.path]),
+      );
 
       // Read every `.txt` so UltraStar charts can find their audio/video by the
       // relative paths in their headers.
-      const charts: { path: string; text: string }[] = [];
-      for (const file of files) {
-        if (!isSongTextPath(file.path)) continue;
-        const handle = map.get(file.path);
-        if (!handle) continue;
+      const charts: {
+        folderId: string;
+        folderName: string;
+        path: string;
+        text: string;
+      }[] = [];
+      for (const entry of entries) {
+        if (!isSongTextPath(entry.path)) continue;
         try {
-          charts.push({ path: file.path, text: await (await handle.getFile()).text() });
+          charts.push({
+            folderId: entry.folderId,
+            folderName: entry.folderName,
+            path: entry.path,
+            text: await (await entry.handle.getFile()).text(),
+          });
         } catch {
           // Unreadable chart; skip it.
         }
       }
 
       setHandles(map);
-      setVideos(pairLocalFiles(files.map((file) => ({ path: file.path }))));
+      setVideos(
+        pairLocalFiles(
+          entries.map((entry) => ({
+            folderId: entry.folderId,
+            folderName: entry.folderName,
+            path: entry.path,
+          })),
+        ),
+      );
       setSongs(pairUltraStarSongs(charts, available));
-      setFolder(directory.name);
+      setBlocked(denied);
     } catch {
-      setError("That folder could not be read.");
+      setError("Those folders could not be read.");
     } finally {
       setStatus("idle");
     }
   }, []);
 
-  // Offer a folder from a previous visit. If its permission is still granted,
-  // rescan it straight away; otherwise wait for the player to click to reopen.
+  // Restore remembered folders and scan the ones already permitted.
   useEffect(() => {
     let cancelled = false;
-    void loadDirectoryHandle().then(async (handle) => {
-      if (cancelled || !handle) return;
-      setRemembered(handle);
-      if (await hasReadPermission(handle)) {
-        if (!cancelled) await scan(handle);
-      }
+    void loadDirectoryHandles().then(async (remembered) => {
+      if (cancelled || !remembered.length) return;
+      setFolders(remembered);
+      await scan(remembered);
     });
     return () => {
       cancelled = true;
     };
   }, [scan]);
 
-  const chooseFolder = useCallback(async () => {
+  const addFolder = useCallback(async () => {
     setError(null);
     try {
       const directory = await pickDirectory();
@@ -126,33 +166,35 @@ export default function LocalLibrary({
         setError("This browser cannot open folders.");
         return;
       }
-      await saveDirectoryHandle(directory);
-      setRemembered(directory);
-      await scan(directory);
+      const next = [...folders, directory];
+      await saveDirectoryHandles(next);
+      setFolders(next);
+      await scan(next);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
       setError("The folder could not be opened.");
     }
-  }, [scan]);
+  }, [folders, scan]);
 
-  const reopenFolder = useCallback(async () => {
-    if (!remembered) return;
+  const reopenFolders = useCallback(async () => {
+    if (!folders.length) return;
     setError(null);
     try {
-      if (!(await ensureReadPermission(remembered))) {
-        setError("Permission to read that folder was declined.");
-        return;
+      // Best-effort: a browser may only grant one folder per gesture, so the
+      // button stays and repeated clicks grant the rest.
+      for (const folder of folders) {
+        await ensureReadPermission(folder);
       }
-      await scan(remembered);
+      await scan(folders);
     } catch {
-      setError("The folder could not be reopened.");
+      setError("The folders could not be reopened.");
     }
-  }, [remembered, scan]);
+  }, [folders, scan]);
 
   const openVideo = useCallback(
     async (pair: LocalPair) => {
-      const videoHandle = handles.get(pair.videoPath);
-      const captionHandle = handles.get(pair.captionPath);
+      const videoHandle = handles.get(key(pair.folderId, pair.videoPath));
+      const captionHandle = handles.get(key(pair.folderId, pair.captionPath));
       if (!videoHandle || !captionHandle) return;
       setStatus("loading");
       setError(null);
@@ -172,7 +214,7 @@ export default function LocalLibrary({
           setError(`No timed lyrics were found in ${pair.captionPath}.`);
           return;
         }
-        onSelect({ track, kind: "video", media: video, filePath: pair.videoPath });
+        onSelect({ track, kind: "video", media: video, filePath: pair.ref });
       } catch {
         setError("That video and caption pair could not be loaded.");
       } finally {
@@ -184,8 +226,8 @@ export default function LocalLibrary({
 
   const openSong = useCallback(
     async (song: LocalUltraStarSong) => {
-      const chartHandle = handles.get(song.songPath);
-      const audioHandle = handles.get(song.audioPath);
+      const chartHandle = handles.get(key(song.folderId, song.songPath));
+      const audioHandle = handles.get(key(song.folderId, song.audioPath));
       if (!chartHandle || !audioHandle) return;
       setStatus("loading");
       setError(null);
@@ -206,7 +248,7 @@ export default function LocalLibrary({
         }
         let backgroundVideo: File | undefined;
         if (song.videoPath) {
-          const videoHandle = handles.get(song.videoPath);
+          const videoHandle = handles.get(key(song.folderId, song.videoPath));
           if (videoHandle) backgroundVideo = await videoHandle.getFile();
         }
         onSelect({
@@ -215,7 +257,7 @@ export default function LocalLibrary({
           media: audio,
           backgroundVideo,
           videoGap: parsed.videoGap,
-          filePath: song.songPath,
+          filePath: song.ref,
           artist: parsed.artist || song.artist,
         });
       } catch {
@@ -232,18 +274,18 @@ export default function LocalLibrary({
     [openVideo, openSong],
   );
 
-  // A deep link (`/play/local?file=…`) opens its song once the folder is scanned.
+  // A deep link (`/play/local?file=…`) opens its song once the folders are scanned.
   const openedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!requestedFile || !folder) return;
+    if (!requestedFile || !folders.length) return;
     if (openedRef.current === requestedFile) return;
     const item =
-      songs.find((song) => song.songPath === requestedFile) ??
-      videos.find((pair) => pair.videoPath === requestedFile);
+      songs.find((song) => song.ref === requestedFile) ??
+      videos.find((pair) => pair.ref === requestedFile);
     if (!item) return;
     openedRef.current = requestedFile;
     void openItem(item);
-  }, [requestedFile, folder, songs, videos, openItem]);
+  }, [requestedFile, folders, songs, videos, openItem]);
 
   const busy = status !== "idle";
   const total = songs.length + videos.length;
@@ -259,20 +301,44 @@ export default function LocalLibrary({
     ? videos.filter((pair) => matches(pair.title) || matches(pair.base))
     : videos;
   const shownTotal = shownSongs.length + shownVideos.length;
-  // A deep link whose file is not in this folder (or not readable yet).
+  const folderNames = folders.map((folder) => folder.name);
+  const singleFolder = folders.length === 1;
+  // One folder shows its name; two or more show the count (with the tooltip).
+  const folderLabel = singleFolder ? folders[0].name : `${folders.length} folders`;
+  // A deep link whose file is not in these folders (or not readable yet).
   const missing =
-    requestedFile && folder && !songs.some((s) => s.songPath === requestedFile) &&
-    !videos.some((v) => v.videoPath === requestedFile)
+    requestedFile &&
+    folders.length &&
+    !songs.some((song) => song.ref === requestedFile) &&
+    !videos.some((pair) => pair.ref === requestedFile)
       ? requestedFile
       : null;
 
   return (
     <div className="local-library">
-      {folder ? (
+      {folders.length ? (
         <div className="local-library__results">
           <div className="local-library__results-head">
             <p className="group-label">
-              {folder} — {total} {total === 1 ? "song" : "songs"}
+              <span
+                className={
+                  "local-library__folders" +
+                  (singleFolder ? " local-library__folders--single" : "")
+                }
+                tabIndex={singleFolder ? undefined : 0}
+                aria-label={singleFolder ? undefined : `Folders: ${folderNames.join(", ")}`}
+              >
+                {folderLabel} — {total} {total === 1 ? "song" : "songs"}
+                {singleFolder ? null : (
+                  <span className="local-library__folders-tip" role="tooltip">
+                    {folderNames.map((name) => (
+                      <span key={name} className="local-library__folders-name">
+                        {name}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </span>
             </p>
             <div className="local-library__tools">
               {total > 0 ? (
@@ -290,19 +356,19 @@ export default function LocalLibrary({
               <button
                 type="button"
                 className="btn-game"
-                onClick={chooseFolder}
+                onClick={addFolder}
                 disabled={busy}
               >
-                Choose another folder
+                Add another folder
               </button>
-              {remembered && remembered.name !== folder ? (
+              {blocked.length ? (
                 <button
                   type="button"
-                  className="btn-game"
-                  onClick={reopenFolder}
+                  className="btn-game btn-game--primary"
+                  onClick={reopenFolders}
                   disabled={busy}
                 >
-                  Reopen {remembered.name}
+                  Reopen {blocked.length === 1 ? blocked[0] : "folders"}
                 </button>
               ) : null}
             </div>
@@ -310,12 +376,20 @@ export default function LocalLibrary({
 
           {missing ? (
             <p className="track-picker__error">
-              Could not find <code>{missing}</code> in this folder. It may have
-              moved, or the folder needs to be reopened.
+              Could not find <code>{missing}</code> in these folders. It may have
+              moved, or a folder needs to be reopened.
             </p>
           ) : null}
 
-          {total === 0 ? (
+          {blocked.length ? (
+            <p className="track-picker__note">
+              {blocked.length === 1
+                ? `“${blocked[0]}” needs permission before its songs can be shown.`
+                : `${blocked.length} folders need permission before their songs can be shown.`}
+            </p>
+          ) : null}
+
+          {total === 0 && !blocked.length ? (
             <p className="track-picker__note">
               Nothing playable was found. TypeStar reads UltraStar charts
               (<code>#MP3</code> plus timed lyrics) and videos with a same-named{" "}
@@ -420,7 +494,7 @@ export default function LocalLibrary({
           <button
             type="button"
             className="local-choice local-choice--primary"
-            onClick={chooseFolder}
+            onClick={addFolder}
             disabled={busy}
           >
             <span className="local-choice__icon" aria-hidden="true">
@@ -445,46 +519,11 @@ export default function LocalLibrary({
               </span>
             </span>
           </button>
-
-          {remembered ? (
-            <button
-              type="button"
-              className="local-choice"
-              onClick={reopenFolder}
-              disabled={busy}
-            >
-              <span className="local-choice__icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  width="24"
-                  height="24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 12a8 8 0 0 1 13.7-5.6L20 8" />
-                  <path d="M20 4v4h-4" />
-                  <path d="M20 12a8 8 0 0 1-13.7 5.6L4 16" />
-                  <path d="M4 20v-4h4" />
-                </svg>
-              </span>
-              <span className="local-choice__body">
-                <span className="local-choice__title">
-                  Reopen {remembered.name}
-                </span>
-                <span className="local-choice__desc">
-                  Use the folder from your last visit.
-                </span>
-              </span>
-            </button>
-          ) : null}
         </div>
       )}
 
       {status === "scanning" ? (
-        <p className="local-library__status">Scanning folder…</p>
+        <p className="local-library__status">Scanning folders…</p>
       ) : null}
       {status === "loading" ? (
         <p className="local-library__status">Reading song…</p>
@@ -492,4 +531,9 @@ export default function LocalLibrary({
       {error ? <p className="track-picker__error">{error}</p> : null}
     </div>
   );
+}
+
+/** Key for the per-file handle map, scoped to its folder. */
+function key(folderId: string, path: string): string {
+  return `${folderId}:${path}`;
 }

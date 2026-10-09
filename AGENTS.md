@@ -49,11 +49,12 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    in an HTML5 `<video>` (`useMediaPlayer`); an UltraStar song plays its audio
    (`useUltraStarPlayer`, the master clock) with an optional muted background
    video synced via `#VIDEOGAP`. A song with no video hides the stage and lets
-   the lyric highway fill the width. The picker has a search filter, and
-   selecting a song reflects it in the URL (`/play/local?file=<relative path>`),
-   so the Back button returns to the picker and a song can be bookmarked. The
-   chosen folder handle is remembered in IndexedDB. No server, no R2 and no
-   Turnstile are involved.
+   the lyric highway fill the width. Several folders can be added; they are
+   remembered in IndexedDB, and the header shows the folder count with a hover
+   list of their names. Selecting a song reflects it in the URL
+   (`/play/local?file=<folder>/<relative path>`), so the Back button returns to
+   the picker and a song can be bookmarked. No server, no R2 and no Turnstile are
+   involved.
 
 Three difficulty modes: **easy** (first letter only), **normal** (whole word,
 punctuation optional) and **hard** (whole word, punctuation required). Four run
@@ -206,7 +207,7 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is
-  involved. The folder handle is persisted in IndexedDB and read permission is
+  involved. Folder handles are persisted in IndexedDB and read permission is
   re-requested on a user gesture. `media-src blob:` in `public/_headers` is
   required for the video to load under the CSP. Pairing is by relative path
   (case-insensitive, capped at `MAX_SCAN_DEPTH = 4`). UltraStar charts are found
