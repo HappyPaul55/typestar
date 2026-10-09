@@ -1188,14 +1188,19 @@
     gap: 0.6rem;
     margin-top: 0.4rem;
   }
+  /* The countdown number borrows the yellow highlighter used for the active
+     lyric word (and the brand mark): an ink digit on a yellow block, so it
+     stays bold and legible as the veil fades over bright video. */
   .countdown__number {
     font-family: var(--font-display);
     font-size: clamp(4rem, 15vw, 8rem);
     font-weight: 700;
     line-height: 1;
-    color: var(--color-yellow);
-    /* Keep the number readable as the veil fades over bright video. */
-    text-shadow: 0 0.15rem 1.5rem rgba(12, 13, 10, 0.9);
+    color: var(--color-ink);
+    background: var(--color-yellow);
+    padding: 0 0.14em;
+    border-radius: 8px;
+    box-shadow: 4px 4px 0 0 rgba(12, 13, 10, 0.35);
   }
 
   /* Results ------------------------------------------------------ */
