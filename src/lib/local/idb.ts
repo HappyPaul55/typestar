@@ -77,10 +77,3 @@ export async function loadDirectoryHandles(): Promise<LocalDirectoryHandle[]> {
   );
   return isDirectoryHandle(legacy) ? [legacy] : [];
 }
-
-export async function clearDirectoryHandles(): Promise<void> {
-  await withStore("readwrite", (store) => {
-    store.delete(DIRECTORIES_KEY);
-    return store.delete(LEGACY_DIRECTORY_KEY);
-  });
-}

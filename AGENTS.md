@@ -154,6 +154,7 @@ bun run build    # static build into dist/
 bun run preview  # serve the built site
 bun run check    # astro check — the only type gate
 bun test         # unit tests (bun test)
+bun run knip     # dead-code check (knip)
 bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 bun run tracks:warm     # fetch + build the featured tracks into public/tracks/
 bun run tracks:bucket   # create the R2 bucket (once)

@@ -12,7 +12,7 @@
  */
 
 /** Reference frequency for A4. */
-export const A4 = 440;
+const A4 = 440;
 
 export interface PitchOptions {
   /** Lowest detectable frequency in Hz (default 65, roughly C2). */

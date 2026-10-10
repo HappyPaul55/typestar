@@ -19,7 +19,7 @@ import { parseUltraStarHeaders } from "../track/ultrastar";
  * Video containers the browser can usually play. The `<video>` element decides
  * what it actually supports; anything unplayable simply reports an error.
  */
-export const VIDEO_EXTENSIONS = [
+const VIDEO_EXTENSIONS = [
   "mp4",
   "m4v",
   "webm",
@@ -31,7 +31,7 @@ export const VIDEO_EXTENSIONS = [
 ] as const;
 
 /** Caption formats TypeStar can read. */
-export const CAPTION_EXTENSIONS = ["vtt"] as const;
+const CAPTION_EXTENSIONS = ["vtt"] as const;
 
 /** How deep the folder walk goes; the chosen folder itself is depth 0. */
 export const MAX_SCAN_DEPTH = 4;

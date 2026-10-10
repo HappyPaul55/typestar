@@ -11,7 +11,7 @@
  * the Worker and the unit tests share one implementation.
  */
 
-export const SITE_NAME = "TypeStar";
+const SITE_NAME = "TypeStar";
 
 export interface TrackSeo {
   /** The document title. */

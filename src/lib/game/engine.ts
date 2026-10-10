@@ -181,10 +181,10 @@ export const LINE_HEAD_START = 1;
 export const LINE_CATCH_UP = 1;
 
 /** An intro shorter than this is not worth offering a skip for. */
-export const MIN_SKIP_INTRO = 2;
+const MIN_SKIP_INTRO = 2;
 
 /** How far before the first lyric the Skip button lands the video. */
-export const SKIP_INTRO_LEAD = 1.5;
+const SKIP_INTRO_LEAD = 1.5;
 
 /**
  * Where the Skip button should send the video, or `null` when the intro is too

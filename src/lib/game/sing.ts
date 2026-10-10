@@ -28,20 +28,17 @@ import {
 } from "./engine";
 import type { TrackNote } from "../track/types";
 
-/** Base points for a note held fully in tune. */
-export const SING_NOTE_BASE = HIT_BASE;
-
 /** Fraction of a note's span that must be in tune for it to count as a hit. */
-export const HIT_FRACTION = 0.4;
+const HIT_FRACTION = 0.4;
 
 /** How far before a note may be sung. */
-export const DEFAULT_SING_LEAD = 0.2;
+const DEFAULT_SING_LEAD = 0.2;
 /** Extra time after a note's end before it is judged. */
-export const DEFAULT_SING_GRACE = 0.3;
+const DEFAULT_SING_GRACE = 0.3;
 /** Longest gap between samples counted toward a note, in seconds. */
 const MAX_SAMPLE_DT = 0.1;
 /** RMS above which a rap note counts as performed. */
-export const DEFAULT_VOICE_RMS = 0.02;
+const DEFAULT_VOICE_RMS = 0.02;
 
 /** How strictly a singer must match the pitch, by difficulty. */
 export const SING_TOLERANCE: Record<GameMode, number> = {
@@ -148,12 +145,12 @@ export function makeSingConfig(
 }
 
 /** The earliest time a note may be sung. */
-export function noteOpenTime(note: TrackNote, config: Pick<SingConfig, "offset" | "lead">): number {
+function noteOpenTime(note: TrackNote, config: Pick<SingConfig, "offset" | "lead">): number {
   return note.start + config.offset - config.lead;
 }
 
 /** The last time a note may be sung. */
-export function noteDeadline(
+function noteDeadline(
   note: TrackNote,
   config: Pick<SingConfig, "offset" | "grace">,
 ): number {
@@ -161,7 +158,7 @@ export function noteDeadline(
 }
 
 /** The MIDI number a note expects, or `null` for rap notes. */
-export function expectedMidi(note: TrackNote): number | null {
+function expectedMidi(note: TrackNote): number | null {
   return note.pitch === null ? null : note.pitch + 60;
 }
 

@@ -37,9 +37,9 @@ export interface ParsedCaptions {
 }
 
 /** A new line is started when this many seconds pass between ungrouped words. */
-export const LINE_GAP = 0.7;
+const LINE_GAP = 0.7;
 /** An ungrouped line never holds more than this many words, for readability. */
-export const LINE_MAX_WORDS = 8;
+const LINE_MAX_WORDS = 8;
 
 /** Minimum duration given to a word so nothing is instantaneous. */
 const MIN_WORD_DURATION = 0.1;
@@ -68,7 +68,7 @@ function num(value: unknown): number {
 }
 
 /** Decode the handful of HTML entities YouTube captions can contain. */
-export function decodeEntities(text: string): string {
+function decodeEntities(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_, code: string) => {
       const point = Number(code);
@@ -87,7 +87,7 @@ export function decodeEntities(text: string): string {
 }
 
 /** Remove stage directions (`[Music]`, `(Applause)`) and music notes. */
-export function stripMarkers(text: string): string {
+function stripMarkers(text: string): string {
   return text
     .replace(/[[(][^\])]*[\])]/g, " ")
     .replace(/[\u2669-\u266F\u{1D100}-\u{1D1FF}\u{1F3B5}\u{1F3B6}]/gu, " ");
@@ -280,7 +280,7 @@ function dedupe(tokens: TimedToken[]): TimedToken[] {
  * start, the earlier word is shortened to meet it — the later word's timing is
  * trusted, since that is where the next note must land.
  */
-export function normaliseTiming(tokens: TimedToken[]): TimedToken[] {
+function normaliseTiming(tokens: TimedToken[]): TimedToken[] {
   const out = tokens.map((token) => ({ ...token }));
   for (let i = 0; i < out.length; i++) {
     const current = out[i];

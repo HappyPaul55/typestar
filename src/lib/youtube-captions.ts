@@ -39,7 +39,7 @@ export interface FetchTrackSourceOptions {
 }
 
 /** Used when YouTube's caption lookup fails or returns nothing. */
-export const DEFAULT_FALLBACK_URL = "https://youtube.weblinq.dev/api/videoDetails";
+const DEFAULT_FALLBACK_URL = "https://youtube.weblinq.dev/api/videoDetails";
 
 export class CaptionError extends Error {
   readonly status: number;

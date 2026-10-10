@@ -12,9 +12,6 @@ import type { Track, TrackWord } from "./types";
 
 export type TrackRating = "easy" | "medium" | "hard";
 
-/** Display order, easiest first. */
-export const TRACK_RATINGS: TrackRating[] = ["easy", "medium", "hard"];
-
 export const RATING_LABEL: Record<TrackRating, string> = {
   easy: "Easy",
   medium: "Medium",

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/pages/**/*.astro",
+    "worker/index.ts",
+    "scripts/*.{ts,mjs}"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx,astro,css}",
+    "worker/**/*.ts",
+    "scripts/*.{ts,mjs}"
+  ],
+  "ignoreBinaries": ["wrangler"],
+  "ignoreExportsUsedInFile": { "interface": true, "type": true }
+}
