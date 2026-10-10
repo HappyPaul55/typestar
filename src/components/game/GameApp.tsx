@@ -1054,9 +1054,7 @@ export default function GameApp({
       {/* The hidden audio that drives a local UltraStar song. */}
       {localKind === "audio" ? <audio ref={containerRef} hidden /> : null}
 
-      <div
-        className={"game-stage" + (phase === "paused" ? " game-stage--paused" : "")}
-      >
+      <div className="game-stage">
         <div className="game-stage__media">
           <PlayerStage
             containerRef={containerRef}
@@ -1121,8 +1119,7 @@ export default function GameApp({
           </div>
         </div>
 
-        {/* Kept above the media and content, and lifted above the pause blur
-            (see `.game-stage--paused`) so the controls stay usable while paused. */}
+        {/* The control deck is always visible, on top of every overlay. */}
         <Hud
           score={hudScore}
           combo={hudCombo}
