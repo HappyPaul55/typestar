@@ -121,9 +121,12 @@ capabilities and summary — so a new style (a Combo of typing and singing is
 planned) is a new engine file, not a new branch everywhere. What sing means is
 decided from the track's data (`src/lib/game/modes.ts`): a pitched UltraStar
 chart (its `track.notes`) is **scored** with the microphone — `usePitchInput`
-detects the pitch every frame (`src/lib/game/pitch.ts`, a unit-tested YIN), the
+detects the pitch every frame (`src/lib/game/pitch.ts`, a unit-tested YIN that
+anti-alias decimates the window to ~16 kHz and reuses its buffers, covering
+65–1500 Hz), the
 `SingGame` engine scores it, and `PitchHighway.tsx` draws the note bars and a
-live cursor. Difficulty is the pitch tolerance, the comparison ignores octaves,
+live cursor. Detection only runs while a pitched run is playing. Difficulty is
+the pitch tolerance, the comparison ignores octaves,
 rap notes are graded on presence and golden notes score double. YouTube/`.vtt`
 tracks (no pitch), and any run where the microphone is refused, fall back to an
 unscored **karaoke** sing-along whose active word follows the music

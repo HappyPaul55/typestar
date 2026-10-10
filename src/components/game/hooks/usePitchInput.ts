@@ -2,17 +2,20 @@
  * Microphone pitch input for the singing mode.
  *
  * Requests the microphone, runs a pitch detector over the live signal on every
- * animation frame and reports the detected MIDI note (or `null`) and the frame's
- * loudness. Detection is intentionally per-frame and in the page (not an
- * AudioWorklet): at a 2048-sample window it is well under a millisecond, and it
- * keeps the algorithm in the tested `pitch.ts` module.
+ * animation frame and reports the detected MIDI note (or `null`), the frame's
+ * loudness and the detector's clarity. Detection is intentionally per-frame and
+ * in the page (not an AudioWorklet): the detector decimates the 2048-sample
+ * window before analysis and reuses its buffers, so a frame costs a fraction of
+ * a millisecond and the algorithm stays in the tested `pitch.ts` module.
  *
- * The stream never leaves the device — the samples are analysed locally and
+ * Detection only runs while `active` reports true (the run is playing and
+ * pitched), so a paused or karaoke run spends nothing on the microphone. The
+ * stream never leaves the device — the samples are analysed locally and
  * discarded.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { detectMidi, rms } from "../../../lib/game/pitch";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPitchDetector, rms } from "../../../lib/game/pitch";
 
 export type MicStatus =
   | "idle"
@@ -29,6 +32,17 @@ export interface PitchFrame {
   midi: number | null;
   /** Frame loudness (RMS), 0..1. */
   rms: number;
+  /** How periodic the frame was, 0..1 (0 when nothing was heard). */
+  clarity: number;
+}
+
+export interface PitchInputOptions {
+  /**
+   * Whether detection should run right now. When this returns `false` the
+   * microphone stays open but no samples are analysed (and the reported note is
+   * `null`), so a paused or unpitched run costs nothing.
+   */
+  active?: () => boolean;
 }
 
 export interface PitchInputHandle {
@@ -50,12 +64,16 @@ export interface PitchInputHandle {
 const ANALYSER_FFT = 2048;
 /** Voices rarely span more than this; it keeps the octave guard meaningful. */
 const MIN_FREQUENCY = 65;
-const MAX_FREQUENCY = 1000;
+/** Covers the soprano range (≈ F#6); the detector still clamps to Nyquist. */
+const MAX_FREQUENCY = 1500;
+/** Decimate before detection: a voice carries nothing useful above ~1 kHz. */
+const DECIMATE = 3;
 /** Number of frames in the display/scoring median filter. */
 const SMOOTH_WINDOW = 5;
 
 export function usePitchInput(
   onFrame?: (frame: PitchFrame) => void,
+  options: PitchInputOptions = {},
 ): PitchInputHandle {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState<MicStatus>("idle");
@@ -63,6 +81,21 @@ export function usePitchInput(
 
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
+  // Read from the animation loop, so changing `active` never re-subscribes.
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  // One detector for the hook's lifetime: it owns the decimation and the reused
+  // scratch buffers, so the per-frame work allocates nothing.
+  const detector = useMemo(
+    () =>
+      createPitchDetector({
+        minFrequency: MIN_FREQUENCY,
+        maxFrequency: MAX_FREQUENCY,
+        decimate: DECIMATE,
+      }),
+    [],
+  );
 
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -108,7 +141,8 @@ export function usePitchInput(
     }
     historyRef.current = [];
     midiRef.current = null;
-  }, [stopLoop]);
+    detector.reset();
+  }, [stopLoop, detector]);
 
   const smooth = useCallback((value: number | null): number | null => {
     if (value === null) {
@@ -127,28 +161,31 @@ export function usePitchInput(
   const startLoop = useCallback(() => {
     if (rafRef.current !== null) return;
     const tick = () => {
+      const active = optionsRef.current.active?.() ?? true;
       const analyser = analyserRef.current;
       const ctx = ctxRef.current;
       const buffer = bufferRef.current;
-      if (analyser && ctx && buffer) {
+      if (active && analyser && ctx && buffer) {
         analyser.getFloatTimeDomainData(buffer);
         const loudness = rms(buffer);
-        const raw = detectMidi(buffer, ctx.sampleRate, {
-          minFrequency: MIN_FREQUENCY,
-          maxFrequency: MAX_FREQUENCY,
-        });
+        const { midi: raw, clarity } = detector.detectMidi(buffer, ctx.sampleRate);
         const detected = smooth(raw);
         midiRef.current = detected;
         onFrameRef.current?.({
           time: performance.now() / 1000,
           midi: detected,
           rms: loudness,
+          clarity,
         });
+      } else if (!active) {
+        // Drop the run so a stale note is not held across a pause.
+        historyRef.current = [];
+        midiRef.current = null;
       }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
-  }, [smooth]);
+  }, [smooth, detector]);
 
   const stop = useCallback(() => {
     release();

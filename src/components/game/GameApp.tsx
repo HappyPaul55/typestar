@@ -332,16 +332,21 @@ export default function GameApp({
   scoredRef.current = capabilities.microphone;
   playingRef.current = phase === "playing";
 
-  const pitchInput = usePitchInput((frame) => {
-    if (!scoredRef.current || !playingRef.current) return;
-    // Scoring does not need every animation frame; ~30 Hz is plenty and keeps
-    // the island from re-rendering 60 times a second. The lane stays smooth on
-    // its own animation clock.
-    const now = performance.now();
-    if (now - lastSingSampleRef.current < 33) return;
-    lastSingSampleRef.current = now;
-    session.sample(frame.midi, frame.rms);
-  });
+  const pitchInput = usePitchInput(
+    (frame) => {
+      if (!scoredRef.current || !playingRef.current) return;
+      // Scoring does not need every animation frame; ~30 Hz is plenty and keeps
+      // the island from re-rendering 60 times a second. The lane stays smooth on
+      // its own animation clock.
+      const now = performance.now();
+      if (now - lastSingSampleRef.current < 33) return;
+      lastSingSampleRef.current = now;
+      session.sample(frame.midi, frame.rms);
+    },
+    // Only detect while a pitched run is playing: nothing is spent on the mic
+    // during the countdown, a pause, or an unscored karaoke sing-along.
+    { active: () => playingRef.current && scoredRef.current },
+  );
 
   // The browser Back/Forward buttons walk the history this island builds in
   // place (`/play`, `/play/<id>`, `/play/local`, `/play/local?file=…`), so

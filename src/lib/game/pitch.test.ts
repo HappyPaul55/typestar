@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  createPitchDetector,
+  decimate,
   detectMidi,
   detectPitch,
   frequencyToMidi,
@@ -78,5 +80,68 @@ describe("note conversion", () => {
 
   test("maps A4 to MIDI 69", () => {
     expect(frequencyToMidi(440)).toBeCloseTo(69, 6);
+  });
+});
+
+describe("decimate", () => {
+  const sampleRate = 48000;
+  const length = 2048;
+
+  test("keeps a low tone and lengths the output by the factor", () => {
+    const input = sine(200, sampleRate, length);
+    const out = decimate(input, 3, sampleRate);
+    expect(out.length).toBe(Math.floor(length / 3));
+    // A tone well inside the passband survives at full amplitude.
+    expect(rms(out)).toBeGreaterThan(rms(input) * 0.9);
+  });
+
+  test("suppresses what would alias from above the decimated Nyquist", () => {
+    const input = sine(11000, sampleRate, length);
+    const out = decimate(input, 3, sampleRate);
+    expect(rms(out)).toBeLessThan(rms(input) * 0.1);
+  });
+
+  test("is a no-op for a factor of one", () => {
+    const input = sine(440, sampleRate, length);
+    const out = decimate(input, 1, sampleRate);
+    expect(out.length).toBe(length);
+    expect(Array.from(out.slice(0, 4))).toEqual(Array.from(input.slice(0, 4)));
+  });
+});
+
+describe("createPitchDetector", () => {
+  const sampleRate = 48000;
+  const length = 2048;
+
+  test("detects a tone through decimation, with clarity", () => {
+    const detector = createPitchDetector();
+    const { midi, clarity } = detector.detectMidi(sine(440, sampleRate, length), sampleRate);
+    expect(midi).not.toBeNull();
+    expect(midi!).toBeCloseTo(69, 0);
+    expect(clarity).toBeGreaterThan(0.8);
+  });
+
+  test("covers the soprano range above the old 1 kHz ceiling", () => {
+    const detector = createPitchDetector({ maxFrequency: 1500 });
+    const { midi } = detector.detectMidi(sine(1200, sampleRate, length), sampleRate);
+    expect(midi).not.toBeNull();
+    // D6 (~1174.7 Hz) is MIDI ~86; the old cap reported an octave down.
+    expect(midi!).toBeGreaterThan(84);
+    expect(midi!).toBeLessThan(89);
+  });
+
+  test("reuses its buffers across successive frames", () => {
+    const detector = createPitchDetector();
+    const first = detector.detect(sine(220, sampleRate, length), sampleRate);
+    const second = detector.detect(sine(660, sampleRate, length), sampleRate);
+    expect(first.frequency!).toBeCloseTo(220, 0);
+    expect(second.frequency!).toBeCloseTo(660, 0);
+  });
+
+  test("reports no note and no clarity for silence", () => {
+    const detector = createPitchDetector();
+    const { midi, clarity } = detector.detectMidi(new Float32Array(length), sampleRate);
+    expect(midi).toBeNull();
+    expect(clarity).toBe(0);
   });
 });
