@@ -62,7 +62,6 @@ import {
   PLAY_STYLE_HELP,
   PLAY_STYLE_LABEL,
   PLAY_STYLES,
-  singBehavior,
   type PlayStyle,
 } from "../../lib/game/modes";
 import type { Track } from "../../lib/track/types";
@@ -345,10 +344,12 @@ export default function GameApp({
   // track fetched from the API.
   const activeTrack = local?.track ?? track;
 
-  // Sing on a track with measured notes is scored against them; anything else
-  // (YouTube captions, local `.vtt`) is an unscored karaoke sing-along.
-  const singScored = activeTrack ? singBehavior(activeTrack) === "scored" : false;
-  const karaoke = style === "sing" && !singScored;
+  // Sing on a track with measured notes will be scored against them; anything
+  // else is an unscored karaoke sing-along. The scored path (microphone + pitch
+  // engine) is wired up in a later step, so for now every Sing run is karaoke —
+  // a pitched UltraStar track is still fully playable.
+  const singScored = false;
+  const karaoke = style === "sing";
 
   useEffect(() => {
     const parsed = parseHash(window.location.hash);

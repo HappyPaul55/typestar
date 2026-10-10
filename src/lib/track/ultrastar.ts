@@ -12,7 +12,14 @@
  */
 
 import { normaliseMatch } from "./parse";
-import { TRACK_VERSION, type Track, type TrackLine, type TrackWord } from "./types";
+import {
+  TRACK_VERSION,
+  type Track,
+  type TrackLine,
+  type TrackNote,
+  type TrackNoteKind,
+  type TrackWord,
+} from "./types";
 
 /** A note's kind: a sung note, or an end-of-phrase (line break) marker. */
 export type UltraStarNoteKind = "note" | "phrase";
@@ -27,6 +34,13 @@ export interface UltraStarNote {
   text: string;
   /** The note type character (`:`, `*`, `R`, `G`, `F`), or `-` for a phrase. */
   type: string;
+  /**
+   * Pitch in semitones relative to C4 (MIDI 60), or `null` for phrase markers
+   * and rap notes (whose pitch is ignored by the format).
+   */
+  pitch: number | null;
+  /** How the note is scored (normal, golden, rap, golden rap). */
+  noteKind: TrackNoteKind;
   /** 1 or 2 for a duet voice. */
   voice: number;
 }
@@ -80,6 +94,7 @@ interface RawNote {
   type: string;
   startBeat: number;
   duration: number;
+  pitch: number;
   text: string;
 }
 
@@ -96,8 +111,25 @@ function parseNoteFields(line: string): RawNote | null {
     type,
     startBeat: Number(match[1]),
     duration: Number(match[2]),
+    pitch: Number(match[3]),
     text: match[4],
   };
+}
+
+/**
+ * Map an UltraStar note type character onto its scoring kind. Rap notes carry
+ * no meaningful pitch; freestyle notes are dropped before this point.
+ */
+function noteKindOf(type: string): TrackNoteKind {
+  if (type === "*") return "golden";
+  if (type === "R") return "rap";
+  if (type === "G") return "goldenRap";
+  return "normal";
+}
+
+/** Whether a note type's pitch is meaningful (rap notes ignore pitch). */
+function noteHasPitch(kind: TrackNoteKind): boolean {
+  return kind === "normal" || kind === "golden";
 }
 
 /**
@@ -168,6 +200,8 @@ export function parseUltraStar(text: string): UltraStarSong {
           end: start,
           text: "",
           type: "-",
+          pitch: null,
+          noteKind: "normal",
           voice: currentVoice,
         });
       }
@@ -180,12 +214,15 @@ export function parseUltraStar(text: string): UltraStarSong {
     const start = relative
       ? (relBeats + note.startBeat) * beat
       : gapSeconds + note.startBeat * beat;
+    const noteKind = noteKindOf(note.type);
     notes.push({
       kind: "note",
       start,
       end: start + note.duration * beat,
       text: note.text,
       type: note.type,
+      pitch: noteHasPitch(noteKind) ? note.pitch : null,
+      noteKind,
       voice: currentVoice,
     });
   }
@@ -207,17 +244,26 @@ export function parseUltraStar(text: string): UltraStarSong {
 export function ultraStarWords(notes: readonly UltraStarNote[]): {
   words: TrackWord[];
   lines: TrackLine[];
+  notes: TrackNote[];
 } {
   const words: TrackWord[] = [];
   const lines: TrackLine[] = [];
+  const trackNotes: TrackNote[] = [];
   let lineFrom = 0;
-  let word: { text: string; start: number; end: number } | null = null;
+  let word: {
+    text: string;
+    start: number;
+    end: number;
+    notes: { start: number; end: number; pitch: number | null; kind: TrackNoteKind }[];
+  } | null = null;
   let phrases = 0;
 
   const flushWord = () => {
     if (!word) return;
     const match = normaliseMatch(word.text);
     if (match) {
+      // The word index it is about to get, before it is pushed.
+      const wordIndex = words.length;
       words.push({
         text: word.text,
         match,
@@ -225,6 +271,10 @@ export function ultraStarWords(notes: readonly UltraStarNote[]): {
         end: word.end,
         line: lines.length,
       });
+      // Only keep notes that belong to a real (non-empty) word.
+      for (const note of word.notes) {
+        trackNotes.push({ word: wordIndex, ...note });
+      }
     }
     word = null;
   };
@@ -259,22 +309,32 @@ export function ultraStarWords(notes: readonly UltraStarNote[]): {
       text = text.replace(/^[ \t]+/, "");
     }
 
+    const noteData = {
+      start: note.start,
+      end: note.end,
+      pitch: note.pitch,
+      kind: note.noteKind,
+    };
+
     if (newWord || !word) {
       flushWord();
-      word = { text, start: note.start, end: note.end };
+      word = { text, start: note.start, end: note.end, notes: [noteData] };
     } else {
       word.text += text;
       word.end = note.end;
+      word.notes.push(noteData);
     }
   }
   flushLine();
 
   // Songs without explicit phrase markers get lines split on musical gaps, so a
-  // whole verse is not a single (unwinnable) line.
+  // whole verse is not a single (unwinnable) line. Note→word links are
+  // unaffected: splitting only regroups words.
   if (phrases === 0 && words.length) {
-    return splitLinesByGaps(words);
+    const split = splitLinesByGaps(words);
+    return { words: split.words, lines: split.lines, notes: trackNotes };
   }
-  return { words, lines };
+  return { words, lines, notes: trackNotes };
 }
 
 /** Rebuild lines by splitting on gaps between words (for marker-less songs). */
@@ -305,7 +365,7 @@ export interface UltraStarTrackMeta {
 
 /** Build a {@link Track} from a parsed UltraStar song. */
 export function ultraStarTrack(song: UltraStarSong, meta: UltraStarTrackMeta): Track {
-  const { words, lines } = ultraStarWords(song.notes);
+  const { words, lines, notes } = ultraStarWords(song.notes);
   return {
     version: TRACK_VERSION,
     id: meta.id,
@@ -316,5 +376,7 @@ export function ultraStarTrack(song: UltraStarSong, meta: UltraStarTrackMeta): T
     offset: 0,
     lines,
     words,
+    // Pitch data is what lets a singer be scored; caption tracks have none.
+    ...(notes.length ? { notes } : {}),
   };
 }

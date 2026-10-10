@@ -116,6 +116,18 @@ describe("ultraStarWords", () => {
     expect(lines[1]).toMatchObject({ from: 2, to: 4 });
   });
 
+  test("links each note to the word it belongs to, preserving pitch", () => {
+    const { words, notes } = ultraStarWords(parseUltraStar(CHART).notes);
+    expect(words).toHaveLength(4);
+    expect(notes).toHaveLength(6);
+    // "E" + "v'ry" are both part of word 0.
+    expect(notes.map((note) => note.word)).toEqual([0, 0, 1, 1, 2, 3]);
+    expect(notes.every((note) => note.pitch === 0)).toBe(true);
+    // Word starts line up with the first note of each word.
+    expect(notes[0].start).toBeCloseTo(words[0].start, 6);
+    expect(notes[2].start).toBeCloseTo(words[1].start, 6);
+  });
+
   test("keeps held (empty tilde) notes inside the word", () => {
     const chart = [
       "#BPM:120",
@@ -126,8 +138,10 @@ describe("ultraStarWords", () => {
       "- 12",
       "E",
     ].join("\n");
-    const { words } = ultraStarWords(parseUltraStar(chart).notes);
+    const { words, notes } = ultraStarWords(parseUltraStar(chart).notes);
     expect(words.map((word) => word.text)).toEqual(["long"]);
+    // All three syllable notes map to the one word.
+    expect(notes.map((note) => note.word)).toEqual([0, 0, 0]);
   });
 
   test("splits marker-less songs on musical gaps", () => {
@@ -145,6 +159,36 @@ describe("ultraStarWords", () => {
   });
 });
 
+describe("note kinds and pitch", () => {
+  test("reads the pitch in semitones relative to C4", () => {
+    const chart = ["#BPM:120", "#GAP:0", ": 0 4 5  do", ": 4 4 -2  re", "E"].join("\n");
+    const notes = parseUltraStar(chart).notes.filter((note) => note.kind === "note");
+    expect(notes.map((note) => note.pitch)).toEqual([5, -2]);
+    expect(notes.every((note) => note.noteKind === "normal")).toBe(true);
+  });
+
+  test("maps golden, rap and golden-rap note types", () => {
+    const chart = [
+      "#BPM:120",
+      "#GAP:0",
+      ": 0 4 0  a",
+      "* 4 4 0  b",
+      "R 8 4 0  c",
+      "G 12 4 0  d",
+      "E",
+    ].join("\n");
+    const notes = parseUltraStar(chart).notes.filter((note) => note.kind === "note");
+    expect(notes.map((note) => note.noteKind)).toEqual([
+      "normal",
+      "golden",
+      "rap",
+      "goldenRap",
+    ]);
+    // Rap notes carry no meaningful pitch.
+    expect(notes.map((note) => note.pitch)).toEqual([0, 0, null, null]);
+  });
+});
+
 describe("ultraStarTrack", () => {
   test("builds a word-timed track", () => {
     const song = parseUltraStar(CHART);
@@ -158,5 +202,25 @@ describe("ultraStarTrack", () => {
     expect(track.words).toHaveLength(4);
     expect(track.lines).toHaveLength(2);
     expect(track.source.captions).toBe("manual");
+  });
+
+  test("attaches per-note pitch data", () => {
+    const track = ultraStarTrack(parseUltraStar(CHART), {
+      id: "ultrastar:song",
+      lang: "en",
+      description: "UltraStar — Someone",
+    });
+    expect(track.notes).toHaveLength(6);
+    expect(track.notes?.every((note) => note.word < track.words.length)).toBe(true);
+  });
+
+  test("omits notes for a chart with no lyric notes", () => {
+    const chart = ["#BPM:120", "#GAP:0", "F 0 4 0  (oooh)", "E"].join("\n");
+    const track = ultraStarTrack(parseUltraStar(chart), {
+      id: "empty",
+      lang: "en",
+      description: "",
+    });
+    expect(track.notes).toBeUndefined();
   });
 });
