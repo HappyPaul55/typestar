@@ -2,7 +2,7 @@
  * The no-track state: paste a YouTube link, or pick a featured track.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import { parseVideoId } from "../../lib/game/client";
 import { supportsLocalLibrary } from "../../lib/local/library";
@@ -11,9 +11,15 @@ import TrackCard from "./TrackCard";
 
 export default function TrackPicker({
   ratings = {},
+  onOpen,
+  onOpenLocal,
 }: {
   /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
   ratings?: Record<string, TrackRating>;
+  /** Open a YouTube track in place, instead of a full document navigation. */
+  onOpen?(id: string): void;
+  /** Switch to the local-file picker in place. */
+  onOpenLocal?(): void;
 }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +40,25 @@ export default function TrackPicker({
       setError("That does not look like a YouTube link or video id.");
       return;
     }
-    window.location.href = `/play/${id}${window.location.hash}`;
+    if (onOpen) onOpen(id);
+    else window.location.href = `/play/${id}${window.location.hash}`;
+  }
+
+  // A plain left click switches to the local picker in place; modified clicks
+  // are left to the browser so "open in a new tab" still works.
+  function openLocal(event: MouseEvent<HTMLAnchorElement>) {
+    if (!onOpenLocal) return;
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    onOpenLocal();
   }
 
   return (
@@ -92,7 +116,11 @@ export default function TrackPicker({
                 <code>.vtt</code> captions — nothing is uploaded.
               </p>
               <div className="track-picker__local-action">
-                <a className="btn-game btn-game--primary" href="/play/local">
+                <a
+                  className="btn-game btn-game--primary"
+                  href="/play/local"
+                  onClick={openLocal}
+                >
                   Open local files
                 </a>
               </div>
@@ -131,6 +159,7 @@ export default function TrackPicker({
                 href={`/play/${track.id}`}
                 title={track.title}
                 subtitle={track.artist}
+                onOpen={onOpen ? () => onOpen(track.id) : undefined}
                 media={
                   <picture>
                     <source

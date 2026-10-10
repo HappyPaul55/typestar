@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { FEATURED_BY_ID } from "../../content/tracks/featured";
 import {
@@ -289,27 +290,13 @@ export default function GameApp({
     setLocalMode(onLocalRoute);
     setVideoId(onLocalRoute ? null : videoIdFromLocation());
     setLocalRequest(onLocalRoute ? localFileFromLocation() : null);
-
-    // The hero breadcrumb is `// play`; the local route reveals `/ local`.
-    const tail = document.getElementById("play-breadcrumb-tail");
-    if (tail) tail.hidden = !onLocalRoute;
   }, []);
 
-  // The browser Back/Forward buttons move between local songs (each selection
-  // pushes `/play/local?file=…`), so mirror them back into state.
+  // The hero breadcrumb is `// play`; the local route reveals `/ local`. It is
+  // kept in step here so an in-place route change updates it too.
   useEffect(() => {
-    if (!localMode) return;
-    const onPop = () => {
-      if (!isLocalRoute()) {
-        window.location.reload();
-        return;
-      }
-      setSong(null);
-      setLocalRequest(localFileFromLocation());
-      setPhase("idle");
-    };
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    const tail = document.getElementById("play-breadcrumb-tail");
+    if (tail) tail.hidden = !localMode;
   }, [localMode]);
 
   // The play style picks the engine; every derived view goes through it.
@@ -353,6 +340,29 @@ export default function GameApp({
     lastSingSampleRef.current = now;
     session.sample(frame.midi, frame.rms);
   });
+
+  // The browser Back/Forward buttons walk the history this island builds in
+  // place (`/play`, `/play/<id>`, `/play/local`, `/play/local?file=…`), so
+  // mirror every pop back into state instead of reloading the document.
+  useEffect(() => {
+    const onPop = () => {
+      const onLocalRoute = isLocalRoute();
+      pitchInput.stop();
+      setLocalMode(onLocalRoute);
+      setSong(null);
+      setLoadError(null);
+      setPhase("idle");
+      if (onLocalRoute) {
+        setVideoId(null);
+        setLocalRequest(localFileFromLocation());
+      } else {
+        setVideoId(videoIdFromLocation());
+        setLocalRequest(null);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [pitchInput.stop]);
 
   // The engine turns its opaque state into the few views the UI needs. Memoised
   // so a React render that changes nothing else does not rebuild them.
@@ -766,7 +776,9 @@ export default function GameApp({
   /** Open a local song and reflect it in the URL, so it can be bookmarked. */
   const selectLocal = useCallback((selection: LocalSelection) => {
     setSong(localToSong(selection));
+    setLocalMode(true);
     setLocalRequest(selection.filePath);
+    setLoadError(null);
     setMicFallback(false);
     setPhase("idle");
     const target = `/play/local?file=${encodeURIComponent(selection.filePath)}`;
@@ -774,18 +786,52 @@ export default function GameApp({
     if (current !== target) window.history.pushState(null, "", target);
   }, []);
 
-  const changeSong = useCallback(() => {
+  /**
+   * Route changes are done in place (pushState + state) rather than by a full
+   * page load: a document navigation always exits fullscreen, so the session
+   * would drop out of it when the picker or the results screen changed song.
+   */
+  const openRemotePicker = useCallback(() => {
     pitchInput.stop();
-    // A local run returns to the local library rather than the YouTube picker.
-    if (isLocal) {
-      window.history.pushState(null, "", "/play/local");
+    window.history.pushState(null, "", "/play");
+    setLocalMode(false);
+    setVideoId(null);
+    setSong(null);
+    setLocalRequest(null);
+    setLoadError(null);
+    setPhase("idle");
+  }, [pitchInput.stop]);
+
+  const openLocalPicker = useCallback(() => {
+    pitchInput.stop();
+    window.history.pushState(null, "", "/play/local");
+    setLocalMode(true);
+    setVideoId(null);
+    setSong(null);
+    setLocalRequest(null);
+    setLoadError(null);
+    setPhase("idle");
+  }, [pitchInput.stop]);
+
+  /** Open a YouTube track from the picker without reloading the document. */
+  const openTrack = useCallback(
+    (id: string) => {
+      pitchInput.stop();
+      window.history.pushState(null, "", `/play/${id}${window.location.hash}`);
+      setLocalMode(false);
       setSong(null);
-      setLocalRequest(null);
+      setVideoId(id);
+      setLoadError(null);
       setPhase("idle");
-      return;
-    }
-    window.location.href = "/play";
-  }, [isLocal, pitchInput]);
+    },
+    [pitchInput.stop],
+  );
+
+  const changeSong = useCallback(() => {
+    // A local run returns to the local library rather than the YouTube picker.
+    if (isLocal) openLocalPicker();
+    else openRemotePicker();
+  }, [isLocal, openLocalPicker, openRemotePicker]);
 
   const toggleFullscreen = useCallback(() => {
     const element = shellRef.current;
@@ -850,15 +896,30 @@ export default function GameApp({
     preloadSounds();
   }, []);
 
-  if (videoId === undefined) return null;
-  if (localMode && !song) {
-    return (
-      <LocalLibrary requestedFile={localRequest} onSelect={selectLocal} />
+  // The island root is always mounted and is the fullscreen target, so moving
+  // between the game, the picker and the results never drops out of fullscreen.
+  // Everything except the live game is a plain screen inside that root.
+  let body: ReactNode = null;
+  if (videoId === undefined) {
+    body = null;
+  } else if (localMode && !song) {
+    body = (
+      <LocalLibrary
+        requestedFile={localRequest}
+        onSelect={selectLocal}
+        onOpenRemote={openRemotePicker}
+      />
     );
-  }
-  if (videoId === null && !song) return <TrackPicker ratings={ratings} />;
-  if (loadError) {
-    return (
+  } else if (videoId === null && !song) {
+    body = (
+      <TrackPicker
+        ratings={ratings}
+        onOpen={openTrack}
+        onOpenLocal={openLocalPicker}
+      />
+    );
+  } else if (loadError) {
+    body = (
       <StatusPanel
         title="No track to play"
         message={loadError}
@@ -866,45 +927,52 @@ export default function GameApp({
         onAction={changeSong}
       />
     );
-  }
-  if (!activeTrack) {
-    if (needsTurnstile) {
-      return (
-        <div className="game-status">
-          <div className="panel game-status__panel">
-            <p className="comment">
-              <span className="slash" aria-hidden="true">
-                //
-              </span>{" "}
-              new song
-            </p>
-            <h2 className="panel__title mt-2">Quick human check</h2>
-            <p className="mt-2 text-ink-soft">
-              This song isn&rsquo;t in the library yet, so we just need to check
-              you&rsquo;re human before fetching it. It only ever happens once
-              per song.
-            </p>
-            <div className="mt-4">
-              <TurnstileChallenge
-                key={challengeId}
-                siteKey={TURNSTILE_SITE_KEY}
-                action={TURNSTILE_ACTION}
-                onToken={handleTurnstileToken}
-                onError={handleTurnstileError}
-              />
-            </div>
-            {turnstileError ? (
-              <p className="track-picker__error mt-2">{turnstileError}</p>
-            ) : null}
+  } else if (!activeTrack) {
+    body = needsTurnstile ? (
+      <div className="game-status">
+        <div className="panel game-status__panel">
+          <p className="comment">
+            <span className="slash" aria-hidden="true">
+              //
+            </span>{" "}
+            new song
+          </p>
+          <h2 className="panel__title mt-2">Quick human check</h2>
+          <p className="mt-2 text-ink-soft">
+            This song isn&rsquo;t in the library yet, so we just need to check
+            you&rsquo;re human before fetching it. It only ever happens once per
+            song.
+          </p>
+          <div className="mt-4">
+            <TurnstileChallenge
+              key={challengeId}
+              siteKey={TURNSTILE_SITE_KEY}
+              action={TURNSTILE_ACTION}
+              onToken={handleTurnstileToken}
+              onError={handleTurnstileError}
+            />
           </div>
+          {turnstileError ? (
+            <p className="track-picker__error mt-2">{turnstileError}</p>
+          ) : null}
         </div>
-      );
-    }
-    return (
+      </div>
+    ) : (
       <StatusPanel
         title="Loading track…"
         message="Fetching the captions and timing the words."
       />
+    );
+  }
+
+  // The route is still being read, or a non-game screen is showing: render it
+  // inside the persistent fullscreen root and stop. Every non-game path above
+  // has left a loaded track null, so anything past here has one.
+  if (videoId === undefined || !activeTrack) {
+    return (
+      <div ref={shellRef} className="game-root">
+        {body}
+      </div>
     );
   }
 
@@ -943,7 +1011,9 @@ export default function GameApp({
   );
 
   return (
-    <div ref={shellRef} className="game-shell">
+    // Same root element as the non-game screens above (same type, same
+    // position), so React reuses the node and the fullscreen session holds.
+    <div ref={shellRef} className="game-shell game-root">
       {/*
         A visually-hidden input that holds focus during a run. On mobile it
         brings up the on-screen keyboard; on desktop it keeps keystrokes

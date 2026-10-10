@@ -13,7 +13,7 @@
  * and removed, and read permission is re-requested on a click.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { buildLocalTrack } from "../../lib/track/build";
 import { parseUltraStar, ultraStarTrack } from "../../lib/track/ultrastar";
 import type { Track } from "../../lib/track/types";
@@ -64,10 +64,13 @@ interface ScannedEntry {
 export default function LocalLibrary({
   requestedFile = null,
   onSelect,
+  onOpenRemote,
 }: {
   /** A song to open automatically, from `/play/local?file=…`. */
   requestedFile?: string | null;
   onSelect(selection: LocalSelection): void;
+  /** Switch to the YouTube picker in place, instead of a document navigation. */
+  onOpenRemote?(): void;
 }) {
   const [folders, setFolders] = useState<LocalDirectoryHandle[]>([]);
   const [blocked, setBlocked] = useState<string[]>([]);
@@ -310,6 +313,26 @@ export default function LocalLibrary({
     [openVideo, openSong],
   );
 
+  // A plain left click on the YouTube choice switches the picker in place;
+  // modified clicks are left to the browser so a new tab still works.
+  const openRemote = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      if (!onOpenRemote) return;
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      event.preventDefault();
+      onOpenRemote();
+    },
+    [onOpenRemote],
+  );
+
   // A deep link (`/play/local?file=…`) opens its song once the folders are scanned.
   const openedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -534,7 +557,7 @@ export default function LocalLibrary({
         </div>
       ) : (
         <div className="local-library__actions">
-          <a className="local-choice" href="/play">
+          <a className="local-choice" href="/play" onClick={openRemote}>
             <span className="local-choice__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
                 <rect

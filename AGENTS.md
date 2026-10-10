@@ -21,6 +21,11 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
 `/play/local` (the in-browser local-file picker), `/privacy`, `/404`, and
 `GET /api/track/<youtubeId>`.
 
+Moving between those play routes is done **in place** (History `pushState` plus
+React state), never a full document navigation, so a **fullscreen** session
+survives changing song. The island's root element (`.game-root`) is the
+persistent fullscreen target and must stay mounted across every play screen.
+
 ## How the game works
 
 1. `/play/<id>` serves the play page; the client reads the id from the address
