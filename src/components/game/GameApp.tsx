@@ -1054,7 +1054,9 @@ export default function GameApp({
       {/* The hidden audio that drives a local UltraStar song. */}
       {localKind === "audio" ? <audio ref={containerRef} hidden /> : null}
 
-      <div className="game-stage">
+      <div
+        className={"game-stage" + (phase === "paused" ? " game-stage--paused" : "")}
+      >
         <div className="game-stage__media">
           <PlayerStage
             containerRef={containerRef}
@@ -1073,37 +1075,6 @@ export default function GameApp({
         <div className="game-stage__scrim" aria-hidden="true" />
 
         <div className="game-stage__content">
-          <Hud
-            score={hudScore}
-            combo={hudCombo}
-            multiplier={hudMultiplier}
-            accuracy={hudAccuracy}
-            attempted={hudAttempted}
-            progress={progress}
-            time={time}
-            duration={duration}
-            mode={mode}
-            failMode={failMode}
-            speed={speed}
-            locked={locked}
-            karaoke={karaoke}
-            hideRunMode={scoredSing}
-            paused={phase === "paused"}
-            playing={phase === "playing"}
-            onTogglePause={togglePause}
-            onReset={resetToStart}
-            onSelectMode={selectMode}
-            onSelectFailMode={selectFailMode}
-            onSelectSpeed={selectSpeed}
-            onCalibrate={() => setShowCalibration(true)}
-            calibrationOpen={showCalibration}
-            offset={offset}
-            onChangeOffset={changeOffset}
-            onCloseCalibration={() => setShowCalibration(false)}
-            onFullscreen={toggleFullscreen}
-            onChangeSong={changeSong}
-          />
-
           <div className="lyric-panel" ref={lyricRef}>
           <CueBar
             cue={cue}
@@ -1149,6 +1120,39 @@ export default function GameApp({
           ) : null}
           </div>
         </div>
+
+        {/* Kept above the media and content, and lifted above the pause blur
+            (see `.game-stage--paused`) so the controls stay usable while paused. */}
+        <Hud
+          score={hudScore}
+          combo={hudCombo}
+          multiplier={hudMultiplier}
+          accuracy={hudAccuracy}
+          attempted={hudAttempted}
+          progress={progress}
+          time={time}
+          duration={duration}
+          mode={mode}
+          failMode={failMode}
+          speed={speed}
+          locked={locked}
+          karaoke={karaoke}
+          hideRunMode={scoredSing}
+          paused={phase === "paused"}
+          playing={phase === "playing"}
+          onTogglePause={togglePause}
+          onReset={resetToStart}
+          onSelectMode={selectMode}
+          onSelectFailMode={selectFailMode}
+          onSelectSpeed={selectSpeed}
+          onCalibrate={() => setShowCalibration(true)}
+          calibrationOpen={showCalibration}
+          offset={offset}
+          onChangeOffset={changeOffset}
+          onCloseCalibration={() => setShowCalibration(false)}
+          onFullscreen={toggleFullscreen}
+          onChangeSong={changeSong}
+        />
 
         {overlays}
       </div>
