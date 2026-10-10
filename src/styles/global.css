@@ -1450,6 +1450,12 @@
     margin-top: 0.5rem;
     color: var(--color-ink-soft);
   }
+  /* A phone has less room, so the failure sentence steps down a touch. */
+  @media (max-width: 919px) {
+    .results__reason {
+      font-size: 0.85rem;
+    }
+  }
   .results__best {
     display: inline-block;
     margin-top: 0.6rem;
