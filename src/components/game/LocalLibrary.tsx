@@ -42,6 +42,8 @@ export interface LocalSelection {
   media: File;
   /** UltraStar background video, synced to the audio, when the chart names one. */
   backgroundVideo?: File;
+  /** UltraStar `#COVER`, shown as the backdrop when there is no background video. */
+  cover?: File;
   /** UltraStar `#VIDEOGAP`, in seconds. */
   videoGap?: number;
   /** Deep-link reference (`<folder>/<path>`), used in `/play/local?file=…`. */
@@ -278,11 +280,18 @@ export default function LocalLibrary({
           const videoHandle = handles.get(key(song.folderId, song.videoPath));
           if (videoHandle) backgroundVideo = await videoHandle.getFile();
         }
+        // The cover is only shown when there is no background video.
+        let cover: File | undefined;
+        if (!backgroundVideo && song.coverPath) {
+          const coverHandle = handles.get(key(song.folderId, song.coverPath));
+          if (coverHandle) cover = await coverHandle.getFile();
+        }
         onSelect({
           track,
           kind: "audio",
           media: audio,
           backgroundVideo,
+          cover,
           videoGap: parsed.videoGap,
           filePath: song.ref,
           artist: parsed.artist || song.artist,

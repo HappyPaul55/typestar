@@ -307,6 +307,8 @@ export default function GameApp({
   const [turnstileError, setTurnstileError] = useState<string | null>(null);
   const [challengeId, setChallengeId] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
+  // Object URL for a local UltraStar `#COVER`, used when there is no video.
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const turnstileToken = useRef<string | null>(null);
   const turnstileFailures = useRef(0);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -322,7 +324,20 @@ export default function GameApp({
   const localVideoFile = local && local.kind === "video" ? local.media : null;
   const localAudioFile = local && local.kind === "audio" ? local.media : null;
   const backgroundVideoFile = local?.backgroundVideo ?? null;
+  const coverFile = local?.cover ?? null;
   const videoGap = local?.videoGap ?? 0;
+
+  // A local UltraStar cover is shown as the stage backdrop when there is no
+  // background video. Its object URL lives only as long as the song is open.
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(coverFile);
+    setCoverUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverFile]);
 
   const youtubePlayer = useYouTubePlayer(local ? null : (videoId ?? null), speed);
   const mediaPlayer = useMediaPlayer(localVideoFile, speed);
@@ -974,12 +989,11 @@ export default function GameApp({
   const featured = FEATURED_BY_ID.get(activeTrack.id);
   const locked = phase === "playing" || phase === "countdown" || phase === "paused";
 
-  // A local UltraStar song without a background video has no stage: the lyric
-  // highway takes the full width instead. The overlays move with it.
-  const hasStage =
-    !local || localKind === "video" || (localKind === "audio" && !!backgroundVideoFile);
+  // The stage is always full width: a video where there is one, otherwise a
+  // local UltraStar cover, otherwise a plain dark backdrop.
   const stageMode: "youtube" | "video" | "audio" =
     localKind === "video" ? "video" : localKind === "audio" ? "audio" : "youtube";
+  const stageCover = stageMode === "audio" && !backgroundVideoFile ? coverUrl : null;
   const overlays = (
     <>
       {phase === "idle" && ready ? (
@@ -1036,46 +1050,16 @@ export default function GameApp({
         }}
       />
 
-      <Hud
-        score={hudScore}
-        combo={hudCombo}
-        multiplier={hudMultiplier}
-        accuracy={hudAccuracy}
-        attempted={hudAttempted}
-        progress={progress}
-        time={time}
-        duration={duration}
-        mode={mode}
-        failMode={failMode}
-        speed={speed}
-        locked={locked}
-        karaoke={karaoke}
-        hideRunMode={scoredSing}
-        paused={phase === "paused"}
-        playing={phase === "playing"}
-        onTogglePause={togglePause}
-        onReset={resetToStart}
-        onSelectMode={selectMode}
-        onSelectFailMode={selectFailMode}
-        onSelectSpeed={selectSpeed}
-        onCalibrate={() => setShowCalibration(true)}
-        calibrationOpen={showCalibration}
-        offset={offset}
-        onChangeOffset={changeOffset}
-        onCloseCalibration={() => setShowCalibration(false)}
-        onFullscreen={toggleFullscreen}
-        onChangeSong={changeSong}
-      />
-
       {/* The hidden audio that drives a local UltraStar song. */}
       {localKind === "audio" ? <audio ref={containerRef} hidden /> : null}
 
-      <div className={"game-shell__grid" + (hasStage ? "" : " game-shell__grid--wide")}>
-        {hasStage ? (
+      <div className="game-stage">
+        <div className="game-stage__media">
           <PlayerStage
             containerRef={containerRef}
             videoRef={ultraStarPlayer.videoRef}
             mode={stageMode}
+            coverSrc={stageCover}
             ready={ready}
             error={playerError}
             errorMessage={
@@ -1083,19 +1067,43 @@ export default function GameApp({
                 ? "This file could not be played. The browser may not support its format."
                 : undefined
             }
-            title={activeTrack.title}
-            artist={featured?.artist}
-            shielded={phase === "playing" && style === "type"}
-            onShield={() => {
-              if (style === "type") inputRef.current?.focus();
-            }}
-          >
-            {overlays}
-          </PlayerStage>
-        ) : null}
+          />
+        </div>
+        <div className="game-stage__scrim" aria-hidden="true" />
 
-        <div className="lyric-panel" ref={lyricRef}>
-          {!hasStage ? overlays : null}
+        <div className="game-stage__content">
+          <Hud
+            score={hudScore}
+            combo={hudCombo}
+            multiplier={hudMultiplier}
+            accuracy={hudAccuracy}
+            attempted={hudAttempted}
+            progress={progress}
+            time={time}
+            duration={duration}
+            mode={mode}
+            failMode={failMode}
+            speed={speed}
+            locked={locked}
+            karaoke={karaoke}
+            hideRunMode={scoredSing}
+            paused={phase === "paused"}
+            playing={phase === "playing"}
+            onTogglePause={togglePause}
+            onReset={resetToStart}
+            onSelectMode={selectMode}
+            onSelectFailMode={selectFailMode}
+            onSelectSpeed={selectSpeed}
+            onCalibrate={() => setShowCalibration(true)}
+            calibrationOpen={showCalibration}
+            offset={offset}
+            onChangeOffset={changeOffset}
+            onCloseCalibration={() => setShowCalibration(false)}
+            onFullscreen={toggleFullscreen}
+            onChangeSong={changeSong}
+          />
+
+          <div className="lyric-panel" ref={lyricRef}>
           <CueBar
             cue={cue}
             first={lyricWordPointer === 0}
@@ -1138,7 +1146,10 @@ export default function GameApp({
               Microphone unavailable — singing along without scoring.
             </p>
           ) : null}
+          </div>
         </div>
+
+        {overlays}
       </div>
 
       {flash ? (

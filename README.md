@@ -4,7 +4,10 @@ A browser game that is a bit like **Guitar Hero**, and a bit like a **touch
 typing / keyboard speed game**.
 
 - It uses **YouTube** as the music backend and the visuals.
-- The video sits on the left and the timed lyrics on the right.
+- The video fills the stage and the game plays on top of it: the HUD sits along
+  the top and the lyrics (or the singing pitch lane and lyrics) over the bottom,
+  so the whole screen is the performance. When a local song has no video, its
+  cover art, or a plain dark backdrop, fills the stage instead.
 - Three difficulties: **Easy** (first letter of each word), **Normal** (every
   word, punctuation optional) and **Hard** (every word, punctuation required).
   Defaults to **Normal**.
