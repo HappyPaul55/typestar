@@ -1713,9 +1713,6 @@
     object-fit: cover;
     transition: transform 0.28s var(--ease-brand);
   }
-  .track-card:hover .track-card__art {
-    transform: scale(1.04);
-  }
   .track-card__body {
     display: flex;
     flex-direction: column;
