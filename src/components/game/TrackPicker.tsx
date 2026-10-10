@@ -4,7 +4,7 @@
 
 import { useEffect, useState, type MouseEvent } from "react";
 import { FEATURED_TRACKS } from "../../content/tracks/featured";
-import { parseVideoId } from "../../lib/game/client";
+import { sourceFromInput } from "../../lib/game/client";
 import { supportsLocalLibrary } from "../../lib/local/library";
 import { RATING_LABEL, type TrackRating } from "../../lib/track/rating";
 import TrackCard from "./TrackCard";
@@ -12,12 +12,15 @@ import TrackCard from "./TrackCard";
 export default function TrackPicker({
   ratings = {},
   onOpen,
+  onOpenUltraStar,
   onOpenLocal,
 }: {
   /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
   ratings?: Record<string, TrackRating>;
   /** Open a YouTube track in place, instead of a full document navigation. */
   onOpen?(id: string): void;
+  /** Open an UltraStar chart from a URL in place. */
+  onOpenUltraStar?(url: string): void;
   /** Switch to the local-file picker in place. */
   onOpenLocal?(): void;
 }) {
@@ -35,13 +38,21 @@ export default function TrackPicker({
   }, []);
 
   function go(raw: string) {
-    const id = parseVideoId(raw);
-    if (!id) {
-      setError("That does not look like a YouTube link or video id.");
+    const source = sourceFromInput(raw);
+    if (!source) {
+      setError("That does not look like a YouTube link or an UltraStar .txt URL.");
       return;
     }
-    if (onOpen) onOpen(id);
-    else window.location.href = `/play/${id}${window.location.hash}`;
+    if (source.kind === "youtube") {
+      if (onOpen) onOpen(source.id);
+      else window.location.href = `/play/youtube/${source.id}${window.location.hash}`;
+      return;
+    }
+    if (onOpenUltraStar) {
+      onOpenUltraStar(source.url);
+    } else {
+      window.location.href = `/play/ultrastar/${encodeURIComponent(source.url)}${window.location.hash}`;
+    }
   }
 
   // A plain left click switches to the local picker in place; modified clicks
@@ -72,7 +83,7 @@ export default function TrackPicker({
           }}
         >
           <label className="track-picker__label" htmlFor="track-url">
-            Paste a YouTube link
+            Paste a YouTube link or an UltraStar URL
           </label>
           <div className="track-picker__row">
             <input
@@ -82,7 +93,7 @@ export default function TrackPicker({
               inputMode="url"
               autoComplete="off"
               spellCheck={false}
-              placeholder="https://www.youtube.com/watch?v=…"
+              placeholder="https://www.youtube.com/watch?v=…  or  …/song.txt"
               value={value}
               onChange={(event) => {
                 setValue(event.target.value);
@@ -95,8 +106,10 @@ export default function TrackPicker({
           </div>
           {error ? <p className="track-picker__error">{error}</p> : null}
           <p className="track-picker__note">
-            TypeStar reads the video&rsquo;s captions to time the words. Tracks
-            with clear, human-written captions work best.
+            A YouTube link is played from its captions; a link to an{" "}
+            <strong>UltraStar</strong> <code>.txt</code> chart is fetched and its
+            audio streamed from its own host. GitHub <code>blob</code> links are
+            converted to raw automatically.
           </p>
         </form>
 
@@ -156,7 +169,7 @@ export default function TrackPicker({
             return (
               <TrackCard
                 key={track.id}
-                href={`/play/${track.id}`}
+                href={`/play/youtube/${track.id}`}
                 title={track.title}
                 subtitle={track.artist}
                 onOpen={onOpen ? () => onOpen(track.id) : undefined}

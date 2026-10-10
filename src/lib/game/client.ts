@@ -1,8 +1,14 @@
 /**
- * Browser-side helpers for loading a track and reading a video id.
+ * Browser-side helpers for loading a track and reading its source.
  */
 
 import type { Track } from "../track/types";
+import {
+  parseSourceValue,
+  parseYouTubeId,
+  playSourceFromPathname,
+  type TrackSourceRef,
+} from "../track/source";
 import { isTrack } from "../track/validate";
 
 export class TrackApiError extends Error {
@@ -17,9 +23,35 @@ export class TrackApiError extends Error {
   }
 }
 
+/** A friendly message for an API error code. */
+function messageForCode(code: string | undefined): string {
+  switch (code) {
+    case "no-captions":
+      return "This video has no captions, so there is nothing to type.";
+    case "bad-video-id":
+      return "That video id looks wrong.";
+    case "bad-source-url":
+    case "blocked-url":
+      return "That song URL can’t be used.";
+    case "no-lyrics":
+      return "That UltraStar chart has no lyrics to play.";
+    case "no-audio":
+      return "That UltraStar chart does not name an audio file.";
+    case "not-found":
+      return "That song file could not be found.";
+    case "too-large":
+      return "That song file is too large.";
+    case "turnstile-required":
+    case "turnstile-failed":
+      return "Please complete the quick human check to load this new song.";
+    default:
+      return "Could not load this track.";
+  }
+}
+
 /** Load a processed track, throwing a friendly {@link TrackApiError} on failure. */
 export async function loadTrack(
-  id: string,
+  source: TrackSourceRef,
   lang = "en",
   signal?: AbortSignal,
   turnstileToken?: string,
@@ -28,12 +60,14 @@ export async function loadTrack(
   // Must match TURNSTILE_TOKEN_HEADER in src/lib/tracks-api.ts.
   if (turnstileToken) headers["x-turnstile-token"] = turnstileToken;
 
+  const endpoint =
+    source.kind === "ultrastar"
+      ? `/api/track/ultrastar?url=${encodeURIComponent(source.url)}&lang=${lang}`
+      : `/api/track/youtube/${encodeURIComponent(source.id)}?lang=${lang}`;
+
   let response: Response;
   try {
-    response = await fetch(`/api/track/${encodeURIComponent(id)}?lang=${lang}`, {
-      signal,
-      headers,
-    });
+    response = await fetch(endpoint, { signal, headers });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new TrackApiError("Could not reach the track service.", 0, "network");
@@ -46,15 +80,7 @@ export async function loadTrack(
     } catch {
       // Non-JSON error body; fall through to the generic message.
     }
-    const message =
-      code === "no-captions"
-        ? "This video has no captions, so there is nothing to type."
-        : code === "bad-video-id"
-          ? "That video id looks wrong."
-          : code === "turnstile-required" || code === "turnstile-failed"
-            ? "Please complete the quick human check to load this new song."
-            : "Could not load this track.";
-    throw new TrackApiError(message, response.status, code);
+    throw new TrackApiError(messageForCode(code), response.status, code);
   }
 
   const data: unknown = await response.json();
@@ -65,45 +91,25 @@ export async function loadTrack(
 }
 
 /**
- * Pull a video id out of a raw id, a `youtu.be` link, a `watch?v=` link, an
- * embed/shorts/live link, or the `?v=` query of the current page.
+ * Read the source from the current URL: `/play/youtube/<id>`,
+ * `/play/ultrastar/<encoded>`, the legacy `/play/<id>` or `?v=<id>`.
  */
-export function parseVideoId(value: string): string | null {
-  const trimmed = value.trim();
-  if (/^[A-Za-z0-9_-]{11}$/.test(trimmed)) return trimmed;
+export function sourceFromLocation(): TrackSourceRef | null {
+  if (typeof window === "undefined") return null;
+  const fromPath = playSourceFromPathname(window.location.pathname);
+  if (fromPath) return fromPath;
 
-  let url: URL;
-  try {
-    url = new URL(trimmed);
-  } catch {
-    return null;
-  }
-
-  if (url.hostname === "youtu.be") {
-    const id = url.pathname.slice(1).split("/")[0];
-    return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
-  }
-
-  const fromQuery = url.searchParams.get("v");
-  if (fromQuery && /^[A-Za-z0-9_-]{11}$/.test(fromQuery)) return fromQuery;
-
-  const parts = url.pathname.split("/").filter(Boolean);
-  const marker = parts.findIndex((part) => ["embed", "shorts", "live"].includes(part));
-  if (marker >= 0) {
-    const candidate = parts[marker + 1];
-    if (candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate)) return candidate;
-  }
-
-  return null;
+  const params = new URLSearchParams(window.location.search);
+  const id = parseYouTubeId(params.get("v") ?? params.get("id") ?? "");
+  return id ? { kind: "youtube", id } : null;
 }
 
-/** Read the video id from the current URL (`/play/<id>` or `?v=`). */
-export function videoIdFromLocation(): string | null {
-  if (typeof window === "undefined") return null;
-  const fromPath = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(window.location.pathname);
-  if (fromPath) return fromPath[1];
-  const params = new URLSearchParams(window.location.search);
-  return parseVideoId(params.get("v") ?? params.get("id") ?? "");
+/**
+ * Turn a pasted value into a source, for the picker: a YouTube link/id, or any
+ * other `http(s)` URL treated as an UltraStar chart.
+ */
+export function sourceFromInput(value: string): TrackSourceRef | null {
+  return parseSourceValue(value);
 }
 
 /** Whether the current URL is the local-file route (`/play/local`). */

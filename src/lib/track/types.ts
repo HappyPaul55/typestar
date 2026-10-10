@@ -13,6 +13,30 @@ export const TRACK_VERSION = 5;
 /** How a caption track was produced, which hints at how reliable the timing is. */
 export type CaptionKind = "manual" | "asr" | "unknown";
 
+/**
+ * Where a track's lyrics came from. Tracks cached before this field existed are
+ * always YouTube, so a missing `origin` means `youtube`.
+ */
+export type TrackOrigin = "youtube" | "ultrastar";
+
+/**
+ * Remote media URLs for an UltraStar chart fetched from a URL. The browser
+ * hotlinks these directly from the origin; they never pass through our servers.
+ * Only UltraStar tracks carry them, and only their audio is required.
+ */
+export interface TrackMedia {
+  /** Absolute URL of the master audio (an UltraStar `#MP3`). */
+  audio?: string;
+  /** Absolute URL of the optional background video (`#VIDEO`). */
+  video?: string;
+  /** Absolute URL of the `#BACKGROUND` image, shown when there is no video. */
+  background?: string;
+  /** Absolute URL of the `#COVER` image, used for cards and social tags. */
+  cover?: string;
+  /** `#VIDEOGAP` in seconds: how far the video trails the audio. */
+  videoGap?: number;
+}
+
 export interface TrackWord {
   /** Display text, exactly as it should be read on screen. */
   text: string;
@@ -71,7 +95,11 @@ export interface TrackSource {
 
 export interface Track {
   version: number;
-  /** The 11-character YouTube video id. */
+  /**
+   * A stable identifier for the track: the 11-character YouTube video id, or
+   * `ultrastar-<hash>` for a chart fetched from a URL. Used for the cache key,
+   * personal bests and the sync offset, so it must not change between loads.
+   */
   id: string;
   title: string;
   description: string;
@@ -93,6 +121,17 @@ export interface Track {
    * unscored karaoke. Optional so older cached/seeded tracks still validate.
    */
   notes?: TrackNote[];
+  /**
+   * Where the track came from. Absent on older tracks, which are always
+   * YouTube; treat a missing value as `youtube`.
+   */
+  origin?: TrackOrigin;
+  /** The canonical source URL of an UltraStar chart (a `.txt`). */
+  sourceUrl?: string;
+  /** The song's artist, when the source (an UltraStar header) names one. */
+  artist?: string;
+  /** Remote media URLs for a URL-sourced UltraStar chart. */
+  media?: TrackMedia;
 }
 
 /** A caption segment as returned by `youtube-caption-extractor`. */

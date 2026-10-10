@@ -47,6 +47,12 @@ typing / keyboard speed game**.
 - Play **local files**: in a browser with the File System Access API, point
   TypeStar at a folder of **UltraStar** songs or videos with matching `.vtt`
   captions and play them from disk — nothing is uploaded.
+- Play **from a URL**: paste a YouTube link, or a link to an **UltraStar**
+  `.txt` chart anywhere on the web (GitHub `blob` links are rewritten to raw).
+  TypeStar fetches and parses the chart on the server once, then streams its
+  audio and any background video straight from the chart's own host — the media
+  never passes through TypeStar. A chart's per-note pitch means it can be sung
+  and scored, exactly like a local UltraStar song.
 - **Sing** as well as type: choose a play style on the start screen. Every track
   can be sung. A local UltraStar chart, which carries per-note pitch, is scored
   with your microphone against the notes; YouTube and `.vtt` tracks play as an
@@ -65,23 +71,29 @@ with static assets, and it caches processed tracks in **R2**.
 
 ## How it works
 
-1. You open `/play/<youtubeId>` (or paste a link on `/play`). If the song is
-   already cached or seeded, the Worker serves the play page with the song's own
-   title and social tags already in the HTML.
-2. The page calls `GET /api/track/<youtubeId>`.
+1. You open `/play/youtube/<youtubeId>` or `/play/ultrastar/<songUrl>` (or paste
+   a link on `/play`). If the song is already cached or seeded, the Worker serves
+   the play page with the song's own title and social tags already in the HTML.
+2. The page calls `GET /api/track/youtube/<youtubeId>` (or
+   `GET /api/track/ultrastar?url=<songUrl>`).
 3. The Worker returns the track from **R2** if it is cached, or from the bundled
    seed, so songs already in the library play with no check. Otherwise it asks
-   for a Cloudflare **Turnstile** human check, then fetches the video's captions
-   from YouTube with
-   [`youtube-caption-extractor`](https://github.com/devhims/youtube-caption-extractor)
-   (falling back to a third-party caption service if YouTube fails or returns
-   nothing), builds a word-timed track, stores it in R2 and returns it.
+   for a Cloudflare **Turnstile** human check, then:
+   - for a YouTube video, fetches its captions from YouTube with
+     [`youtube-caption-extractor`](https://github.com/devhims/youtube-caption-extractor)
+     (falling back to a third-party caption service if YouTube fails or returns
+     nothing);
+   - for an UltraStar URL, fetches the `.txt` chart (http/https only, private
+     hosts refused, size- and time-capped) and parses it;
 
-Only playable tracks are cached. A failure to reach YouTube (rate limiting, bot
-blocking, network) is never cached, so a transient upstream problem can't make a
-track permanently unplayable.
-4. The React island plays the video with the YouTube IFrame API and scores your
-   typing against the caption timings.
+   builds a word-timed track, stores it in R2 and returns it.
+
+Only playable tracks are cached. A failure to reach the upstream source (rate
+limiting, bot blocking, network) is never cached, so a transient problem can't
+make a track permanently unplayable.
+4. The React island plays the video with the YouTube IFrame API (or the audio,
+   with any background video, from the chart's own host) and scores your typing
+   against the timings.
 
 Captions are line-level. TypeStar recovers **word-level timing** by parsing the
 raw `json3` transcript (one word per event for auto-captions, per-segment
@@ -107,8 +119,9 @@ bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 
 `astro dev` runs the real track handler through a Vite plugin (see
 `astro.config.mjs`), using a filesystem cache in `.cache/` instead of R2, and
-serves the bundled seeds in `public/tracks/`. The pretty `/play/<id>` URLs work
-in dev too.
+serves the bundled seeds in `public/tracks/`. The pretty `/play/youtube/<id>`,
+`/play/ultrastar/<url>` and `/play/local` URLs work in dev too; the legacy
+`/play/<id>` redirects to its typed form.
 
 `public/og-image.png` is the 1200×630 social card used by the Open Graph and
 Twitter tags. It is a committed design asset: its source layout is
@@ -186,6 +199,27 @@ ratings all work unchanged. WebVTT inline word timestamps (`<00:00:05.000>`) are
 honoured where a caption file provides them. If the browser has no
 `showDirectoryPicker`, the picker shows a short notice in place of the button.
 
+## Songs from a URL
+
+Beyond the featured YouTube tracks, you can paste any of:
+
+- a YouTube link or 11-character video id;
+- an **UltraStar** `.txt` chart URL (for example a raw GitHub link). A GitHub
+  `blob` link is rewritten to its `raw.githubusercontent.com` form automatically.
+
+A YouTube song is timed from its captions. An UltraStar chart is fetched once by
+the Worker, parsed into the same word-timed track shape (with per-note pitch, so
+it can be scored when sung) and cached in R2 under a hash of its URL. Its `#MP3`
+audio, `#VIDEO` background, `#BACKGROUND` image and `#COVER` art are resolved
+against the chart's own URL and streamed by the browser **directly from that
+host** — TypeStar never proxies the media. The first time a song is requested it
+goes through the same one-off Turnstile human check as a new YouTube video.
+
+Because the chart URL is user-supplied, the server only fetches `http(s)` URLs,
+refuses private/loopback hosts and IP literals, follows at most three redirects
+(re-checking each), and caps the response size and time. `media-src` and
+`img-src` in `public/_headers` allow `https:` so the hotlinked media can load.
+
 ## Singing
 
 The start screen offers two play styles: **Type** (the game above) and **Sing**.
@@ -233,9 +267,13 @@ stays the same in every mode.
 
 | Route | Description |
 | --- | --- |
-| `GET /api/track/:id?lang=en` | Get-or-create a track. `422` when the video has no captions, `502` when YouTube is unreachable. |
-| `/play?v=<id>` | `301` redirect to `/play/<id>`. |
-| `/play/<id>` | Serves the play page; its title and social tags name the song when it is already cached or seeded, otherwise the generic page is served. |
+| `GET /api/track/youtube/:id?lang=en` | Get-or-create a YouTube track. `422` when the video has no captions, `502` when YouTube is unreachable. |
+| `GET /api/track/ultrastar?url=:url&lang=en` | Get-or-create an UltraStar track from a chart URL. `422` when the chart has no lyrics or no audio. |
+| `GET /api/track/:id?lang=en` | Legacy YouTube path, still supported. |
+| `/play?v=<id>` | `301` redirect to `/play/youtube/<id>`. |
+| `/play/<id>` | `301` redirect to `/play/youtube/<id>` (legacy). |
+| `/play/youtube/<id>` | Serves the play page; its title and social tags name the song when it is already cached or seeded, otherwise the generic page is served. |
+| `/play/ultrastar/<url>` | The same, for a chart fetched from a URL. |
 | `/play/local` | Serves the play page for the in-browser local-file picker (no server involvement). |
 
 Only `/api/*`, `/play` and `/play/*` run the Worker (`run_worker_first` in

@@ -22,7 +22,7 @@ describe("trackSeo", () => {
   test("builds the title, canonical and cover art", () => {
     expect(SEO.title).toBe("Never Gonna Give You Up — TypeStar");
     expect(SEO.canonical).toBe(
-      "https://typestar.happypaul55.com/play/dQw4w9WgXcQ",
+      "https://typestar.happypaul55.com/play/youtube/dQw4w9WgXcQ",
     );
     expect(SEO.image).toBe(
       "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
@@ -31,13 +31,50 @@ describe("trackSeo", () => {
 
   test("normalises a trailing slash on the origin", () => {
     const seo = trackSeo({ id: "dQw4w9WgXcQ", title: "x" }, "https://example.com/");
-    expect(seo.canonical).toBe("https://example.com/play/dQw4w9WgXcQ");
+    expect(seo.canonical).toBe("https://example.com/play/youtube/dQw4w9WgXcQ");
   });
 
   test("falls back to a title for an empty one", () => {
     expect(trackSeo({ id: "dQw4w9WgXcQ", title: "  " }, "https://x.test").title).toBe(
       "Untitled track — TypeStar",
     );
+  });
+
+  test("builds an UltraStar canonical from its source URL and uses its cover", () => {
+    const url = "https://example.com/songs/Code Monkey/song.txt";
+    const seo = trackSeo(
+      {
+        id: "ultrastar-abc",
+        title: "Code Monkey",
+        origin: "ultrastar",
+        sourceUrl: url,
+        artist: "Jonathan Coulton",
+        media: { cover: "https://example.com/songs/Code Monkey/cover.png" },
+      },
+      "https://typestar.happypaul55.com",
+    );
+    expect(seo.canonical).toBe(
+      `https://typestar.happypaul55.com/play/ultrastar/${encodeURIComponent(url)}`,
+    );
+    expect(seo.image).toBe("https://example.com/songs/Code Monkey/cover.png");
+    expect(seo.imageType).toBe("image/png");
+    expect(seo.description).toContain("Jonathan Coulton");
+    // Unknown cover size: no width/height hint is forced.
+    expect(seo.imageWidth).toBeUndefined();
+  });
+
+  test("falls back to the site card when an UltraStar chart has no cover", () => {
+    const seo = trackSeo(
+      {
+        id: "ultrastar-abc",
+        title: "Code Monkey",
+        origin: "ultrastar",
+        sourceUrl: "https://example.com/song.txt",
+      },
+      "https://typestar.happypaul55.com",
+    );
+    expect(seo.image).toBe("https://typestar.happypaul55.com/og-image.png");
+    expect(seo.imageType).toBe("image/png");
   });
 });
 
@@ -47,7 +84,7 @@ describe("injectTrackSeo", () => {
     expect(out).toContain(
       '<title data-seo="title">Never Gonna Give You Up — TypeStar</title>',
     );
-    expect(out).toContain('data-seo="canonical" href="https://typestar.happypaul55.com/play/dQw4w9WgXcQ"');
+    expect(out).toContain('data-seo="canonical" href="https://typestar.happypaul55.com/play/youtube/dQw4w9WgXcQ"');
     expect(out).toContain('data-seo="og:image:width" content="1280"');
     expect(out).toContain(
       'data-seo="twitter:image" content="https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"',

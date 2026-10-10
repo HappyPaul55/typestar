@@ -6,20 +6,27 @@
  * here; everything else is served as a static asset (with the pretty 404 page).
  *
  * Routes:
- * - `GET /api/track/:id`  → get-or-create a track (R2 cache, then the bundled
- *                           seed, then a live YouTube caption lookup)
- * - `/play?v=<id>`        → 301 redirect to the pretty `/play/<id>` URL
- * - `/play/<id>`          → the static `/play` page; when the song is already
- *                           cached or seeded its title and social tags are
- *                           filled in, otherwise the generic page is served
+ * - `GET /api/track/youtube/:id`  → get-or-create a YouTube track
+ * - `GET /api/track/ultrastar?url=:url` → get-or-create an UltraStar track
+ * - `GET /api/track/:id`          → the legacy YouTube path (still supported)
+ * - `/play?v=<id>`                → 301 to `/play/youtube/<id>`
+ * - `/play/<id>`                  → 301 to `/play/youtube/<id>` (legacy)
+ * - `/play/youtube/<id>`          → the static play page; when the song is
+ *                                   already cached or seeded its title and
+ *                                   social tags are filled in
+ * - `/play/ultrastar/<url>`       → the same, for a chart fetched from a URL
  *
  * Types are declared inline rather than pulling in `@cloudflare/workers-types`,
  * which would clash with the DOM lib used by the Astro/React side of the repo.
  */
 import {
+  apiSourceFromRequest,
+  playSourceFromPathname,
+  YOUTUBE_ID_RE,
+} from "../src/lib/track/source";
+import {
   getCachedTrack,
   handleTrackRequest,
-  VIDEO_ID_RE,
 } from "../src/lib/tracks-api";
 import { injectTrackSeo, trackSeo } from "../src/lib/seo";
 import { r2Store, type R2LikeBucket } from "../src/lib/track/store";
@@ -77,7 +84,13 @@ export default {
     };
 
     if (pathname.startsWith("/api/track/")) {
-      const id = decodeURIComponent(pathname.slice("/api/track/".length)).replace(/\/+$/, "");
+      const source = apiSourceFromRequest(pathname, url.searchParams);
+      if (!source) {
+        return new Response(JSON.stringify({ error: "bad-request" }), {
+          status: 400,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        });
+      }
 
       return handleTrackRequest(
         request,
@@ -96,29 +109,38 @@ export default {
               }
             : undefined,
         },
-        id,
+        source,
       );
     }
 
     if (pathname === "/play") {
       const video = url.searchParams.get("v");
-      if (video && VIDEO_ID_RE.test(video)) {
-        return Response.redirect(new URL(`/play/${video}`, url).toString(), 301);
+      if (video && YOUTUBE_ID_RE.test(video)) {
+        return Response.redirect(new URL(`/play/youtube/${video}`, url).toString(), 301);
       }
       return env.ASSETS.fetch(request);
     }
 
-    // The pretty play route. Fetch the static page once, and if the song is
+    // Legacy pretty URL: `/play/<11-char id>` now redirects to its typed form.
+    const legacy = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(pathname);
+    if (legacy) {
+      return Response.redirect(
+        new URL(`/play/youtube/${legacy[1]}`, url).toString(),
+        301,
+      );
+    }
+
+    // The typed pretty routes. Fetch the static page once, and if the song is
     // already known, fill in its title and social tags before serving it.
-    const play = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(pathname);
-    if (play) {
+    const source = playSourceFromPathname(pathname);
+    if (source) {
       const pageRequest = () =>
         env.ASSETS.fetch(
           new Request(new URL("/play", url), { headers: request.headers }),
         );
       const [page, track] = await Promise.all([
         pageRequest(),
-        getCachedTrack({ store, seed }, play[1]),
+        getCachedTrack({ store, seed }, source),
       ]);
       if (track && page.ok) {
         return withTrackSeo(page, await page.text(), track, url.origin);
@@ -127,7 +149,7 @@ export default {
     }
 
     if (pathname.startsWith("/play/")) {
-      // A malformed id: serve the static play page as before.
+      // `/play/local` and a malformed id: serve the static play page as before.
       return env.ASSETS.fetch(
         new Request(new URL("/play", url), { headers: request.headers }),
       );

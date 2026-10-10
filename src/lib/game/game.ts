@@ -127,7 +127,8 @@ export interface ResultsSummary {
   /** The human sentence for why the run ended, or null. */
   failMessage: string | null;
   rank: Rank | null;
-  trackId: string;
+  /** The canonical `/play/...` path for the track, for a shared link. */
+  sharePath: string;
   /** localStorage key for the personal best (scored runs only). */
   bestKey: string;
   /** How far through the song the run got, 0..1. */

@@ -20,6 +20,7 @@ afterEach(() => {
 });
 
 const ID = "dQw4w9WgXcQ";
+const YT = { kind: "youtube", id: ID } as const;
 
 const TRACK: Track = {
   version: TRACK_VERSION,
@@ -100,7 +101,7 @@ describe("verifyTurnstile", () => {
 describe("handleTrackRequest turnstile gate", () => {
   test("serves a cached track without a human check", async () => {
     let checks = 0;
-    const store = memoryStore({ [trackKey(ID, "en")]: JSON.stringify(TRACK) });
+    const store = memoryStore({ [trackKey(YT, "en")]: JSON.stringify(TRACK) });
     const response = await handleTrackRequest(
       request(),
       {
@@ -113,7 +114,7 @@ describe("handleTrackRequest turnstile gate", () => {
           }) as unknown as typeof fetch,
         },
       },
-      ID,
+      YT,
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("x-typestar-cache")).toBe("hit");
@@ -135,7 +136,7 @@ describe("handleTrackRequest turnstile gate", () => {
           }) as unknown as typeof fetch,
         },
       },
-      ID,
+      YT,
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("x-typestar-cache")).toBe("seed");
@@ -146,7 +147,7 @@ describe("handleTrackRequest turnstile gate", () => {
     const response = await handleTrackRequest(
       request(),
       { store: memoryStore(), turnstile: { ...BASE, fetchImpl: siteverify() } },
-      ID,
+      YT,
     );
     expect(response.status).toBe(403);
     expect((await response.json() as { error: string }).error).toBe("turnstile-required");
@@ -159,7 +160,7 @@ describe("handleTrackRequest turnstile gate", () => {
         store: memoryStore(),
         turnstile: { ...BASE, fetchImpl: siteverify({ success: false }) },
       },
-      ID,
+      YT,
     );
     expect(response.status).toBe(403);
     expect((await response.json() as { error: string }).error).toBe("turnstile-failed");
@@ -176,7 +177,7 @@ describe("handleTrackRequest turnstile gate", () => {
           throw new Error("no network in tests");
         }) as unknown as typeof fetch,
       },
-      ID,
+      YT,
     );
     // Past the gate: an upstream failure, not a 403.
     expect(response.status).toBe(502);
@@ -186,13 +187,13 @@ describe("handleTrackRequest turnstile gate", () => {
 
 describe("handleTrackRequest responses", () => {
   test("a HEAD request returns headers with no body", async () => {
-    const store = memoryStore({ [trackKey(ID, "en")]: JSON.stringify(TRACK) });
+    const store = memoryStore({ [trackKey(YT, "en")]: JSON.stringify(TRACK) });
     const response = await handleTrackRequest(
       new Request(`https://typestar.happypaul55.com/api/track/${ID}`, {
         method: "HEAD",
       }),
       { store },
-      ID,
+      YT,
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("x-typestar-cache")).toBe("hit");
@@ -210,7 +211,7 @@ describe("handleTrackRequest responses", () => {
           throw new Error("internal fallback host leaked");
         }) as unknown as typeof fetch,
       },
-      ID,
+      YT,
     );
     expect(response.status).toBe(502);
     const body = (await response.json()) as Record<string, unknown>;
@@ -221,24 +222,128 @@ describe("handleTrackRequest responses", () => {
 
 describe("getCachedTrack", () => {
   test("returns a cached track", async () => {
-    const store = memoryStore({ [trackKey(ID, "en")]: JSON.stringify(TRACK) });
-    expect((await getCachedTrack({ store }, ID))?.id).toBe(ID);
+    const store = memoryStore({ [trackKey(YT, "en")]: JSON.stringify(TRACK) });
+    expect((await getCachedTrack({ store }, YT))?.id).toBe(ID);
   });
 
   test("returns a seeded track", async () => {
     const track = await getCachedTrack(
       { store: memoryStore(), seed: async () => JSON.stringify(TRACK) },
-      ID,
+      YT,
     );
     expect(track?.id).toBe(ID);
   });
 
   test("returns null when neither exists", async () => {
-    expect(await getCachedTrack({ store: memoryStore() }, ID)).toBeNull();
+    expect(await getCachedTrack({ store: memoryStore() }, YT)).toBeNull();
   });
 
   test("returns null for an unusable cached value", async () => {
-    const store = memoryStore({ [trackKey(ID, "en")]: "{not json" });
-    expect(await getCachedTrack({ store }, ID)).toBeNull();
+    const store = memoryStore({ [trackKey(YT, "en")]: "{not json" });
+    expect(await getCachedTrack({ store }, YT)).toBeNull();
+  });
+});
+
+const CHART = [
+  "#TITLE:Code Monkey",
+  "#ARTIST:Jonathan Coulton",
+  "#MP3:audio.mp3",
+  "#COVER:cover.jpg",
+  "#BPM:320",
+  "#GAP:675",
+  ": 0 6 -4 Code",
+  ": 8 3 -4  Mon",
+  ": 12 2 -6 key",
+  "- 52",
+  "E",
+].join("\n");
+
+const SONG_URL = "https://raw.githubusercontent.com/example/songs/main/Code Monkey/song.txt";
+
+describe("handleTrackRequest UltraStar", () => {
+  test("fetches, builds, caches and resolves media against the chart URL", async () => {
+    const store = memoryStore();
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/song.txt")) return new Response(CHART, { status: 200 });
+      return new Response("missing", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const response = await handleTrackRequest(
+      new Request(
+        `https://typestar.happypaul55.com/api/track/ultrastar?url=${encodeURIComponent(SONG_URL)}&lang=en`,
+      ),
+      { store, fetchImpl },
+      { kind: "ultrastar", url: SONG_URL },
+    );
+
+    expect(response.status).toBe(200);
+    const track = (await response.json()) as Track;
+    expect(track.origin).toBe("ultrastar");
+    expect(track.artist).toBe("Jonathan Coulton");
+    expect(track.title).toBe("Code Monkey");
+    expect(track.words.length).toBeGreaterThan(0);
+    expect(track.notes?.length).toBeGreaterThan(0);
+    expect(track.media?.audio).toBe(
+      "https://raw.githubusercontent.com/example/songs/main/Code%20Monkey/audio.mp3",
+    );
+    expect(track.media?.cover).toBe(
+      "https://raw.githubusercontent.com/example/songs/main/Code%20Monkey/cover.jpg",
+    );
+    expect(await store.get(trackKey({ kind: "ultrastar", url: SONG_URL }, "en"))).not.toBeNull();
+  });
+
+  test("refuses a blocked URL before any fetch", async () => {
+    let called = 0;
+    const response = await handleTrackRequest(
+      new Request(
+        "https://typestar.happypaul55.com/api/track/ultrastar?url=http%3A%2F%2Flocalhost%2Fsong.txt",
+      ),
+      {
+        store: memoryStore(),
+        fetchImpl: (async () => {
+          called++;
+          return new Response("");
+        }) as unknown as typeof fetch,
+      },
+      { kind: "ultrastar", url: "http://localhost/song.txt" },
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json() as { error: string }).error).toBe("blocked-url");
+    expect(called).toBe(0);
+  });
+
+  test("serves a cached UltraStar track without a human check", async () => {
+    const cached: Track = {
+      ...TRACK,
+      id: "ultrastar-abc",
+      title: "Code Monkey",
+      origin: "ultrastar",
+      sourceUrl: SONG_URL,
+      media: { audio: "https://example.com/audio.mp3" },
+    };
+    const store = memoryStore({
+      [trackKey({ kind: "ultrastar", url: SONG_URL }, "en")]: JSON.stringify(cached),
+    });
+    let checks = 0;
+    const response = await handleTrackRequest(
+      new Request(
+        `https://typestar.happypaul55.com/api/track/ultrastar?url=${encodeURIComponent(SONG_URL)}`,
+      ),
+      {
+        store,
+        turnstile: {
+          ...BASE,
+          fetchImpl: (async () => {
+            checks++;
+            return Response.json({});
+          }) as unknown as typeof fetch,
+        },
+      },
+      { kind: "ultrastar", url: SONG_URL },
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-typestar-cache")).toBe("hit");
+    expect(checks).toBe(0);
   });
 });

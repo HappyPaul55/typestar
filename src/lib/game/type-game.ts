@@ -20,6 +20,7 @@ import {
 import { bestKey, runMetrics, type GameEngine, type Metric, type RunSettings } from "./game";
 import { PLAY_STYLE_HELP } from "./modes";
 import { formatTime } from "./storage";
+import { trackPath } from "../track/source";
 import type { Track } from "../track/types";
 
 const CAPABILITIES = {
@@ -130,7 +131,7 @@ export const TypeGame: GameEngine<GameState> = {
       failReason: state.failReason,
       failMessage: state.failReason ? FAIL_MESSAGE[state.failReason] : null,
       rank: state.failed ? null : rankOf(state),
-      trackId: track?.id ?? "",
+      sharePath: track ? trackPath(track) : "/play",
       bestKey: bestKey("type", track?.id ?? "", run),
       progress: words.length ? state.pointer / words.length : 0,
       metrics,

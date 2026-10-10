@@ -16,8 +16,10 @@ import {
   TRACK_VERSION,
   type Track,
   type TrackLine,
+  type TrackMedia,
   type TrackNote,
   type TrackNoteKind,
+  type TrackOrigin,
   type TrackWord,
 } from "./types";
 
@@ -54,6 +56,8 @@ export interface UltraStarSong {
   video: string | null;
   /** `#BACKGROUND` image reference, shown behind the lyrics. */
   background: string | null;
+  /** `#COVER` image reference, used for the card art and social tags. */
+  cover: string | null;
   /** `#LANGUAGE`, when present. */
   language: string | null;
   /** `#BPM` value as written (beats per minute once multiplied by four). */
@@ -235,6 +239,7 @@ export function parseUltraStar(text: string): UltraStarSong {
     audio: headers.MP3 ?? null,
     video: headers.VIDEO ?? null,
     background: headers.BACKGROUND ?? null,
+    cover: headers.COVER ?? null,
     language: headers.LANGUAGE ?? null,
     bpm,
     gap: gapMs,
@@ -364,6 +369,14 @@ export interface UltraStarTrackMeta {
   id: string;
   lang: string;
   description: string;
+  /** Where the chart came from. Defaults to YouTube for legacy local use. */
+  origin?: TrackOrigin;
+  /** The chart's own URL, for a chart fetched from the web. */
+  sourceUrl?: string;
+  /** The artist, when the chart names one. */
+  artist?: string;
+  /** Remote media URLs, for a chart fetched from the web. */
+  media?: TrackMedia;
 }
 
 /** Build a {@link Track} from a parsed UltraStar song. */
@@ -381,5 +394,9 @@ export function ultraStarTrack(song: UltraStarSong, meta: UltraStarTrackMeta): T
     words,
     // Pitch data is what lets a singer be scored; caption tracks have none.
     ...(notes.length ? { notes } : {}),
+    ...(meta.origin ? { origin: meta.origin } : {}),
+    ...(meta.sourceUrl ? { sourceUrl: meta.sourceUrl } : {}),
+    ...(meta.artist ? { artist: meta.artist } : {}),
+    ...(meta.media ? { media: meta.media } : {}),
   };
 }
