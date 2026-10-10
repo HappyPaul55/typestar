@@ -177,12 +177,21 @@ describe("SingGame", () => {
     expect(results.metrics).toContainEqual({ label: "artist", value: "Someone" });
   });
 
-  test("scored results keep the speed metric", () => {
+  test("omits the run mode and speed metrics at their normal values", () => {
     const t = track([note(1, 2, 3)]);
     const state = SingGame.createState(t);
-    const results = SingGame.results(state, t, RUN, { time: 5, micFallback: false });
-    expect(results.scored).toBe(true);
-    expect(results.metrics.some((metric) => metric.label === "speed")).toBe(true);
+    const normalRun = { ...RUN, runMode: "normal" as const, speed: 1 as const };
+    const plain = SingGame.results(state, t, normalRun, { time: 5, micFallback: false });
+    expect(plain.scored).toBe(true);
+    const labels = plain.metrics.map((metric) => metric.label);
+    expect(labels).not.toContain("run mode");
+    expect(labels).not.toContain("speed");
+
+    const fun = SingGame.results(state, t, { ...normalRun, runMode: "fun" }, { time: 5, micFallback: false });
+    expect(fun.metrics).toContainEqual({ label: "run mode", value: "fun" });
+
+    const fast = SingGame.results(state, t, { ...normalRun, speed: 1.25 }, { time: 5, micFallback: false });
+    expect(fast.metrics).toContainEqual({ label: "speed", value: "1.25×" });
   });
 
   test("combines notes hit and missed into one metric", () => {
@@ -194,5 +203,17 @@ describe("SingGame", () => {
     expect(labels).not.toContain("notes missed");
     expect(labels).not.toContain("score");
     expect(results.metrics).toContainEqual({ label: "notes", value: "150/213" });
+  });
+});
+
+describe("TypeGame.results", () => {
+  test("combines words hit and missed into one metric", () => {
+    const t = track();
+    const state = { ...TypeGame.createState(t), hits: 120, misses: 346 };
+    const results = TypeGame.results(state, t, RUN, { time: 30, micFallback: false });
+    const labels = results.metrics.map((metric) => metric.label);
+    expect(labels).not.toContain("words hit");
+    expect(labels).not.toContain("words missed");
+    expect(results.metrics).toContainEqual({ label: "words", value: "120/466" });
   });
 });

@@ -9,8 +9,8 @@
  * do and what to show.
  */
 
-import { comboTier, SPEED_LABEL, type WordResult } from "./engine";
-import { bestKey, type Capabilities, type GameEngine } from "./game";
+import { comboTier, type WordResult } from "./engine";
+import { bestKey, runMetrics, type Capabilities, type GameEngine, type Metric } from "./game";
 import { karaokePointer, karaokeProgress } from "./karaoke";
 import { trackCanSing } from "./modes";
 import {
@@ -166,17 +166,12 @@ export const SingGame: GameEngine<SingState> = {
 
     const accuracy = Math.round(singPitchAccuracy(state) * 100);
     const notes = state.hits + state.misses;
-    const metrics = [
+    const metrics: Metric[] = [
       { label: "pitch accuracy", value: `${accuracy}%` },
       { label: "notes", value: `${state.hits}/${notes}` },
       { label: "best combo", value: `×${state.maxCombo}` },
       { label: "time", value: formatTime(ctx.time) },
-      { label: "difficulty", value: run.difficulty },
-      { label: "run mode", value: run.runMode },
-      { label: "speed", value: SPEED_LABEL[run.speed] },
-      ...(run.runMode === "practise"
-        ? [{ label: "replays", value: `${state.replays}` }]
-        : []),
+      ...runMetrics(run, run.runMode === "practise" ? state.replays : undefined),
     ];
     return {
       scored: true,

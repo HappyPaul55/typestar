@@ -19,6 +19,7 @@ import type {
   Rank,
   WordResult,
 } from "./engine";
+import { DEFAULT_SPEED, SPEED_LABEL } from "./engine";
 import type { PlayStyle } from "./modes";
 import type { NoteResult } from "./sing";
 import type { Track } from "../track/types";
@@ -169,4 +170,24 @@ export type AnyGameEngine = GameEngine<any>;
  * consistent: style + track + difficulty + run mode + speed. */
 export function bestKey(style: PlayStyle, trackId: string, run: RunSettings): string {
   return `best:${style}:${trackId}:${run.difficulty}:${run.runMode}:${run.speed}`;
+}
+
+/**
+ * The run's settings as results-grid metrics, shared by every style. The run
+ * mode and the playback speed are left out at their normal values (normal, and
+ * 1×), so the everyday case shows nothing but the score; anything else is worth
+ * stating. `replays` is only passed by Practise.
+ */
+export function runMetrics(run: RunSettings, replays?: number): Metric[] {
+  const metrics: Metric[] = [{ label: "difficulty", value: run.difficulty }];
+  if (run.runMode !== "normal") {
+    metrics.push({ label: "run mode", value: run.runMode });
+  }
+  if (run.speed !== DEFAULT_SPEED) {
+    metrics.push({ label: "speed", value: SPEED_LABEL[run.speed] });
+  }
+  if (replays !== undefined) {
+    metrics.push({ label: "replays", value: `${replays}` });
+  }
+  return metrics;
 }

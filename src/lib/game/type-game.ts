@@ -14,11 +14,10 @@ import {
   DEFAULT_LEAD,
   gameReducer,
   rankOf,
-  SPEED_LABEL,
   type GameConfig,
   type GameState,
 } from "./engine";
-import { bestKey, type GameEngine, type RunSettings } from "./game";
+import { bestKey, runMetrics, type GameEngine, type Metric, type RunSettings } from "./game";
 import { PLAY_STYLE_HELP } from "./modes";
 import { formatTime } from "./storage";
 import type { Track } from "../track/types";
@@ -114,21 +113,15 @@ export const TypeGame: GameEngine<GameState> = {
     const accuracy = accuracyOf(state);
     const wpm =
       elapsed > 0 ? Math.round(state.correctKeys / 5 / (elapsed / 60)) : 0;
-    const metrics = [
+    const metrics: Metric[] = [
       { label: "accuracy", value: `${Math.round(accuracy * 100)}%` },
       { label: "best combo", value: `×${state.maxCombo}` },
       { label: "perfect lines", value: `${state.perfectLines}` },
-      { label: "words hit", value: `${state.hits}` },
-      { label: "words missed", value: `${state.misses}` },
+      { label: "words", value: `${state.hits}/${state.hits + state.misses}` },
       { label: "wrong keys", value: `${state.errorKeys}` },
       { label: "wpm", value: `${wpm}` },
       { label: "time", value: formatTime(elapsed) },
-      { label: "difficulty", value: run.difficulty },
-      { label: "run mode", value: run.runMode },
-      { label: "speed", value: SPEED_LABEL[run.speed] },
-      ...(run.runMode === "practise"
-        ? [{ label: "replays", value: `${state.replays}` }]
-        : []),
+      ...runMetrics(run, run.runMode === "practise" ? state.replays : undefined),
     ];
     return {
       scored: true,
