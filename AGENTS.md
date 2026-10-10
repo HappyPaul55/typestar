@@ -92,7 +92,22 @@ Settings travel in the URL hash so a run can be shared:
 `/play/<id>#difficulty=hard&run=practise&speed=1.25`. Values left at their
 defaults are omitted, so the common link has no hash. `src/lib/game/url.ts`
 builds and parses it, and the end screen has a Share button. Only the setup is
-shared, not the score or results.
+shared, not the score or results. The play style travels there too (`style=sing`).
+
+Every track can also be **sung**. The start screen offers a play style (**type**
+or **sing**), and `src/lib/game/modes.ts` decides what sing means from the
+track's data. A pitched UltraStar chart (its `track.notes`) is **scored** with
+the microphone: `usePitchInput` detects the pitch every frame
+(`src/lib/game/pitch.ts`, a unit-tested YIN), `useSingLoop` drives the pure
+`src/lib/game/sing.ts` reducer, and `PitchHighway.tsx` draws the note bars and a
+live cursor. Difficulty is the pitch tolerance, the comparison ignores octaves,
+rap notes are graded on presence and golden notes score double. YouTube/`.vtt`
+tracks (no pitch), and any run where the microphone is refused, fall back to an
+unscored **karaoke** sing-along whose active word follows the music
+(`src/lib/game/karaoke.ts`). The microphone is used only for scored singing; the
+`Permissions-Policy` allows `microphone=(self)` and the audio never leaves the
+device. Only UltraStar tracks built in the browser carry notes, so the optional
+`Track.notes` field needs no cache migration.
 
 Each song is also rated **easy**, **medium** or **hard** from its lyrics'
 words-per-second pace (`src/lib/track/rating.ts`), with long instrumental gaps
@@ -145,11 +160,13 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/pages/play.astro` — page shell that mounts the React island
   `src/components/game/GameApp.tsx`.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
-  `PlayerStage`, `LyricHighway`, `Hud`, `Results`, `Calibration`, `TrackPicker`,
+  `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane), `Hud`,
+  `EndScreen`, `KaraokeResults`, `SingResults`, `Calibration`, `TrackPicker`,
   `LocalLibrary` (the local-folder picker), `TrackCard` (the shared song card
   used by both pickers) and the `hooks/` for the YouTube
   player, the HTML5 media player (`useMediaPlayer`), the UltraStar player
-  (`useUltraStarPlayer`) and the game loop.
+  (`useUltraStarPlayer`), the microphone (`usePitchInput`), the singing loop
+  (`useSingLoop`) and the typing game loop.
 - `src/lib/track/**` — track types, caption parsing, build, validation, the
   WebVTT parser (`vtt.ts`), the UltraStar parser (`ultrastar.ts`), the song
   rating (`rating.ts`), the build-time seed reader (`seed.ts`) and the cache
@@ -157,8 +174,11 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/lib/local/**` — the local library: pairing videos with `.vtt` captions and
   UltraStar charts with their audio/video (`library.ts`, pure and tested) and
   the IndexedDB folder-handle store (`idb.ts`).
-- `src/lib/game/**` — the pure game engine, browser client, audio helpers and
-  storage.
+- `src/lib/game/**` — the pure game logic: the typing engine (`engine.ts`), the
+  play-style/capability helpers (`modes.ts`), the karaoke playhead
+  (`karaoke.ts`), the singing engine (`sing.ts`), the YIN pitch detector
+  (`pitch.ts`), plus the browser client, audio helpers and storage. All pure and
+  tested except the client and audio.
 - `src/lib/game/audio.ts` + `public/audio/` — preloaded sound effects (the
   wrong-key blip). Voices are pooled and throttled so rapid repeats overlap
   without machine-gunning. `public/audio/error.mp3` is the shipped sound.
@@ -186,7 +206,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `public/_headers` — CSP. YouTube and `challenges.cloudflare.com` (Turnstile)
   are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`,
   which also allows `blob:` for local UltraStar covers; `media-src` allows
-  `blob:` for the local video and audio.
+  `blob:` for the local video and audio. `Permissions-Policy` allows
+  `microphone=(self)` for scored singing.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
 - `public/og-image.png` — the 1200×630 social card referenced by `Seo.astro`.

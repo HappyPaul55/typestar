@@ -41,8 +41,13 @@ typing / keyboard speed game**.
 - Play **local files**: in a browser with the File System Access API, point
   TypeStar at a folder of **UltraStar** songs or videos with matching `.vtt`
   captions and play them from disk — nothing is uploaded.
+- **Sing** as well as type: choose a play style on the start screen. Every track
+  can be sung. A local UltraStar chart, which carries per-note pitch, is scored
+  with your microphone against the notes; YouTube and `.vtt` tracks play as an
+  unscored karaoke sing-along.
 - Pick the difficulty on the start screen; difficulty, run mode and playback
-  speed are dropdowns in the HUD.
+  speed are dropdowns in the HUD. While singing, difficulty is the pitch
+  tolerance.
 - Share a run: the difficulty, run mode and speed travel in the URL hash, so a
   friend opens the same track with exactly the same setup. Settings left at
   their defaults are omitted, so the common link has no hash at all.
@@ -152,9 +157,10 @@ chosen folders (up to four deep each) and finds two kinds of song:
   UltraStar times every syllable, the words line up exactly with the music
   rather than being estimated. Syllables are merged into whole words using the
   format's leading-space and `~` rules; `-` markers (or, when absent, musical
-  gaps) define the lines. If the chart has a video it plays behind the lyrics,
-  kept in step with the audio and offset by `#VIDEOGAP`; if not, the lyric
-  highway fills the width.
+  gaps) define the lines. Each note's pitch is kept too, so the chart can be
+  **sung and scored** (see Singing below). If the chart has a video it plays
+  behind the lyrics, kept in step with the audio and offset by `#VIDEOGAP`; if
+  not, the lyric highway fills the width.
 - **Video + WebVTT** — a video file and a same-named `.vtt` caption file,
   matched case-insensitively (`song.mp4` with `song.vtt`).
 
@@ -173,6 +179,28 @@ into the same word-timed track shape as a YouTube song, so the game, scoring and
 ratings all work unchanged. WebVTT inline word timestamps (`<00:00:05.000>`) are
 honoured where a caption file provides them. If the browser has no
 `showDirectoryPicker`, the picker shows a short notice in place of the button.
+
+## Singing
+
+The start screen offers two play styles: **Type** (the game above) and **Sing**.
+Both are available on every track; what Sing does is decided by the track's data.
+
+- **Scored singing** — a local UltraStar chart carries a pitch for every note, so
+  Sing shows a **pitch highway** (note bars against a fixed now line, with a live
+  cursor for the note you are singing) and scores you with the **microphone**.
+  Difficulty sets the pitch tolerance (Easy is forgiving, Hard is strict), the
+  pitch comparison ignores octaves (so singing an octave out is not penalised,
+  following the format), rap notes are graded on presence rather than pitch and
+  golden notes score double. The results screen reports pitch accuracy and notes
+  hit, with a local best per track and difficulty.
+- **Karaoke** — YouTube captions and local `.vtt` files have no pitch, so Sing is
+  an unscored sing-along: the active line and word follow the music and a light
+  summary replaces the results screen.
+
+The microphone is used **only** for scored singing, and only after you allow it.
+The audio never leaves the device — it is analysed frame by frame in the browser
+for its pitch and then discarded (see `src/lib/game/pitch.ts`). If you decline the
+microphone, a scored song falls back to the unscored karaoke sing-along.
 
 ## API
 

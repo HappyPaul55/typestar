@@ -1,7 +1,7 @@
 ---
 title: Privacy Policy
 description: How TypeStar handles information when you play. No accounts, no analytics, no advertising.
-updated: "2026-10-06"
+updated: "2026-10-10"
 ---
 
 TypeStar is a free browser game. It has no accounts, no newsletter and no
@@ -26,6 +26,16 @@ We do not ask for, store or share any personal information. In particular:
 - Your game preferences (difficulty, run mode, playback speed and sync offset)
   are kept in your browser's local storage. They never leave your device, and
   clearing your browser data removes them.
+
+## The microphone (singing)
+
+Singing is optional, and the microphone is only used for the scored singing
+mode. If you choose it, your browser asks for microphone access so your pitch can
+be compared with the song's notes. The audio is analysed in your browser,
+frame by frame, and is **never recorded, stored or sent anywhere**: only the
+resulting note and score stay on your device, for that session. The microphone is
+released when you stop or leave the page. If you decline, you can still sing
+along without scoring.
 
 ## What the server stores
 
