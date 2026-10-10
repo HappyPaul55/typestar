@@ -163,6 +163,14 @@ export default function ResultsModal({
               <span className="results__score-value">
                 {summary.score.toLocaleString("en-GB")}
               </span>
+
+              <p className="results__best">
+                {summary.scored
+                  ? newBest
+                    ? "New best!"
+                    : `Best ${best?.toLocaleString("en-GB") ?? "—"}`
+                  : "Thanks for playing!"}
+              </p>
             </div>
           ) : null}
           <div className="results__grade">
@@ -184,14 +192,6 @@ export default function ResultsModal({
           </div>
         </div>
 
-        <p className="results__best">
-          {summary.scored
-            ? newBest
-              ? "New best!"
-              : `Best ${best?.toLocaleString("en-GB") ?? "—"}`
-            : "Thanks for singing!"}
-        </p>
-
         <div className="results__grid">
           {summary.metrics.map((metric) => (
             <div className="results__metric" key={metric.label}>
@@ -203,7 +203,7 @@ export default function ResultsModal({
 
         <div className="results__actions">
           <button type="button" className="btn-game btn-game--primary" onClick={onReplay}>
-            {summary.replayLabel}
+            Try Again
           </button>
           <button type="button" className="btn-game" onClick={share}>
             {copied ? "Copied!" : "Share"}

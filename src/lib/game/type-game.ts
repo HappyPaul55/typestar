@@ -147,7 +147,6 @@ export const TypeGame: GameEngine<GameState> = {
         speed: run.speed,
         style: "type",
       },
-      replayLabel: "Play again",
     };
   },
 };

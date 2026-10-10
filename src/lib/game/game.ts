@@ -139,8 +139,6 @@ export interface ResultsSummary {
     speed: PlaybackSpeed;
     style: PlayStyle;
   };
-  /** The label for the replay button. */
-  replayLabel: string;
 }
 
 /**

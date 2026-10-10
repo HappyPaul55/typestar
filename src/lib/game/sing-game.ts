@@ -161,7 +161,6 @@ export const SingGame: GameEngine<SingState> = {
           speed: run.speed,
           style: "sing",
         },
-        replayLabel: "Sing again",
       };
     }
 
@@ -196,7 +195,6 @@ export const SingGame: GameEngine<SingState> = {
         speed: run.speed,
         style: "sing",
       },
-      replayLabel: "Sing again",
     };
   },
 };
