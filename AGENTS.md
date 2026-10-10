@@ -17,9 +17,11 @@ JavaScript. **`/play` is a React island** (`@astrojs/react`, `client:load`) and
 holds the game (`src/components/game/GameApp.tsx`). A **Cloudflare Worker**
 (`worker/index.ts`) serves the track API and the pretty play routes.
 
-Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
-`/play/local` (the in-browser local-file picker), `/privacy`, `/404`, and
-`GET /api/track/<youtubeId>`.
+Routes: `/` (landing), `/play` (track picker), `/play/youtube/<id>` (a YouTube
+game), `/play/ultrastar/<url>` (a chart fetched from a URL), `/play/local` (the
+in-browser local-file picker), `/privacy`, `/404`, and
+`GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. The legacy
+`/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
 
 Moving between those play routes is done **in place** (History `pushState` plus
 React state), never a full document navigation, so a **fullscreen** session
@@ -28,22 +30,27 @@ persistent fullscreen target and must stay mounted across every play screen.
 
 ## How the game works
 
-1. `/play/<id>` serves the play page; the client reads the id from the address
-   bar and calls `GET /api/track/<id>`. When the song is already cached or
-   seeded, the Worker fills the page's title and social tags first, so crawlers
-   and link previews are accurate.
+1. `/play/youtube/<id>` or `/play/ultrastar/<url>` serves the play page; the
+   client reads the source from the address bar and calls the matching API. When
+   the song is already cached or seeded, the Worker fills the page's title and
+   social tags first, so crawlers and link previews are accurate.
 2. The Worker returns the track from **R2** if cached, else from the bundled
    seed in `public/tracks/<id>.json`. If it is in neither, the request must carry
    a valid **Turnstile** token: the client shows the Cloudflare widget, and the
-   Worker verifies the token with siteverify before it fetches the video's
-   captions with `youtube-caption-extractor` (falling back to the
-   `CAPTION_FALLBACK_URL` service when YouTube fails or returns nothing), builds a
-   word-timed track, caches it in R2 and returns it. Cached and seeded tracks
-   never see the check, so the widget only appears for a genuinely new song. Only
-   playable tracks are cached — an upstream failure or an empty result is never
-   written, so a transient YouTube block cannot poison the cache.
-3. The React island plays the video with the YouTube IFrame API and scores
-   typing against the caption timings.
+   Worker verifies the token with siteverify before it fetches the source — the
+   video's captions with `youtube-caption-extractor` (falling back to the
+   `CAPTION_FALLBACK_URL` service when YouTube fails or returns nothing), or an
+   UltraStar `.txt` chart from its URL (`src/lib/track/remote.ts`, http/https
+   only, private hosts refused, size- and time-capped). It builds a word-timed
+   track, caches it in R2 and returns it. Cached and seeded tracks never see the
+   check, so the widget only appears for a genuinely new song. Only playable
+   tracks are cached — an upstream failure or an empty result is never written,
+   so a transient upstream block cannot poison the cache. An UltraStar chart's
+   referenced media is **not** fetched: it is resolved to absolute URLs and
+   hotlinked by the browser from the chart's own host.
+3. The React island plays the video with the YouTube IFrame API (or, for an
+   UltraStar URL, the chart's audio and optional background video from its own
+   host) and scores typing against the timings.
 4. `/play/local` is a separate, serverless path. When the browser provides
    `window.showDirectoryPicker`, the picker offers **Open local files**. The
    player chooses a folder and TypeStar finds two kinds of song (up to four
@@ -105,10 +112,11 @@ track + difficulty + run mode + speed. The page title and header show the loaded
 song.
 
 Settings travel in the URL hash so a run can be shared:
-`/play/<id>#difficulty=hard&run=practise&speed=1.25`. Values left at their
-defaults are omitted, so the common link has no hash. `src/lib/game/url.ts`
-builds and parses it, and the results modal has a Share button. Only the setup is
-shared, not the score or results. The play style travels there too (`style=sing`).
+`/play/youtube/<id>#difficulty=hard&run=practise&speed=1.25` (or the same hash on
+a `/play/ultrastar/<url>` link). Values left at their defaults are omitted, so
+the common link has no hash. `src/lib/game/url.ts` builds and parses it, and the
+results modal has a Share button. Only the setup is shared, not the score or
+results. The play style travels there too (`style=sing`).
 
 Every track can also be **sung**. The start screen offers a play style (**type**
 or **sing**), and the two are one interface with two implementations:
@@ -196,8 +204,10 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   (`useGameSession`).
 - `src/lib/track/**` — track types, caption parsing, build, validation, the
   WebVTT parser (`vtt.ts`), the UltraStar parser (`ultrastar.ts`), the song
-  rating (`rating.ts`), the build-time seed reader (`seed.ts`) and the cache
-  abstraction. Pure and tested (the seed reader is server-only).
+  rating (`rating.ts`), the source vocabulary and URL/path/hash helpers
+  (`source.ts`), the remote chart fetcher (`remote.ts`, server-only), the
+  build-time seed reader (`seed.ts`) and the cache abstraction. Pure and tested
+  (the seed reader and remote fetcher are server-only).
 - `src/lib/local/**` — the local library: pairing videos with `.vtt` captions and
   UltraStar charts with their audio/video (`library.ts`, pure and tested) and
   the IndexedDB folder-handle store (`idb.ts`).
@@ -211,9 +221,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/lib/game/audio.ts` + `public/audio/` — preloaded sound effects (the
   wrong-key blip). Voices are pooled and throttled so rapid repeats overlap
   without machine-gunning. `public/audio/error.mp3` is the shipped sound.
-- `src/lib/tracks-api.ts` — the shared get-or-create handler (Worker + dev),
-  including the Turnstile gate (`verifyTurnstile`) that only runs on a cache and
-  seed miss.
+- `src/lib/tracks-api.ts` — the shared get-or-create handler (Worker + dev) for
+  both source kinds, including the Turnstile gate (`verifyTurnstile`) that only
+  runs on a cache and seed miss.
 - `src/lib/game/turnstile.ts` + `src/components/game/TurnstileChallenge.tsx` —
   the public sitekey and the on-demand widget shown for a new song.
 - `src/lib/youtube-captions.ts` — caption fetch with retries and `json3`
@@ -225,17 +235,19 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/layouts/BaseLayout.astro` — loads settings, preloads the display font.
 - `src/styles/global.css` — Tailwind v4 tokens, the notebook components and the
   game styles.
-- `worker/index.ts` — Worker routes: `/api/track/:id`, `/play?v=` → 301,
-  `/play/<id>` → the play page, with per-track SEO when the song is known.
+- `worker/index.ts` — Worker routes: `/api/track/youtube/<id>`,
+  `/api/track/ultrastar?url=`, `/play?v=` and legacy `/play/<id>` → 301,
+  `/play/youtube/<id>` and `/play/ultrastar/<url>` → the play page, with
+  per-track SEO when the song is known.
 - `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding and
   `run_worker_first: ["/api/*", "/play", "/play/*"]`.
 - `astro.config.mjs` — the `devServer` Vite plugin reproduces the Worker routing
   and runs the real API handler locally.
 - `public/tracks/*.json` — pre-warmed seed tracks (generated, committed).
 - `public/_headers` — CSP. YouTube and `challenges.cloudflare.com` (Turnstile)
-  are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`,
-  which also allows `blob:` for local UltraStar covers; `media-src` allows
-  `blob:` for the local video and audio. `Permissions-Policy` allows
+  are allowed for `script-src` and `frame-src`; `img-src` and `media-src` allow
+  `blob:` (local media) and `https:` (an UltraStar chart's hotlinked cover, audio
+  and background video, wherever it is hosted). `Permissions-Policy` allows
   `microphone=(self)` for scored singing.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
@@ -270,6 +282,16 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   by their `#MP3`/`#VIDEO` headers (resolved relative to the `.txt`), and the
   background video is synced to the audio with `#VIDEOGAP` (`audioTime -
   videoGap`); freestyle notes are dropped and duets sing voice 1.
+- **Songs from a URL are server-fetched; their media is hotlinked.** An UltraStar
+  chart URL is fetched by the Worker (`src/lib/track/remote.ts`) behind the same
+  Turnstile gate as a new YouTube song. Only `http(s)` is allowed, private and
+  loopback hosts and IP literals are refused, and redirects, response size and
+  time are capped. The chart's `#MP3`, `#VIDEO`, `#BACKGROUND` and `#COVER` are
+  resolved to absolute URLs and streamed by the browser from the chart's own
+  host — never proxied. The cache key is the hash of the **request** URL; the
+  track's `sourceUrl` records the post-redirect URL (the canonical link and the
+  media base). Legacy `/play/<id>` 301-redirects to `/play/youtube/<id>`; the
+  browser carries the `#hash` across the fragment-less redirect.
 - `nodejs_compat` is required: `youtube-caption-extractor` depends on `he` and
   `striptags`.
 - The R2 bucket is `typestar-tracks`; create it once with `bun run tracks:bucket`
@@ -287,9 +309,10 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `index.html` / `play.html` / etc.; canonical and sitemap URLs have no trailing
   slash. Active-nav logic in `Header.astro` normalises both `.html` and trailing
   slashes.
-- The pretty `/play/<id>` and `/play/local` routes depend on the Worker
-  rewrite; there is no Astro dynamic route. In dev the `devServer` plugin
-  rewrites both (the Worker already falls through `/play/*` to the play page).
+- The pretty `/play/youtube/<id>`, `/play/ultrastar/<url>` and `/play/local`
+  routes depend on the Worker rewrite; there is no Astro dynamic route. In dev
+  the `devServer` plugin rewrites them (the Worker already falls through
+  `/play/*` to the play page), and legacy `/play/<id>` redirects.
 - TypeScript is on 6.x: `astro check` refuses TypeScript 7 (`@astrojs/check` peer
   range is `^5.0.0 || ^6.0.0`). Do not bump to 7.
 - The pretty 404 depends on `wrangler.jsonc` setting

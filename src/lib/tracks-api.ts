@@ -14,7 +14,17 @@
  */
 
 import { buildTrack } from "./track/build";
+import { fetchRemoteUltraStar, RemoteError, isAllowedRemoteUrl } from "./track/remote";
+import {
+  isHttpUrl,
+  seedIdOf,
+  ultraStarHash,
+  ultraStarId,
+  YOUTUBE_ID_RE,
+  type TrackSourceRef,
+} from "./track/source";
 import type { TrackStore } from "./track/store";
+import { ultraStarTrack } from "./track/ultrastar";
 import { parseTrack } from "./track/validate";
 import type { Track } from "./track/types";
 import { CaptionError, fetchTrackSource } from "./youtube-captions";
@@ -32,6 +42,9 @@ export interface TracksEnv {
   retries?: number;
   /** Base URL of the fallback caption service. */
   fallbackUrl?: string;
+  /** Overrides for the UltraStar remote fetch (tests). */
+  maxChartBytes?: number;
+  timeoutMs?: number;
   /**
    * When set, a track that is not already cached or seeded has to carry a valid
    * Turnstile token before it will be fetched from YouTube. Cached and seeded
@@ -107,14 +120,18 @@ export async function verifyTurnstile(
   return "ok";
 }
 
-/** A YouTube video id. */
-export const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
-
 /** A caption language code such as `en` or `pt-BR`. */
 const LANG_RE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
 
-export function trackKey(id: string, lang: string): string {
-  return `tracks/${id}/${lang}.json`;
+/**
+ * The cache key for a track. YouTube keeps its historical `tracks/<id>/…` shape
+ * so the existing R2 cache stays valid; UltraStar charts are keyed by a hash of
+ * their (normalised) source URL.
+ */
+export function trackKey(source: TrackSourceRef, lang: string): string {
+  return source.kind === "ultrastar"
+    ? `tracks/ultrastar/${ultraStarHash(source.url)}/${lang}.json`
+    : `tracks/${source.id}/${lang}.json`;
 }
 
 /**
@@ -125,15 +142,15 @@ export function trackKey(id: string, lang: string): string {
  */
 export async function getCachedTrack(
   env: Pick<TracksEnv, "store" | "seed">,
-  id: string,
+  source: TrackSourceRef,
   lang = "en",
 ): Promise<Track | null> {
-  const cached = await env.store.get(trackKey(id, lang));
+  const cached = await env.store.get(trackKey(source, lang));
   const cachedTrack = cached ? parseTrack(cached) : null;
   if (cachedTrack) return cachedTrack;
 
   if (!env.seed) return null;
-  const seeded = await env.seed(id, lang).catch(() => null);
+  const seeded = await env.seed(seedIdOf(source), lang).catch(() => null);
   return seeded ? parseTrack(seeded) : null;
 }
 
@@ -162,18 +179,18 @@ function trackResponse(track: Track, cache: "hit" | "miss" | "seed"): Response {
 /**
  * Resolve a track, fetching and caching it on a miss.
  *
- * @param id the 11-character YouTube video id (already extracted by the caller)
+ * @param source the YouTube id or UltraStar URL, already parsed by the caller
  */
 export async function handleTrackRequest(
   request: Request,
   env: TracksEnv,
-  id: string,
+  source: TrackSourceRef,
 ): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return json({ error: "method-not-allowed" }, 405, { allow: "GET, HEAD" });
   }
 
-  const response = await resolveTrack(request, env, id);
+  const response = await resolveTrack(request, env, source);
   // A HEAD response must not carry a body.
   if (request.method === "HEAD") {
     return new Response(null, { status: response.status, headers: response.headers });
@@ -184,10 +201,13 @@ export async function handleTrackRequest(
 async function resolveTrack(
   request: Request,
   env: TracksEnv,
-  id: string,
+  source: TrackSourceRef,
 ): Promise<Response> {
-  if (!VIDEO_ID_RE.test(id)) {
-    return json({ error: "bad-video-id" }, 400);
+  if (source.kind === "youtube") {
+    if (!YOUTUBE_ID_RE.test(source.id)) return json({ error: "bad-video-id" }, 400);
+  } else {
+    if (!isHttpUrl(source.url)) return json({ error: "bad-source-url" }, 400);
+    if (!isAllowedRemoteUrl(source.url)) return json({ error: "blocked-url" }, 400);
   }
 
   const lang = (new URL(request.url).searchParams.get("lang") || "en").toLowerCase();
@@ -195,15 +215,15 @@ async function resolveTrack(
     return json({ error: "bad-language" }, 400);
   }
 
-  const cached = await env.store.get(trackKey(id, lang));
+  const cached = await env.store.get(trackKey(source, lang));
   const cachedTrack = cached ? parseTrack(cached) : null;
   if (cachedTrack) return trackResponse(cachedTrack, "hit");
 
   if (env.seed) {
-    const seeded = await env.seed(id, lang).catch(() => null);
+    const seeded = await env.seed(seedIdOf(source), lang).catch(() => null);
     const seededTrack = seeded ? parseTrack(seeded) : null;
     if (seededTrack) {
-      await env.store.put(trackKey(id, lang), JSON.stringify(seededTrack));
+      await env.store.put(trackKey(source, lang), JSON.stringify(seededTrack));
       return trackResponse(seededTrack, "seed");
     }
   }
@@ -222,9 +242,13 @@ async function resolveTrack(
     }
   }
 
-  let source;
+  if (source.kind === "ultrastar") {
+    return resolveUltraStar(source, env, lang);
+  }
+
+  let captionSource;
   try {
-    source = await fetchTrackSource(id, lang, {
+    captionSource = await fetchTrackSource(source.id, lang, {
       fetchImpl: env.fetchImpl,
       attempts: env.retries,
       fallbackUrl: env.fallbackUrl,
@@ -233,26 +257,71 @@ async function resolveTrack(
     // Upstream failure: return it, but never cache it. The detail is logged
     // server-side and deliberately not sent to the browser.
     const status = error instanceof CaptionError ? error.status : 502;
-    console.error(`track upstream failed for ${id}/${lang}:`, error);
+    console.error(`track upstream failed for ${source.id}/${lang}:`, error);
     return json({ error: "upstream-failed" }, status);
   }
 
   const track = buildTrack({
-    id,
+    id: source.id,
     lang,
-    title: source.title,
-    description: source.description,
-    subtitles: source.subtitles,
-    json3: source.json3,
-    captionKind: source.captionKind,
+    title: captionSource.title,
+    description: captionSource.description,
+    subtitles: captionSource.subtitles,
+    json3: captionSource.json3,
+    captionKind: captionSource.captionKind,
   });
 
   if (!track.words.length) {
     // An authoritative "no captions" result. Not cached, so a later retry (or a
     // fix on the provider side) can still succeed.
-    return json({ error: "no-captions", id, lang, title: source.title }, 422);
+    return json({ error: "no-captions", id: source.id, lang, title: captionSource.title }, 422);
   }
 
-  await env.store.put(trackKey(id, lang), JSON.stringify(track));
+  await env.store.put(trackKey(source, lang), JSON.stringify(track));
+  return trackResponse(track, "miss");
+}
+
+/**
+ * Fetch an UltraStar chart from its URL, build a track from it and cache it.
+ *
+ * The cache key comes from the **request** URL (so a later request finds it),
+ * while `sourceUrl` records the URL after any redirects, for the canonical link
+ * and for resolving the chart's media.
+ */
+async function resolveUltraStar(
+  source: Extract<TrackSourceRef, { kind: "ultrastar" }>,
+  env: TracksEnv,
+  lang: string,
+): Promise<Response> {
+  let remote;
+  try {
+    remote = await fetchRemoteUltraStar(source.url, {
+      fetchImpl: env.fetchImpl,
+      maxBytes: env.maxChartBytes,
+      timeoutMs: env.timeoutMs,
+    });
+  } catch (error) {
+    const code = error instanceof RemoteError ? error.message : "upstream-failed";
+    const status = error instanceof RemoteError ? error.status : 502;
+    console.error(`ultrastar upstream failed for ${source.url}:`, error);
+    return json({ error: code }, status);
+  }
+
+  const track = ultraStarTrack(remote.song, {
+    id: ultraStarId(source.url),
+    lang,
+    description: `UltraStar — ${remote.song.artist || "a chart from the web"}`,
+    origin: "ultrastar",
+    sourceUrl: remote.sourceUrl,
+    artist: remote.song.artist,
+    media: remote.media,
+  });
+
+  if (!track.words.length) {
+    // A chart with no lyric notes is not playable; do not cache it.
+    return json({ error: "no-lyrics", lang, title: remote.song.title }, 422);
+  }
+
+  await env.store.put(trackKey(source, lang), JSON.stringify(track));
   return trackResponse(track, "miss");
 }

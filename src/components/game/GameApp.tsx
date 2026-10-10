@@ -21,8 +21,8 @@ import {
   isLocalRoute,
   loadTrack,
   localFileFromLocation,
+  sourceFromLocation,
   TrackApiError,
-  videoIdFromLocation,
 } from "../../lib/game/client";
 import {
   comboMilestone,
@@ -62,6 +62,7 @@ import {
   type PlayStyle,
 } from "../../lib/game/modes";
 import type { Track, TrackNote } from "../../lib/track/types";
+import type { TrackSourceRef } from "../../lib/track/source";
 import { RATING_LABEL, ratingOf, type TrackRating } from "../../lib/track/rating";
 import { seoTagValues, trackSeo } from "../../lib/seo";
 import type { SiteSettings } from "../../lib/site";
@@ -87,7 +88,7 @@ type Phase = "idle" | "countdown" | "playing" | "paused" | "results";
 /** A song that is open, from whatever source. Unifies YouTube and local files. */
 interface LoadedSong {
   track: Track;
-  source: "youtube" | "local-video" | "local-audio";
+  source: "youtube" | "local-video" | "local-audio" | "remote-ultrastar";
   /** The local master media: the video for a VTT pair, the audio for UltraStar. */
   media?: File;
   /** UltraStar background video, synced to the audio, when the chart names one. */
@@ -208,7 +209,7 @@ export default function GameApp({
   /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
   ratings?: Record<string, TrackRating>;
 }) {
-  const [videoId, setVideoId] = useState<string | null | undefined>(undefined);
+  const [source, setSource] = useState<TrackSourceRef | null | undefined>(undefined);
   const [song, setSong] = useState<LoadedSong | null>(null);
   const [localMode, setLocalMode] = useState(false);
   const [localRequest, setLocalRequest] = useState<string | null>(null);
@@ -245,7 +246,9 @@ export default function GameApp({
   const lastSingSampleRef = useRef(0);
 
   const activeTrack = song?.track ?? null;
-  const isLocal = !!song && song.source !== "youtube";
+  const isLocal =
+    song?.source === "local-video" || song?.source === "local-audio";
+  const isRemoteUltra = song?.source === "remote-ultrastar";
   const localKind =
     song?.source === "local-video"
       ? "video"
@@ -257,6 +260,24 @@ export default function GameApp({
   const backgroundVideoFile = song?.backgroundVideo ?? null;
   const backgroundFile = song?.background ?? null;
   const videoGap = song?.videoGap ?? 0;
+
+  // Remote UltraStar media: URLs hotlinked straight from the chart's origin.
+  const remoteMedia = isRemoteUltra ? activeTrack?.media ?? null : null;
+  const remoteAudio = remoteMedia?.audio ?? null;
+  const remoteBackgroundVideo = remoteMedia?.video ?? null;
+  const remoteBackground = remoteMedia?.background ?? null;
+  const remoteVideoGap = remoteMedia?.videoGap ?? 0;
+
+  // What the UltraStar player drives, from either a local file or a remote URL.
+  const audioSource: File | string | null =
+    localKind === "audio" ? localAudioFile : isRemoteUltra ? remoteAudio : null;
+  const backgroundVideoSource: File | string | null =
+    localKind === "audio"
+      ? backgroundVideoFile
+      : isRemoteUltra
+        ? remoteBackgroundVideo
+        : null;
+  const audioVideoGap = localKind === "audio" ? videoGap : remoteVideoGap;
 
   // A local UltraStar `#BACKGROUND` image is shown as the stage backdrop when
   // there is no background video. Its object URL lives only as long as the song.
@@ -270,18 +291,19 @@ export default function GameApp({
     return () => URL.revokeObjectURL(url);
   }, [backgroundFile]);
 
-  const youtubePlayer = useYouTubePlayer(isLocal ? null : (videoId ?? null), speed);
+  const youtubeVideoId = source?.kind === "youtube" ? source.id : null;
+  const youtubePlayer = useYouTubePlayer(isLocal ? null : youtubeVideoId, speed);
   const mediaPlayer = useMediaPlayer(localVideoFile, speed);
   const ultraStarPlayer = useUltraStarPlayer(
-    localAudioFile,
-    backgroundVideoFile,
-    videoGap,
+    audioSource,
+    backgroundVideoSource,
+    audioVideoGap,
     speed,
   );
   const player =
     localKind === "video"
       ? mediaPlayer
-      : localKind === "audio"
+      : localKind === "audio" || isRemoteUltra
         ? ultraStarPlayer
         : youtubePlayer;
   const { ready, error: playerError, containerRef, play, pause, seekTo, getTime, time, duration, state: playerState } = player;
@@ -290,7 +312,7 @@ export default function GameApp({
   useEffect(() => {
     const onLocalRoute = isLocalRoute();
     setLocalMode(onLocalRoute);
-    setVideoId(onLocalRoute ? null : videoIdFromLocation());
+    setSource(onLocalRoute ? null : sourceFromLocation());
     setLocalRequest(onLocalRoute ? localFileFromLocation() : null);
   }, []);
 
@@ -360,10 +382,10 @@ export default function GameApp({
       setLoadError(null);
       setPhase("idle");
       if (onLocalRoute) {
-        setVideoId(null);
+        setSource(null);
         setLocalRequest(localFileFromLocation());
       } else {
-        setVideoId(videoIdFromLocation());
+        setSource(sourceFromLocation());
         setLocalRequest(null);
       }
     };
@@ -430,7 +452,7 @@ export default function GameApp({
   // Defaults produce an empty hash, which is removed for a clean URL. Local
   // runs are not shareable, so they keep the plain `/play/local` URL.
   useEffect(() => {
-    if (isLocal || !videoId) return;
+    if (isLocal || !source) return;
     const hash = buildHash({ mode, failMode, speed, style });
     const path = `${window.location.pathname}${window.location.search}`;
     const target = hash || path;
@@ -438,7 +460,7 @@ export default function GameApp({
     if (current !== target) {
       window.history.replaceState(null, "", target);
     }
-  }, [isLocal, videoId, mode, failMode, speed, style]);
+  }, [isLocal, source, mode, failMode, speed, style]);
 
   // A new song starts from a clean Turnstile slate, and a fresh microphone try.
   useEffect(() => {
@@ -447,11 +469,11 @@ export default function GameApp({
     setNeedsTurnstile(false);
     setTurnstileError(null);
     setMicFallback(false);
-  }, [videoId]);
+  }, [source]);
 
   // Load the track, and restore its saved sync offset.
   useEffect(() => {
-    if (!videoId) {
+    if (!source) {
       setSong(null);
       setLoadError(null);
       return;
@@ -461,10 +483,14 @@ export default function GameApp({
     setLoadError(null);
     setPhase("idle");
 
-    loadTrack(videoId, "en", controller.signal, turnstileToken.current ?? undefined)
+    loadTrack(source, "en", controller.signal, turnstileToken.current ?? undefined)
       .then((loaded) => {
-        setSong({ track: loaded, source: "youtube" });
-        setOffset(readSetting<number>(SETTING_OFFSET_PREFIX + videoId, 0));
+        setSong(
+          source.kind === "ultrastar"
+            ? { track: loaded, source: "remote-ultrastar", artist: loaded.artist }
+            : { track: loaded, source: "youtube" },
+        );
+        setOffset(readSetting<number>(SETTING_OFFSET_PREFIX + loaded.id, 0));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -496,7 +522,7 @@ export default function GameApp({
       });
 
     return () => controller.abort();
-  }, [videoId, reloadNonce]);
+  }, [source, reloadNonce]);
 
   const handleTurnstileToken = useCallback((token: string) => {
     turnstileToken.current = token;
@@ -775,9 +801,9 @@ export default function GameApp({
   const changeOffset = useCallback(
     (value: number) => {
       setOffset(value);
-      if (videoId) writeSetting(SETTING_OFFSET_PREFIX + videoId, value);
+      if (activeTrack) writeSetting(SETTING_OFFSET_PREFIX + activeTrack.id, value);
     },
-    [videoId],
+    [activeTrack],
   );
 
   /** Open a local song and reflect it in the URL, so it can be bookmarked. */
@@ -802,7 +828,7 @@ export default function GameApp({
     pitchInput.stop();
     window.history.pushState(null, "", "/play");
     setLocalMode(false);
-    setVideoId(null);
+    setSource(null);
     setSong(null);
     setLocalRequest(null);
     setLoadError(null);
@@ -813,7 +839,7 @@ export default function GameApp({
     pitchInput.stop();
     window.history.pushState(null, "", "/play/local");
     setLocalMode(true);
-    setVideoId(null);
+    setSource(null);
     setSong(null);
     setLocalRequest(null);
     setLoadError(null);
@@ -824,10 +850,28 @@ export default function GameApp({
   const openTrack = useCallback(
     (id: string) => {
       pitchInput.stop();
-      window.history.pushState(null, "", `/play/${id}${window.location.hash}`);
+      window.history.pushState(null, "", `/play/youtube/${id}${window.location.hash}`);
       setLocalMode(false);
       setSong(null);
-      setVideoId(id);
+      setSource({ kind: "youtube", id });
+      setLoadError(null);
+      setPhase("idle");
+    },
+    [pitchInput.stop],
+  );
+
+  /** Open an UltraStar chart from a URL without reloading the document. */
+  const openUltraStar = useCallback(
+    (url: string) => {
+      pitchInput.stop();
+      window.history.pushState(
+        null,
+        "",
+        `/play/ultrastar/${encodeURIComponent(url)}${window.location.hash}`,
+      );
+      setLocalMode(false);
+      setSong(null);
+      setSource({ kind: "ultrastar", url });
       setLoadError(null);
       setPhase("idle");
     },
@@ -967,7 +1011,7 @@ export default function GameApp({
   // between the game, the picker and the results never drops out of fullscreen.
   // Everything except the live game is a plain screen inside that root.
   let body: ReactNode = null;
-  if (videoId === undefined) {
+  if (source === undefined) {
     body = null;
   } else if (localMode && !song) {
     body = (
@@ -977,11 +1021,12 @@ export default function GameApp({
         onOpenRemote={openRemotePicker}
       />
     );
-  } else if (videoId === null && !song) {
+  } else if (source === null && !song) {
     body = (
       <TrackPicker
         ratings={ratings}
         onOpen={openTrack}
+        onOpenUltraStar={openUltraStar}
         onOpenLocal={openLocalPicker}
       />
     );
@@ -1035,7 +1080,7 @@ export default function GameApp({
   // The route is still being read, or a non-game screen is showing: render it
   // inside the persistent fullscreen root and stop. Every non-game path above
   // has left a loaded track null, so anything past here has one.
-  if (videoId === undefined || !activeTrack) {
+  if (source === undefined || !activeTrack) {
     return (
       <div ref={shellRef} className="game-root">
         {body}
@@ -1046,10 +1091,20 @@ export default function GameApp({
   const locked = phase === "playing" || phase === "countdown" || phase === "paused";
 
   // The stage is always full width: a video where there is one, otherwise a
-  // local UltraStar `#BACKGROUND` image, otherwise a plain dark backdrop.
-  const stageMode: "youtube" | "video" | "audio" = localKind ?? "youtube";
+  // local UltraStar `#BACKGROUND` image (or a remote one), otherwise a plain
+  // dark backdrop.
+  const stageMode: "youtube" | "video" | "audio" =
+    localKind === "video"
+      ? "video"
+      : localKind === "audio" || isRemoteUltra
+        ? "audio"
+        : "youtube";
   const stageBackground =
-    stageMode === "audio" && !backgroundVideoFile ? backgroundUrl : null;
+    stageMode === "audio" && !backgroundVideoSource
+      ? isRemoteUltra
+        ? remoteBackground
+        : backgroundUrl
+      : null;
   const overlays = (
     <>
       {phase === "idle" && ready ? (
@@ -1107,8 +1162,8 @@ export default function GameApp({
         />
       ) : null}
 
-      {/* The hidden audio that drives a local UltraStar song. */}
-      {localKind === "audio" ? <audio ref={containerRef} hidden /> : null}
+      {/* The hidden audio that drives a local or remote UltraStar song. */}
+      {stageMode === "audio" ? <audio ref={containerRef} hidden /> : null}
 
       <div className="game-stage">
         <div className="game-stage__media">
@@ -1120,9 +1175,13 @@ export default function GameApp({
             ready={ready}
             error={playerError}
             errorMessage={
-              isLocal && playerError !== null
-                ? "This file could not be played. The browser may not support its format."
-                : undefined
+              playerError === null
+                ? undefined
+                : isLocal
+                  ? "This file could not be played. The browser may not support its format."
+                  : isRemoteUltra
+                    ? "This song’s media could not be loaded from its source."
+                    : undefined
             }
           />
         </div>

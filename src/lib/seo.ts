@@ -1,5 +1,5 @@
 /**
- * Per-track SEO for the pretty `/play/<id>` route.
+ * Per-track SEO for the pretty `/play/...` routes.
  *
  * The static play page ships generic tags. When a song is already in the cache
  * or the bundled seed, the Worker fills those tags with the song's own title,
@@ -7,9 +7,16 @@
  * cards are accurate. The browser also applies the same values after the track
  * loads, which covers `astro dev` (where the Worker does not run).
  *
+ * Both track kinds are handled: a YouTube video uses its thumbnail, while an
+ * UltraStar chart fetched from a URL uses its `#COVER` (or the site's own social
+ * card when there is none).
+ *
  * This module is deliberately runtime-agnostic: it is string-in, string-out, so
  * the Worker and the unit tests share one implementation.
  */
+
+import { trackOrigin, trackPath } from "./track/source";
+import type { TrackMedia, TrackOrigin } from "./track/types";
 
 const SITE_NAME = "TypeStar";
 
@@ -19,22 +26,62 @@ export interface TrackSeo {
   description: string;
   canonical: string;
   image: string;
+  /** The cover image's MIME type. */
+  imageType: string;
   imageAlt: string;
-  imageWidth: number;
-  imageHeight: number;
+  /** Omitted when the cover's size is unknown (a hotlinked UltraStar cover). */
+  imageWidth?: number;
+  imageHeight?: number;
+}
+
+/** The subset of a track the SEO needs. */
+interface SeoTrack {
+  id: string;
+  title: string;
+  origin?: TrackOrigin;
+  sourceUrl?: string;
+  artist?: string;
+  media?: TrackMedia;
+}
+
+/** Guess a cover image's MIME type from its URL, defaulting to JPEG. */
+function imageTypeOf(url: string): string {
+  const clean = url.split("?")[0].split("#")[0].toLowerCase();
+  if (clean.endsWith(".png")) return "image/png";
+  if (clean.endsWith(".webp")) return "image/webp";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".svg")) return "image/svg+xml";
+  return "image/jpeg";
 }
 
 /** Build the SEO values for a track. `origin` is the site origin, no slash. */
-export function trackSeo(
-  track: { id: string; title: string },
-  origin: string,
-): TrackSeo {
+export function trackSeo(track: SeoTrack, origin: string): TrackSeo {
   const title = track.title.trim() || "Untitled track";
+  const base = origin.replace(/\/+$/, "");
+  const canonical = `${base}${trackPath(track)}`;
+
+  if (trackOrigin(track) === "ultrastar") {
+    const cover = track.media?.cover;
+    const by = track.artist ? ` by ${track.artist}` : "";
+    return {
+      title: `${title} — ${SITE_NAME}`,
+      description: `Sing or type ${title}${by} on ${SITE_NAME}: a free rhythm touch-typing and karaoke game.`,
+      canonical,
+      // A hotlinked cover, or the site's own social card when the chart has none.
+      image: cover ?? `${base}/og-image.png`,
+      imageType: cover ? imageTypeOf(cover) : "image/png",
+      imageAlt: `Cover art for ${title}`,
+      // A hotlinked cover's size is unknown; leave the generic hint tags alone.
+      ...(cover ? {} : { imageWidth: 1200, imageHeight: 630 }),
+    };
+  }
+
   return {
     title: `${title} — ${SITE_NAME}`,
     description: `Play ${title} on ${SITE_NAME}: type the lyrics in time in this free rhythm touch-typing game.`,
-    canonical: `${origin.replace(/\/+$/, "")}/play/${track.id}`,
+    canonical,
     image: `https://i.ytimg.com/vi/${track.id}/maxresdefault.jpg`,
+    imageType: "image/jpeg",
     imageAlt: `Cover art for ${title}`,
     imageWidth: 1280,
     imageHeight: 720,
@@ -51,11 +98,15 @@ export function seoTagValues(seo: TrackSeo): Record<string, string> {
     "og:description": seo.description,
     "og:url": seo.canonical,
     "og:image": seo.image,
-    "og:image:type": "image/jpeg",
+    "og:image:type": seo.imageType,
     "og:image:secure_url": seo.image,
     "og:image:alt": seo.imageAlt,
-    "og:image:width": String(seo.imageWidth),
-    "og:image:height": String(seo.imageHeight),
+    ...(seo.imageWidth !== undefined
+      ? { "og:image:width": String(seo.imageWidth) }
+      : {}),
+    ...(seo.imageHeight !== undefined
+      ? { "og:image:height": String(seo.imageHeight) }
+      : {}),
     "twitter:title": seo.title,
     "twitter:description": seo.description,
     "twitter:image": seo.image,

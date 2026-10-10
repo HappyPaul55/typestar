@@ -112,7 +112,7 @@ export default function ResultsModal({
 
   /** Share the same track and settings so someone else can take the same run. */
   async function share() {
-    const url = `${window.location.origin}/play/${summary.trackId}${buildHash(summary.share)}`;
+    const url = `${window.location.origin}${summary.sharePath}${buildHash(summary.share)}`;
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ title: "TypeStar", url });

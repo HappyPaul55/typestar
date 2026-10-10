@@ -13,6 +13,7 @@ import { comboTier, type WordResult } from "./engine";
 import { bestKey, runMetrics, type Capabilities, type GameEngine, type Metric } from "./game";
 import { karaokePointer, karaokeProgress } from "./karaoke";
 import { trackCanSing } from "./modes";
+import { trackPath } from "../track/source";
 import {
   createSingState,
   makeSingConfig,
@@ -151,7 +152,7 @@ export const SingGame: GameEngine<SingState> = {
         failReason: null,
         failMessage: null,
         rank: null,
-        trackId: track?.id ?? "",
+        sharePath: track ? trackPath(track) : "/play",
         bestKey: bestKey("sing", track?.id ?? "", run),
         progress: karaokeProgress(track?.words ?? [], run.offset, ctx.time),
         metrics,
@@ -180,7 +181,7 @@ export const SingGame: GameEngine<SingState> = {
       failReason: state.failReason,
       failMessage: state.failReason ? FAIL_MESSAGE[state.failReason] : null,
       rank: state.failed ? null : singRank(state),
-      trackId: track?.id ?? "",
+      sharePath: track ? trackPath(track) : "/play",
       bestKey: bestKey("sing", track?.id ?? "", run),
       progress: singProgress(state, track?.notes?.length ?? 0),
       metrics,

@@ -45,10 +45,11 @@ function fileStore() {
 
 /**
  * Dev-only middleware that reproduces the Worker's routing:
- * - `/play/<id>` is rewritten to `/play` so the static page renders while the
- *   browser keeps the pretty URL;
- * - `/play?v=<id>` redirects to `/play/<id>`;
- * - `/api/track/:id` runs the real track handler.
+ * - `/play/youtube/<id>`, `/play/ultrastar/<url>` and `/play/local` are
+ *   rewritten to `/play` so the static page renders while the browser keeps the
+ *   pretty URL;
+ * - `/play/<id>` and `/play?v=<id>` redirect to `/play/youtube/<id>`;
+ * - `/api/track/...` runs the real track handler.
  *
  * @param {Record<string, string>} env
  * @returns {import("vite").Plugin}
@@ -78,19 +79,27 @@ function devServer(env) {
           const video = new URLSearchParams(query).get("v");
           if (video && VIDEO_ID_RE.test(video)) {
             res.statusCode = 301;
-            res.setHeader("location", `/play/${video}`);
+            res.setHeader("location", `/play/youtube/${video}`);
             res.end();
             return;
           }
         }
 
-        if (path === "/play/local" || path === "/play/local/") {
-          req.url = "/play";
-          next();
+        // Legacy `/play/<id>` -> `/play/youtube/<id>`.
+        const legacy = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(path);
+        if (legacy) {
+          res.statusCode = 301;
+          res.setHeader("location", `/play/youtube/${legacy[1]}`);
+          res.end();
           return;
         }
 
-        if (/^\/play\/[A-Za-z0-9_-]{11}\/?$/.test(path)) {
+        if (
+          path === "/play/local" ||
+          path === "/play/local/" ||
+          /^\/play\/youtube\/[^/]+\/?$/.test(path) ||
+          /^\/play\/ultrastar\/.+\/?$/.test(path)
+        ) {
           req.url = "/play";
           next();
           return;
@@ -110,7 +119,21 @@ function devServer(env) {
           const api = /** @type {typeof import("./src/lib/tracks-api")} */ (
             await server.ssrLoadModule("/src/lib/tracks-api.ts")
           );
-          const id = decodeURIComponent(path.slice("/api/track/".length)).replace(/\/+$/, "");
+          const sourceModule = /** @type {typeof import("./src/lib/track/source")} */ (
+            await server.ssrLoadModule("/src/lib/track/source.ts")
+          );
+
+          const url = new URL(`http://localhost${req.url ?? ""}`);
+          const source = sourceModule.apiSourceFromRequest(
+            url.pathname,
+            url.searchParams,
+          );
+          if (!source) {
+            res.statusCode = 400;
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({ error: "bad-request" }));
+            return;
+          }
 
           /** @param {string} seedId @param {string} lang */
           const seed = async (seedId, lang) => {
@@ -130,7 +153,7 @@ function devServer(env) {
           const response = await api.handleTrackRequest(
             request,
             { store: fileStore(), seed, turnstile },
-            id,
+            source,
           );
 
           res.statusCode = response.status;

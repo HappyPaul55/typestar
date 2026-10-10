@@ -5,10 +5,16 @@
  * timed to it. When the chart names a `#VIDEO`, that video plays muted and is
  * kept in step with the audio, offset by `#VIDEOGAP` seconds: the video time is
  * `audioTime - videoGap`, clamped at zero.
+ *
+ * Each source is either a local `File` (played from an object URL) or a remote
+ * URL string (hotlinked straight from the origin). The two behave identically.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlayerHandle } from "./player";
+
+/** A local file, or a remote URL, for the audio or its background video. */
+export type MediaSource = File | string;
 
 /** Drift beyond this many seconds triggers a corrective seek on the video. */
 const MAX_VIDEO_DRIFT = 0.3;
@@ -19,8 +25,8 @@ export interface UltraStarPlayerHandle extends PlayerHandle {
 }
 
 export function useUltraStarPlayer(
-  audio: File | null,
-  backgroundVideo: File | null,
+  audio: MediaSource | null,
+  backgroundVideo: MediaSource | null,
   videoGap = 0,
   playbackRate = 1,
 ): UltraStarPlayerHandle {
@@ -89,7 +95,8 @@ export function useUltraStarPlayer(
     setDuration(0);
     timeRef.current = 0;
 
-    const url = URL.createObjectURL(audio);
+    const isFile = typeof audio !== "string";
+    const url = isFile ? URL.createObjectURL(audio as File) : audio;
     audioElement.src = url;
     audioElement.load();
     return () => {
@@ -97,14 +104,15 @@ export function useUltraStarPlayer(
       audioElement.pause();
       audioElement.removeAttribute("src");
       audioElement.load();
-      URL.revokeObjectURL(url);
+      if (isFile) URL.revokeObjectURL(url);
     };
   }, [audioElement, audio, stopLoop]);
 
   // Load the background video, if any.
   useEffect(() => {
     if (!videoElement || !backgroundVideo) return;
-    const url = URL.createObjectURL(backgroundVideo);
+    const isFile = typeof backgroundVideo !== "string";
+    const url = isFile ? URL.createObjectURL(backgroundVideo as File) : backgroundVideo;
     videoElement.src = url;
     videoElement.muted = true;
     videoElement.load();
@@ -112,7 +120,7 @@ export function useUltraStarPlayer(
       videoElement.pause();
       videoElement.removeAttribute("src");
       videoElement.load();
-      URL.revokeObjectURL(url);
+      if (isFile) URL.revokeObjectURL(url);
     };
   }, [videoElement, backgroundVideo]);
 
