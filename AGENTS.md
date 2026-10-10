@@ -184,8 +184,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   and runs the real API handler locally.
 - `public/tracks/*.json` — pre-warmed seed tracks (generated, committed).
 - `public/_headers` — CSP. YouTube and `challenges.cloudflare.com` (Turnstile)
-  are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`;
-  `media-src` allows `blob:` for the local video.
+  are allowed for `script-src` and `frame-src`; YouTube is allowed for `img-src`,
+  which also allows `blob:` for local UltraStar covers; `media-src` allows
+  `blob:` for the local video and audio.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
 - `public/og-image.png` — the 1200×630 social card referenced by `Seo.astro`.
