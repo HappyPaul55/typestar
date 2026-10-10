@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { GameMode } from "../../lib/game/engine";
+import type { FailMode, GameMode } from "../../lib/game/engine";
 import { singPitchAccuracy, singRank, type SingState } from "../../lib/game/sing";
 import { formatTime, readSetting, writeSetting } from "../../lib/game/storage";
 import { buildHash } from "../../lib/game/url";
@@ -13,6 +13,7 @@ import { buildHash } from "../../lib/game/url";
 interface Props {
   state: SingState;
   mode: GameMode;
+  failMode: FailMode;
   trackId: string;
   /** Seconds of song played. */
   elapsed: number;
@@ -22,6 +23,11 @@ interface Props {
   onChangeSong(): void;
   onClose(): void;
 }
+
+const FAIL_REASON: Record<"score" | "mistake", string> = {
+  score: "Your score went negative.",
+  mistake: "You missed a note.",
+};
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -35,6 +41,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 export default function SingResults({
   state,
   mode,
+  failMode,
   trackId,
   elapsed,
   progress,
@@ -71,6 +78,7 @@ export default function SingResults({
   const rank = singRank(state);
   const accuracy = Math.round(singPitchAccuracy(state) * 100);
   const notes = state.hits + state.misses;
+  const failed = state.failed;
 
   async function share() {
     const url = `${window.location.origin}/play/${trackId}${buildHash({
@@ -99,7 +107,7 @@ export default function SingResults({
     <div className="game-overlay game-overlay--results">
       <div
         ref={dialogRef}
-        className="results"
+        className={"results" + (failed ? " results--failed" : "")}
         role="dialog"
         aria-modal="true"
         aria-label="Singing results"
@@ -109,7 +117,7 @@ export default function SingResults({
             <span className="slash" aria-hidden="true">
               //
             </span>{" "}
-            results
+            {failed ? "run over" : "results"}
           </p>
           <button
             type="button"
@@ -122,9 +130,18 @@ export default function SingResults({
         </div>
 
         <div className="results__grade">
-          <span className="results__rank" aria-label={`Rank ${rank}`}>
-            {rank}
-          </span>
+          {failed ? (
+            <>
+              <span className="results__verdict">Failed</span>
+              <span className="results__reason">
+                {state.failReason ? FAIL_REASON[state.failReason] : ""}
+              </span>
+            </>
+          ) : (
+            <span className="results__rank" aria-label={`Rank ${rank}`}>
+              {rank}
+            </span>
+          )}
           <span className="results__progress">{Math.round(progress * 100)}% through</span>
         </div>
 
@@ -141,6 +158,10 @@ export default function SingResults({
           <Metric label="notes" value={`${notes}`} />
           <Metric label="time" value={formatTime(elapsed)} />
           <Metric label="difficulty" value={mode} />
+          <Metric label="run mode" value={failMode} />
+          {failMode === "practise" ? (
+            <Metric label="replays" value={`${state.replays}`} />
+          ) : null}
         </div>
 
         <div className="results__actions">

@@ -596,7 +596,7 @@ export default function GameApp({
     getTime,
     seek: seekTo,
   });
-  const singLoop = useSingLoop({ notes: singNotes, offset, mode, getTime });
+  const singLoop = useSingLoop({ notes: singNotes, offset, mode, failMode, getTime, seek: seekTo });
   const pitchInput = usePitchInput((frame) => {
     if (!scoredRef.current || !playingRef.current) return;
     // Scoring does not need every animation frame; ~30 Hz is plenty and keeps
@@ -651,14 +651,14 @@ export default function GameApp({
     }
   }, [style, phase, game.state.finished, game.state.failed, pause]);
 
-  // The scored-singing run ends when every note has been judged.
+  // The scored-singing run ends when every note has been judged, or it fails.
   useEffect(() => {
-    if (scoredSing && phase === "playing" && singLoop.state.finished) {
+    if (scoredSing && phase === "playing" && (singLoop.state.finished || singLoop.state.failed)) {
       pause();
       pitchInput.stop();
       setPhase("results");
     }
-  }, [scoredSing, phase, singLoop.state.finished, pause, pitchInput]);
+  }, [scoredSing, phase, singLoop.state.finished, singLoop.state.failed, pause, pitchInput]);
 
   // The video/audio ending before the lyrics do counts as a finish. Karaoke has
   // no lyric pointer to exhaust, so the song ending is what finishes it.
@@ -1134,7 +1134,6 @@ export default function GameApp({
           speed={speed}
           locked={locked}
           karaoke={karaoke}
-          hideRunMode={scoredSing}
           paused={phase === "paused"}
           playing={phase === "playing"}
           onTogglePause={togglePause}
@@ -1169,6 +1168,7 @@ export default function GameApp({
           <SingResults
             state={singLoop.state}
             mode={mode}
+            failMode={failMode}
             trackId={activeTrack.id}
             elapsed={time}
             progress={progress}

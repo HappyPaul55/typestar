@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import type { GameMode } from "../../../lib/game/engine";
+import type { FailMode, GameMode } from "../../../lib/game/engine";
 import {
   createSingState,
   makeSingConfig,
@@ -22,8 +22,11 @@ export interface UseSingLoopOptions {
   notes: TrackNote[];
   offset: number;
   mode: GameMode;
+  failMode: FailMode;
   /** Live player clock, read on every sample. */
   getTime: () => number;
+  /** Send the singer back to a time (Practise rewinds). */
+  seek?: (seconds: number) => void;
 }
 
 export interface SingLoop {
@@ -40,15 +43,18 @@ export function useSingLoop({
   notes,
   offset,
   mode,
+  failMode,
   getTime,
+  seek,
 }: UseSingLoopOptions): SingLoop {
   const config = useMemo<SingConfig>(
     () =>
       makeSingConfig(notes, {
         offset,
         tolerance: SING_TOLERANCE[mode],
+        failMode,
       }),
-    [notes, offset, mode],
+    [notes, offset, mode, failMode],
   );
   const configRef = useRef(config);
   configRef.current = config;
@@ -59,10 +65,17 @@ export function useSingLoop({
   );
   const [state, dispatch] = useReducer(reduce, notes.length, createSingState);
 
-  // A new track (or a new tolerance) starts from a clean slate.
+  // A new track (or a new tolerance / run mode) starts from a clean slate.
   useEffect(() => {
     dispatch({ type: "reset" });
-  }, [notes, mode]);
+  }, [notes, mode, failMode]);
+
+  // Practise: when the reducer asks for a rewind, seek and clear the request.
+  useEffect(() => {
+    if (state.rewindTo === null) return;
+    seek?.(state.rewindTo);
+    dispatch({ type: "clearRewind" });
+  }, [state.rewindTo, seek]);
 
   const sample = useCallback(
     (midi: number | null, rms: number) =>

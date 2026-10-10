@@ -14,7 +14,16 @@
  * that singers are not penalised for an octave.
  */
 
-import { comboTier, HIT_BASE, type GameMode, type Rank } from "./engine";
+import {
+  comboTier,
+  HIT_BASE,
+  MISS_PENALTY,
+  NORMAL_FAIL_THRESHOLD,
+  PRACTISE_REWIND,
+  type FailMode,
+  type GameMode,
+  type Rank,
+} from "./engine";
 import type { TrackNote } from "../track/types";
 
 /** Base points for a note held fully in tune. */
@@ -53,6 +62,8 @@ export interface SingConfig {
   octaveInsensitive: boolean;
   /** RMS above which a rap note counts as performed. */
   voiceRms: number;
+  /** How the run ends: normal (score floor), instant (first miss), fun, practise. */
+  failMode: FailMode;
 }
 
 export type NoteResult = "pending" | "hit" | "miss";
@@ -75,13 +86,23 @@ export interface SingState {
   /** Time of the previous sample, used to integrate in-tune duration. */
   lastTime: number;
   finished: boolean;
+  /** Set when the run is over because of a failure (score or a missed note). */
+  failed: boolean;
+  failReason: "score" | "mistake" | null;
+  /** Practise rewinds taken. */
+  replays: number;
+  /** Practise: the time the singer should be sent back to, or null. */
+  rewindTo: number | null;
+  /** Practise: until this time, scoring and further rewinds are ignored. */
+  ignoreUntil: number;
 }
 
 export type SingAction =
   | { type: "start"; time: number }
   | { type: "sample"; time: number; midi: number | null; rms: number }
   | { type: "reset" }
-  | { type: "finish" };
+  | { type: "finish" }
+  | { type: "clearRewind" };
 
 export function createSingState(noteCount: number): SingState {
   return {
@@ -97,6 +118,11 @@ export function createSingState(noteCount: number): SingState {
     noteInTune: Array.from({ length: noteCount }, () => 0),
     lastTime: Number.NEGATIVE_INFINITY,
     finished: noteCount === 0,
+    failed: false,
+    failReason: null,
+    replays: 0,
+    rewindTo: null,
+    ignoreUntil: 0,
   };
 }
 
@@ -112,6 +138,7 @@ export function makeSingConfig(
     grace: options.grace ?? DEFAULT_SING_GRACE,
     octaveInsensitive: options.octaveInsensitive ?? true,
     voiceRms: options.voiceRms ?? DEFAULT_VOICE_RMS,
+    failMode: options.failMode ?? "fun",
   };
 }
 
@@ -160,10 +187,42 @@ function frameInTune(
   return pitchDistance(midi, expected, config.octaveInsensitive) <= config.tolerance;
 }
 
-/** Resolve every note whose window has closed at `time`. */
+/** Send the singer back to replay the last few seconds (Practise mode). */
+function practiseRewind(state: SingState, time: number, config: SingConfig): SingState {
+  const target = Math.max(0, time - PRACTISE_REWIND);
+  let pointer = 0;
+  while (
+    pointer < config.notes.length &&
+    noteDeadline(config.notes[pointer], config) < target
+  ) {
+    pointer += 1;
+  }
+  return {
+    ...state,
+    pointer,
+    results: state.results.map((result, index) => (index < pointer ? result : "pending")),
+    // Fresh in-tune time for the notes being replayed.
+    noteInTune: state.noteInTune.map((seconds, index) => (index < pointer ? seconds : 0)),
+    combo: 0,
+    replays: state.replays + 1,
+    rewindTo: target,
+    ignoreUntil: time,
+    lastTime: target,
+    finished: false,
+    failed: false,
+  };
+}
+
+/**
+ * Resolve every note whose window has closed at `time`, applying the run mode:
+ * instant fails on the first miss, normal fails below the score floor, practise
+ * rewinds instead of penalising, and fun never fails.
+ */
 function resolveDue(state: SingState, time: number, config: SingConfig): SingState {
+  if (state.finished || state.failed) return state;
   if (state.pointer >= config.notes.length) return state;
 
+  const ignoring = config.failMode === "practise" && time < state.ignoreUntil;
   let pointer = state.pointer;
   let results = state.results;
   let score = state.score;
@@ -176,34 +235,79 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
   while (pointer < config.notes.length) {
     const note = config.notes[pointer];
     if (time <= noteDeadline(note, config)) break;
-    if (!changed) {
-      results = [...results];
-      changed = true;
-    }
 
     const duration = Math.max(note.end - note.start, 0.05);
     const fraction = Math.min(1, state.noteInTune[pointer] / duration);
     const golden = note.kind === "golden" || note.kind === "goldenRap";
 
     if (fraction >= HIT_FRACTION) {
+      if (!changed) {
+        results = [...results];
+        changed = true;
+      }
       results[pointer] = "hit";
-      const points = Math.round(
-        HIT_BASE * fraction * (golden ? 2 : 1) * comboTier(combo),
-      );
-      score += points;
       hits += 1;
-      combo += 1;
-      maxCombo = Math.max(maxCombo, combo);
-    } else {
-      results[pointer] = "miss";
-      misses += 1;
+      if (!ignoring) {
+        const points = Math.round(
+          HIT_BASE * fraction * (golden ? 2 : 1) * comboTier(combo),
+        );
+        score += points;
+        combo += 1;
+        maxCombo = Math.max(maxCombo, combo);
+      }
+      pointer += 1;
+      continue;
+    }
+
+    // A miss. Practise replays the section instead of penalising it.
+    if (config.failMode === "practise" && !ignoring) {
+      return practiseRewind(
+        {
+          ...state,
+          pointer,
+          results: changed ? results : state.results,
+          score,
+          combo,
+          maxCombo,
+          hits,
+          misses,
+        },
+        time,
+        config,
+      );
+    }
+
+    if (!changed) {
+      results = [...results];
+      changed = true;
+    }
+    results[pointer] = "miss";
+    misses += 1;
+    if (!ignoring) {
       combo = 0;
+      score -= MISS_PENALTY;
     }
     pointer += 1;
+
+    if (config.failMode === "instant" && !ignoring) {
+      return {
+        ...state,
+        pointer,
+        results,
+        score,
+        combo,
+        maxCombo,
+        hits,
+        misses,
+        finished: pointer >= config.notes.length,
+        failed: true,
+        failReason: "mistake",
+      };
+    }
   }
 
   if (!changed) return state;
-  return {
+  const next: SingState = {
     ...state,
     pointer,
     results,
@@ -214,6 +318,10 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
     misses,
     finished: pointer >= config.notes.length,
   };
+  if (config.failMode === "normal" && score < NORMAL_FAIL_THRESHOLD) {
+    return { ...next, failed: true, failReason: "score" };
+  }
+  return next;
 }
 
 function sample(
@@ -223,10 +331,13 @@ function sample(
   rmsValue: number,
   config: SingConfig,
 ): SingState {
-  if (state.finished) return state;
+  if (state.finished || state.failed) return state;
 
   const resolved = resolveDue(state, time, config);
-  if (resolved.finished) return resolved;
+  // A finished, failed or rewinding state is not sung against.
+  if (resolved.finished || resolved.failed || resolved.rewindTo !== null) {
+    return resolved;
+  }
 
   const index = resolved.pointer;
   const note = config.notes[index];
@@ -252,11 +363,56 @@ function sample(
   return { ...resolved, noteInTune, pitchedSamples, inTuneSamples, lastTime: time };
 }
 
+/** Judge every remaining note and end the run (e.g. the song ended). */
 function finish(state: SingState, config: SingConfig): SingState {
-  if (state.finished) return state;
-  // Force every remaining note to be judged by resolving at infinity.
-  const resolved = resolveDue(state, Number.POSITIVE_INFINITY, config);
-  return { ...resolved, pointer: config.notes.length, finished: true };
+  if (state.finished || state.failed) return state;
+
+  let pointer = state.pointer;
+  let results = state.results;
+  let score = state.score;
+  let combo = state.combo;
+  let maxCombo = state.maxCombo;
+  let hits = state.hits;
+  let misses = state.misses;
+  let changed = false;
+
+  while (pointer < config.notes.length) {
+    const note = config.notes[pointer];
+    const duration = Math.max(note.end - note.start, 0.05);
+    const fraction = Math.min(1, state.noteInTune[pointer] / duration);
+    const golden = note.kind === "golden" || note.kind === "goldenRap";
+    if (!changed) {
+      results = [...results];
+      changed = true;
+    }
+    if (fraction >= HIT_FRACTION) {
+      results[pointer] = "hit";
+      score += Math.round(HIT_BASE * fraction * (golden ? 2 : 1) * comboTier(combo));
+      hits += 1;
+      combo += 1;
+      maxCombo = Math.max(maxCombo, combo);
+    } else {
+      results[pointer] = "miss";
+      misses += 1;
+      combo = 0;
+    }
+    pointer += 1;
+  }
+
+  if (!changed) {
+    return { ...state, pointer: config.notes.length, finished: true };
+  }
+  return {
+    ...state,
+    pointer,
+    results,
+    score,
+    combo,
+    maxCombo,
+    hits,
+    misses,
+    finished: true,
+  };
 }
 
 export function singReducer(
@@ -273,6 +429,8 @@ export function singReducer(
       return sample(state, action.time, action.midi, action.rms, config);
     case "finish":
       return finish(state, config);
+    case "clearRewind":
+      return state.rewindTo === null ? state : { ...state, rewindTo: null };
   }
 }
 

@@ -119,3 +119,60 @@ describe("singReducer", () => {
     expect(singRank(state)).toBe("S");
   });
 });
+
+describe("run modes", () => {
+  test("fun never fails, however badly it is sung", () => {
+    const notes = [note(0, 1, 0), note(1, 2, 0), note(2, 3, 0)];
+    const state = run(notes, frames(3, 67), { failMode: "fun" });
+    expect(state.failed).toBe(false);
+    expect(state.misses).toBe(3);
+  });
+
+  test("instant fails on the first missed note", () => {
+    const notes = [note(0, 1, 0), note(1, 2, 0)];
+    const state = run(notes, frames(2, 67), { failMode: "instant" });
+    expect(state.failed).toBe(true);
+    expect(state.failReason).toBe("mistake");
+    expect(state.results[0]).toBe("miss");
+    // The run stopped rather than judging the rest.
+    expect(state.finished).toBe(false);
+  });
+
+  test("instant does not fail when every note is held", () => {
+    const state = run([note(0, 1, 0)], frames(1, 60), { failMode: "instant" });
+    expect(state.failed).toBe(false);
+    expect(state.hits).toBe(1);
+  });
+
+  test("normal fails once the score drops below the floor", () => {
+    const notes = Array.from({ length: 20 }, (_, i) => note(i, i + 1, 0));
+    const state = run(notes, frames(20, 67), { failMode: "normal" });
+    expect(state.failed).toBe(true);
+    expect(state.failReason).toBe("score");
+  });
+
+  test("normal survives a couple of misses", () => {
+    const notes = [note(0, 1, 0), note(1, 2, 0)];
+    const state = run(notes, frames(2, 67), { failMode: "normal" });
+    expect(state.failed).toBe(false);
+  });
+
+  test("practise rewinds on a miss instead of penalising it", () => {
+    const notes = [note(0, 1, 0), note(2, 3, 0)];
+    const config = makeSingConfig(notes, { lead: 0, grace: 0, failMode: "practise" });
+    let state = singReducer(createSingState(notes.length), { type: "start", time: 0 }, config);
+    let rewound: typeof state | null = null;
+    for (const action of frames(1.5, 67)) {
+      state = singReducer(state, action, config);
+      if (state.rewindTo !== null) {
+        rewound = state;
+        break;
+      }
+    }
+    expect(rewound).not.toBeNull();
+    expect(rewound!.replays).toBe(1);
+    expect(rewound!.failed).toBe(false);
+    // The miss was not charged.
+    expect(rewound!.score).toBe(0);
+  });
+});

@@ -12,10 +12,11 @@ typing / keyboard speed game**.
 - Three difficulties: **Easy** (first letter of each word), **Normal** (every
   word, punctuation optional) and **Hard** (every word, punctuation required).
   Defaults to **Normal**.
-- Four run modes: **Normal** (fails once the score drops below −150),
-  **Instant** (stops at the first mistake), **Fun** (never stops) and
-  **Practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
-  replay and counts it). Defaults to **Fun**.
+- Four run modes, shared by typing and scored singing: **Normal** (fails once
+  the score drops below −150), **Instant** (fails on the first mistake — a wrong
+  key, or a missed word/note), **Fun** (never stops) and **Practise** (rewinds 5
+  seconds on a mistake, then ignores scoring for that replay and counts it).
+  Defaults to **Fun**. Karaoke is unscored, so run modes do not apply there.
 - Playback speed from **0.5×** to **1.5×**, applied to the YouTube player, so a
   fast song can be slowed down while learning it.
 - Every song is rated **EASY**, **MEDIUM** or **HARD** from how fast its lyrics
@@ -205,6 +206,22 @@ The microphone is used **only** for scored singing, and only after you allow it.
 The audio never leaves the device — it is analysed frame by frame in the browser
 for its pitch and then discarded (see `src/lib/game/pitch.ts`). If you decline the
 microphone, a scored song falls back to the unscored karaoke sing-along.
+
+## Run modes
+
+A run mode decides how a run ends. It is available for **typing** and **scored
+singing** alike, and the two engines share the same constants and semantics
+(`src/lib/game/engine.ts` and `src/lib/game/sing.ts`) so a mode behaves the same
+in both:
+
+| Run mode | Behaviour |
+| --- | --- |
+| **Normal** | Fails once the score drops below −150. |
+| **Instant** | Fails on the first mistake — a wrong key when typing, or a missed note when singing. |
+| **Fun** | Never fails; play to the end. |
+| **Practise** | Rewinds 5 seconds on a mistake, then ignores scoring for that replay and counts it. |
+
+Karaoke is unscored, so the run-mode choice is hidden there.
 
 ## API
 

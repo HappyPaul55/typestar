@@ -63,11 +63,14 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
 
 Three difficulty modes: **easy** (first letter only), **normal** (whole word,
 punctuation optional) and **hard** (whole word, punctuation required). Four run
-modes, independent of difficulty: **normal** (fails once the score drops below
--150), **instant** (stops on the first mistake), **fun** (never fails) and
+modes, independent of difficulty and shared by typing and scored singing:
+**normal** (fails once the score drops below
+-150), **instant** (fails on the first mistake — a wrong key, or a missed note),
+**fun** (never fails) and
 **practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
 replay and counts it). The defaults are difficulty **normal**, run mode **fun**
-and playback speed **1**. The HUD also carries a **Speed** dropdown (0.5× to
+and playback speed **1**. Karaoke is unscored, so it hides the run-mode choice.
+The HUD also carries a **Speed** dropdown (0.5× to
 1.5×) applied to the YouTube player via `setPlaybackRate`. Scoring
 rewards chains with combo tiers and a perfect-line bonus. Typing is forgiving:
 when a keystroke cannot continue the current word but does begin a later word it
