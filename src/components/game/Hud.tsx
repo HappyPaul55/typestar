@@ -33,6 +33,8 @@ interface Props {
   locked: boolean;
   /** Karaoke: no score is kept, so the stats and scoring dropdowns are hidden. */
   karaoke?: boolean;
+  /** Scored singing: difficulty is a pitch tolerance, and run mode does not apply. */
+  hideRunMode?: boolean;
   paused: boolean;
   playing: boolean;
   onTogglePause(): void;
@@ -96,6 +98,7 @@ export default function Hud({
   speed,
   locked,
   karaoke = false,
+  hideRunMode = false,
   paused,
   playing,
   onTogglePause,
@@ -162,21 +165,23 @@ export default function Hud({
                 ))}
               </select>
             </label>
-            <label className="hud__mode" data-tooltip="Run mode">
-              <span className="sr-only">Run mode</span>
-              <select
-                className="hud__select"
-                value={failMode}
-                disabled={locked}
-                onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
-              >
-                {FAIL_MODES.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {hideRunMode ? null : (
+              <label className="hud__mode" data-tooltip="Run mode">
+                <span className="sr-only">Run mode</span>
+                <select
+                  className="hud__select"
+                  value={failMode}
+                  disabled={locked}
+                  onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
+                >
+                  {FAIL_MODES.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </>
         )}
         <label className="hud__mode" data-tooltip="Playback speed">

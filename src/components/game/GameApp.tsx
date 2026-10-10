@@ -25,6 +25,7 @@ import {
 import {
   accuracyOf,
   comboMilestone,
+  comboTier,
   cueAt,
   DEFAULT_FAIL_MODE,
   DEFAULT_LEAD,
@@ -62,9 +63,11 @@ import {
   PLAY_STYLE_HELP,
   PLAY_STYLE_LABEL,
   PLAY_STYLES,
+  singBehavior,
   type PlayStyle,
 } from "../../lib/game/modes";
-import type { Track } from "../../lib/track/types";
+import { singPitchAccuracy, singProgress } from "../../lib/game/sing";
+import type { Track, TrackNote } from "../../lib/track/types";
 import { RATING_LABEL, ratingOf, type TrackRating } from "../../lib/track/rating";
 import { seoTagValues, trackSeo } from "../../lib/seo";
 import type { SiteSettings } from "../../lib/site";
@@ -75,11 +78,15 @@ import Hud from "./Hud";
 import KaraokeResults from "./KaraokeResults";
 import LocalLibrary, { type LocalSelection } from "./LocalLibrary";
 import LyricHighway from "./LyricHighway";
+import PitchHighway from "./PitchHighway";
 import PlayerStage from "./PlayerStage";
+import SingResults from "./SingResults";
 import TrackPicker from "./TrackPicker";
 import TurnstileChallenge from "./TurnstileChallenge";
 import { useGameLoop } from "./hooks/useGameLoop";
 import { useMediaPlayer } from "./hooks/useMediaPlayer";
+import { usePitchInput } from "./hooks/usePitchInput";
+import { useSingLoop } from "./hooks/useSingLoop";
 import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
 
@@ -107,6 +114,9 @@ interface GameFlash {
   text: string;
   tier: ComboFlash;
 }
+
+/** Stable empty list, so a track with no notes does not reset the sing loop. */
+const EMPTY_NOTES: TrackNote[] = [];
 
 /** Ordering used to pick the headline when two flashes land on the same hit. */
 const TIER_RANK: Record<ComboFlash, number> = { small: 0, medium: 1, large: 2 };
@@ -276,6 +286,8 @@ export default function GameApp({
   const [failMode, setFailMode] = useState<FailMode>(DEFAULT_FAIL_MODE);
   const [style, setStyle] = useState<PlayStyle>(DEFAULT_PLAY_STYLE);
   const [speed, setSpeed] = useState<PlaybackSpeed>(DEFAULT_SPEED);
+  // Set when the microphone is refused: the run falls back to plain karaoke.
+  const [micFallback, setMicFallback] = useState(false);
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
   // Turnstile is only needed when a track is not already cached or bundled.
@@ -288,6 +300,9 @@ export default function GameApp({
   const shellRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lyricRef = useRef<HTMLDivElement>(null);
+  // Read by the microphone frame callback, which outlives individual renders.
+  const scoredRef = useRef(false);
+  const playingRef = useRef(false);
 
   const localKind = local?.kind ?? null;
   const localVideoFile = local && local.kind === "video" ? local.media : null;
@@ -344,12 +359,16 @@ export default function GameApp({
   // track fetched from the API.
   const activeTrack = local?.track ?? track;
 
-  // Sing on a track with measured notes will be scored against them; anything
-  // else is an unscored karaoke sing-along. The scored path (microphone + pitch
-  // engine) is wired up in a later step, so for now every Sing run is karaoke —
-  // a pitched UltraStar track is still fully playable.
-  const singScored = false;
-  const karaoke = style === "sing";
+  // Sing on a track with measured notes is scored against them (microphone +
+  // pitch engine); anything else — and any run where the microphone is refused
+  // — is an unscored karaoke sing-along.
+  const singScored = activeTrack ? singBehavior(activeTrack) === "scored" : false;
+  const scoredSing = style === "sing" && singScored && !micFallback;
+  const karaoke = style === "sing" && !scoredSing;
+
+  // Keep the microphone frame callback in step without re-subscribing.
+  scoredRef.current = scoredSing;
+  playingRef.current = phase === "playing";
 
   useEffect(() => {
     const parsed = parseHash(window.location.hash);
@@ -534,16 +553,22 @@ export default function GameApp({
 
   const words = useMemo(() => activeTrack?.words ?? [], [activeTrack]);
   const lines = useMemo(() => activeTrack?.lines ?? [], [activeTrack]);
+  const singNotes = useMemo(() => activeTrack?.notes ?? EMPTY_NOTES, [activeTrack]);
   const game = useGameLoop({
     words,
     lines,
     offset,
     mode,
     failMode,
-    running: phase === "playing" && !karaoke,
+    // The typing engine only runs for the type style; singing has its own loop.
+    running: phase === "playing" && style === "type",
     time,
     getTime,
     seek: seekTo,
+  });
+  const singLoop = useSingLoop({ notes: singNotes, offset, mode, getTime });
+  const pitchInput = usePitchInput((frame) => {
+    if (scoredRef.current && playingRef.current) singLoop.sample(frame.midi, frame.rms);
   });
 
   // Countdown, then play. After the last number, wait a beat before starting so
@@ -565,13 +590,22 @@ export default function GameApp({
     return () => window.clearTimeout(timer);
   }, [phase, countdown, play]);
 
-  // Finished when every word is resolved, or when the run fails.
+  // Finished when every word is resolved, or when the run fails (type style).
   useEffect(() => {
-    if (!karaoke && phase === "playing" && (game.state.finished || game.state.failed)) {
+    if (style === "type" && phase === "playing" && (game.state.finished || game.state.failed)) {
       pause();
       setPhase("results");
     }
-  }, [phase, karaoke, game.state.finished, game.state.failed, pause]);
+  }, [style, phase, game.state.finished, game.state.failed, pause]);
+
+  // The scored-singing run ends when every note has been judged.
+  useEffect(() => {
+    if (scoredSing && phase === "playing" && singLoop.state.finished) {
+      pause();
+      pitchInput.stop();
+      setPhase("results");
+    }
+  }, [scoredSing, phase, singLoop.state.finished, pause, pitchInput]);
 
   // The video/audio ending before the lyrics do counts as a finish. Karaoke has
   // no lyric pointer to exhaust, so the song ending is what finishes it.
@@ -580,10 +614,12 @@ export default function GameApp({
     if (karaoke) {
       pause();
       setPhase("results");
+    } else if (scoredSing) {
+      singLoop.finish();
     } else {
       game.finish();
     }
-  }, [phase, playerState, karaoke, pause, game.finish]);
+  }, [phase, playerState, karaoke, scoredSing, pause, game.finish, singLoop.finish]);
 
   // If the tab is hidden the animation-frame clock stops, but the video keeps
   // playing; pause so the run can't fast-forward while away.
@@ -599,9 +635,9 @@ export default function GameApp({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [phase, pause]);
 
-  // Capture typing while playing (karaoke keeps its hands free).
+  // Capture typing while playing (only the type style uses the keyboard).
   useEffect(() => {
-    if (phase !== "playing" || karaoke) return;
+    if (phase !== "playing" || style !== "type") return;
     const handler = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
@@ -626,23 +662,32 @@ export default function GameApp({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [phase, karaoke, game.onKey]);
+  }, [phase, style, game.onKey]);
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     if (!ready) return;
+    // Scored singing needs the microphone before the run begins; if it is
+    // refused or unavailable the run falls back to unscored karaoke.
+    let fallback = false;
+    if (singScored) {
+      const ok = await pitchInput.start();
+      fallback = !ok;
+      setMicFallback(!ok);
+    }
     // The countdown runs before playback: park the video at the start and hold
     // it paused, so a stray play (or a higher speed) can't run the opening away.
     pause();
     seekTo(0);
+    if (singScored && !fallback) singLoop.start();
     setCountdown(COUNTDOWN_FROM);
     setPhase("countdown");
     // Bring up the on-screen keyboard (typing only), then show the lyrics on
     // small screens.
-    if (!karaoke) inputRef.current?.focus();
+    if (style === "type") inputRef.current?.focus();
     if (window.matchMedia("(max-width: 919px)").matches) {
       lyricRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [ready, pause, seekTo, karaoke]);
+  }, [ready, singScored, style, pause, seekTo, singLoop, pitchInput]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
@@ -657,20 +702,25 @@ export default function GameApp({
   /** Reset to the start without playing, so settings can be changed first. */
   const resetToStart = useCallback(() => {
     game.reset();
+    singLoop.reset();
+    pitchInput.stop();
     pause();
     seekTo(0);
     setPhase("idle");
-  }, [game, pause, seekTo]);
+  }, [game, singLoop, pitchInput, pause, seekTo]);
 
   const replay = useCallback(() => {
     game.reset();
-    start();
-  }, [game, start]);
+    singLoop.reset();
+    void start();
+  }, [game, singLoop, start]);
 
   const closeResults = useCallback(() => {
     game.reset();
+    singLoop.reset();
+    pitchInput.stop();
     setPhase("idle");
-  }, [game]);
+  }, [game, singLoop, pitchInput]);
 
   const selectMode = useCallback(
     (next: GameMode) => {
@@ -686,6 +736,8 @@ export default function GameApp({
     (next: PlayStyle) => {
       if (phase !== "idle" && phase !== "results") return;
       setStyle(next);
+      // Picking Sing again is a fresh attempt at the microphone.
+      if (next === "sing") setMicFallback(false);
       writeSetting(SETTING_PLAY_STYLE, next);
     },
     [phase],
@@ -728,6 +780,7 @@ export default function GameApp({
   }, []);
 
   const changeSong = useCallback(() => {
+    pitchInput.stop();
     // A local run returns to the local library rather than the YouTube picker.
     if (local) {
       window.history.pushState(null, "", "/play/local");
@@ -737,7 +790,7 @@ export default function GameApp({
       return;
     }
     window.location.href = "/play";
-  }, [local]);
+  }, [local, pitchInput]);
 
   const toggleFullscreen = useCallback(() => {
     const element = shellRef.current;
@@ -862,17 +915,31 @@ export default function GameApp({
 
   const accuracy = accuracyOf(game.state);
   const multiplier = multiplierOf(game.state);
-  // Karaoke has no typed pointer; its progress follows the music instead.
-  const karaokePos = karaoke ? karaokePointer(words, offset, time) : 0;
-  const progress = karaoke
-    ? karaokeProgress(words, offset, time)
-    : words.length
-      ? game.state.pointer / words.length
-      : 0;
-  const highwayPointer = karaoke ? karaokePos : game.state.pointer;
-  const highwayResults = karaoke
-    ? words.map((_, index) => (index < karaokePos ? "hit" : "pending") as WordResult)
+  const progress = scoredSing
+    ? singProgress(singLoop.state, singNotes.length)
+    : karaoke
+      ? karaokeProgress(words, offset, time)
+      : words.length
+        ? game.state.pointer / words.length
+        : 0;
+  // Singing highlights the words against the music; typing against the pointer.
+  const lyricsFollowMusic = karaoke || scoredSing;
+  const lyricWordPointer = lyricsFollowMusic
+    ? karaokePointer(words, offset, time)
+    : game.state.pointer;
+  const lyricResults = lyricsFollowMusic
+    ? words.map((_, index) => (index < lyricWordPointer ? "hit" : "pending") as WordResult)
     : game.state.results;
+
+  // The HUD shows pitch accuracy while singing, keystroke accuracy while typing.
+  const hudScore = scoredSing ? singLoop.state.score : game.state.score;
+  const hudCombo = scoredSing ? singLoop.state.combo : game.state.combo;
+  const hudMultiplier = scoredSing ? comboTier(singLoop.state.combo) : multiplier;
+  const hudAccuracy = scoredSing ? singPitchAccuracy(singLoop.state) : accuracy;
+  const hudAttempted = scoredSing
+    ? singLoop.state.pitchedSamples > 0
+    : game.state.correctKeys + game.state.errorKeys > 0;
+
   const featured = FEATURED_BY_ID.get(activeTrack.id);
   const locked = phase === "playing" || phase === "countdown" || phase === "paused";
 
@@ -931,18 +998,18 @@ export default function GameApp({
           for (const char of value) game.onKey(char);
         }}
         onBlur={() => {
-          if (phase === "playing" || phase === "countdown") {
+          if (style === "type" && (phase === "playing" || phase === "countdown")) {
             window.setTimeout(() => inputRef.current?.focus(), 0);
           }
         }}
       />
 
       <Hud
-        score={game.state.score}
-        combo={game.state.combo}
-        multiplier={multiplier}
-        accuracy={accuracy}
-        attempted={game.state.correctKeys + game.state.errorKeys > 0}
+        score={hudScore}
+        combo={hudCombo}
+        multiplier={hudMultiplier}
+        accuracy={hudAccuracy}
+        attempted={hudAttempted}
         progress={progress}
         time={time}
         duration={duration}
@@ -951,6 +1018,7 @@ export default function GameApp({
         speed={speed}
         locked={locked}
         karaoke={karaoke}
+        hideRunMode={scoredSing}
         paused={phase === "paused"}
         playing={phase === "playing"}
         onTogglePause={togglePause}
@@ -985,9 +1053,9 @@ export default function GameApp({
             }
             title={activeTrack.title}
             artist={featured?.artist}
-            shielded={phase === "playing" && !karaoke}
+            shielded={phase === "playing" && style === "type"}
             onShield={() => {
-              if (!karaoke) inputRef.current?.focus();
+              if (style === "type") inputRef.current?.focus();
             }}
           >
             {overlays}
@@ -998,24 +1066,47 @@ export default function GameApp({
           {!hasStage ? overlays : null}
           <CueBar
             cue={cue}
-            first={(karaoke ? karaokePos : game.state.pointer) === 0}
+            first={lyricWordPointer === 0}
             onSkip={
-              phase === "playing" &&
-              (karaoke ? karaokePos : game.state.pointer) === 0 &&
-              skipTarget !== null
+              phase === "playing" && lyricWordPointer === 0 && skipTarget !== null
                 ? skipIntro
                 : undefined
             }
           />
+          {scoredSing ? (
+            <PitchHighway
+              notes={singNotes}
+              words={words}
+              results={singLoop.state.results}
+              pointer={singLoop.state.pointer}
+              time={time}
+              offset={offset}
+              midi={pitchInput.midi}
+            />
+          ) : null}
           <LyricHighway
             track={activeTrack}
-            results={highwayResults}
-            pointer={highwayPointer}
-            input={karaoke ? "" : game.state.input}
+            results={lyricResults}
+            pointer={lyricWordPointer}
+            input={lyricsFollowMusic ? "" : game.state.input}
             mode={mode}
             cued={cue.waiting}
-            karaoke={karaoke}
+            karaoke={lyricsFollowMusic}
+            compact={scoredSing}
           />
+          {scoredSing ? (
+            <p className="pitch-mic" data-state={pitchInput.status}>
+              {pitchInput.error ??
+                (pitchInput.midi === null
+                  ? "sing — pitch is being scored"
+                  : "microphone live")}
+            </p>
+          ) : null}
+          {style === "sing" && micFallback ? (
+            <p className="pitch-mic" data-state="denied">
+              Microphone unavailable — singing along without scoring.
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -1030,7 +1121,18 @@ export default function GameApp({
       ) : null}
 
       {phase === "results" ? (
-        karaoke ? (
+        scoredSing ? (
+          <SingResults
+            state={singLoop.state}
+            mode={mode}
+            trackId={activeTrack.id}
+            elapsed={time}
+            progress={progress}
+            onReplay={replay}
+            onChangeSong={changeSong}
+            onClose={closeResults}
+          />
+        ) : karaoke ? (
           <KaraokeResults
             title={activeTrack.title}
             artist={featured?.artist ?? local?.artist}

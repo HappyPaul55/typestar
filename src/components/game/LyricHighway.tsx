@@ -137,6 +137,8 @@ interface Props {
   cued: boolean;
   /** Karaoke: highlight the active word only, with no per-letter feedback. */
   karaoke?: boolean;
+  /** A shorter highway, for when it shares the panel with the pitch lane. */
+  compact?: boolean;
 }
 
 export default function LyricHighway({
@@ -147,6 +149,7 @@ export default function LyricHighway({
   mode,
   cued,
   karaoke,
+  compact,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLine = track.words[pointer]?.line ?? track.lines.length - 1;
@@ -161,7 +164,11 @@ export default function LyricHighway({
   }, [activeLine]);
 
   return (
-    <div ref={containerRef} className="lyric-highway" aria-live="off">
+    <div
+      ref={containerRef}
+      className={"lyric-highway" + (compact ? " is-compact" : "")}
+      aria-live="off"
+    >
       <div className="lyric-highway__inner">
         {track.lines.map((line, index) => (
           <LyricLine

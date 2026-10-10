@@ -1129,6 +1129,109 @@
     text-decoration-thickness: 2px;
   }
 
+  /* Pitch highway (singing) -------------------------------------- */
+  .pitch-highway {
+    position: relative;
+    flex: none;
+    height: clamp(200px, 30vh, 320px);
+    overflow: hidden;
+    background: var(--color-cream);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-brand);
+  }
+  .pitch-highway__grid {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(100% / 7 - 1px),
+      var(--color-line) calc(100% / 7 - 1px),
+      var(--color-line) calc(100% / 7)
+    );
+    opacity: 0.5;
+  }
+  .pitch-note {
+    position: absolute;
+    height: 15px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid var(--color-ink);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-ink) 20%, transparent);
+    transition: background-color 0.12s linear, border-color 0.12s linear;
+  }
+  .pitch-note__lyric {
+    padding: 0 0.3em;
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--color-ink);
+    opacity: 0.8;
+  }
+  .pitch-note.is-active {
+    background: var(--color-yellow);
+    box-shadow: 0 0 0 2px rgba(12, 13, 10, 0.14);
+  }
+  .pitch-note.is-hit {
+    background: var(--color-yellow-deep);
+    opacity: 0.9;
+  }
+  .pitch-note.is-miss {
+    background: #f3c6cd;
+    border-color: #b01027;
+    opacity: 0.6;
+  }
+  .pitch-note.is-golden {
+    border-width: 2px;
+    box-shadow: 0 0 0 1px var(--color-yellow-deep);
+  }
+  .pitch-note.is-rap {
+    border-style: dashed;
+    background: var(--color-paper-2);
+  }
+  .pitch-now {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--color-ink);
+    opacity: 0.5;
+    transform: translateX(-1px);
+  }
+  .pitch-cursor {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--color-yellow);
+    border: 2px solid var(--color-ink);
+    box-shadow: 0 0 0 5px rgba(255, 214, 0, 0.25);
+  }
+  /* A shorter highway when the pitch lane shares the panel with the lyrics. */
+  .lyric-highway.is-compact {
+    height: clamp(150px, 26vh, 260px);
+  }
+  .pitch-mic {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .pitch-mic[data-state="denied"],
+  .pitch-mic[data-state="error"],
+  .pitch-mic[data-state="unsupported"] {
+    color: #b01027;
+  }
+
   /* Overlays ----------------------------------------------------- */
   .game-overlay {
     position: absolute;
