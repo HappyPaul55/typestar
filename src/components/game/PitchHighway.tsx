@@ -1,38 +1,57 @@
 /**
  * The pitch highway: the singing counterpart of the lyric highway.
  *
- * Notes are drawn as bars positioned by pitch (vertical) and time (horizontal),
- * scrolling past a fixed "now" line. The singer's detected pitch is a live
- * cursor, so they can see how close they are. Only the window around the
- * playhead is drawn, so a long song stays cheap.
+ * Notes are drawn as bars positioned by pitch (vertical) and time (horizontal)
+ * and scroll past a fixed "now" line. The words are shown by the lyric highway
+ * below, so the bars carry no text.
+ *
+ * The scroll runs on its own animation frame, moving a single transformed layer
+ * by the live player clock, so it is smooth at 60fps regardless of how often
+ * React re-renders for scoring. Only the note colours (hit/miss/active) and the
+ * pitch cursor come from React state.
  */
 
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import type { NoteResult } from "../../lib/game/sing";
-import type { TrackNote, TrackWord } from "../../lib/track/types";
+import type { TrackNote } from "../../lib/track/types";
 
-/** Seconds of lead-in shown behind the now line. */
-const LOOK_BEHIND = 1.2;
-/** Seconds of upcoming notes shown ahead of the now line. */
-const LOOK_AHEAD = 4.5;
+/** Horizontal scale of the lane. */
+const PX_PER_SECOND = 90;
+/** Where the now line sits, as a fraction of the lane's width. */
+const NOW_FRACTION = 0.28;
 /** The semitone span the lane always shows at minimum. */
 const MIN_PITCH_SPAN = 14;
 /** Where unpitched (rap) notes sit, as a percentage from the top. */
 const RAP_TOP = 90;
+/** A note never renders narrower than this. */
+const MIN_NOTE_PX = 4;
 
 interface Props {
   notes: TrackNote[];
-  words: TrackWord[];
   results: NoteResult[];
   pointer: number;
-  /** Player time, in seconds. */
-  time: number;
   offset: number;
-  /** Latest detected MIDI note, for the live cursor. */
-  midi: number | null;
+  /** Live player clock, read every animation frame for a smooth scroll. */
+  getTime: () => number;
+  /** Live detected MIDI note (a ref, read every frame for a smooth cursor). */
+  midiRef: { readonly current: number | null };
 }
 
-function PitchHighway({ notes, words, results, pointer, time, offset, midi }: Props) {
+function PitchHighway({
+  notes,
+  results,
+  pointer,
+  offset,
+  getTime,
+  midiRef,
+}: Props) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const nowLineRef = useRef<HTMLDivElement>(null);
+  /** The now line's x, in px, measured from the lane's width. */
+  const nowXRef = useRef(0);
+
   const pitched = notes
     .filter((note) => note.pitch !== null)
     .map((note) => (note.pitch as number) + 60);
@@ -45,59 +64,91 @@ function PitchHighway({ notes, words, results, pointer, time, offset, midi }: Pr
   const low = centre - span / 2;
   const high = centre + span / 2;
 
-  const windowStart = time - LOOK_BEHIND;
-  const windowSpan = LOOK_BEHIND + LOOK_AHEAD;
-  const windowEnd = time + LOOK_AHEAD;
-  const nowPercent = (LOOK_BEHIND / windowSpan) * 100;
-
-  const percentX = (seconds: number) => ((seconds - windowStart) / windowSpan) * 100;
   const percentY = (midiNote: number) =>
     Math.min(100, Math.max(0, ((high - midiNote) / (high - low)) * 100));
 
+  // Read from the animation loop, so it never needs to re-subscribe.
+  const percentYRef = useRef(percentY);
+  percentYRef.current = percentY;
+
+  // Measure the now line whenever the lane is resized.
+  useEffect(() => {
+    const outer = outerRef.current;
+    if (!outer) return;
+    const measure = () => {
+      nowXRef.current = outer.clientWidth * NOW_FRACTION;
+    };
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(measure);
+      observer.observe(outer);
+      return () => observer.disconnect();
+    }
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  // The animation loop: move one transformed layer and place the cursor.
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const nowX = nowXRef.current;
+      const layer = layerRef.current;
+      if (layer) {
+        layer.style.transform = `translate3d(${nowX - getTime() * PX_PER_SECOND}px, 0, 0)`;
+      }
+      if (nowLineRef.current) {
+        nowLineRef.current.style.left = `${nowX}px`;
+      }
+      const cursor = cursorRef.current;
+      if (cursor) {
+        const detected = midiRef.current;
+        cursor.style.left = `${nowX}px`;
+        cursor.style.opacity = detected === null ? "0" : "1";
+        if (detected !== null) cursor.style.top = `${percentYRef.current(detected)}%`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [getTime]);
+
   return (
-    <div className="pitch-highway" aria-hidden="true">
+    <div ref={outerRef} className="pitch-highway" aria-hidden="true">
       <div className="pitch-highway__grid" />
-      {notes.map((note, index) => {
-        const start = note.start + offset;
-        const end = note.end + offset;
-        if (end < windowStart || start > windowEnd) return null;
+      <div ref={layerRef} className="pitch-highway__layer">
+        {notes.map((note, index) => {
+          const left = (note.start + offset) * PX_PER_SECOND;
+          const width = Math.max((note.end - note.start) * PX_PER_SECOND, MIN_NOTE_PX);
+          const state = results[index] ?? "pending";
+          const golden = note.kind === "golden" || note.kind === "goldenRap";
+          const isRap = note.pitch === null;
+          const top = note.pitch === null ? RAP_TOP : percentY(note.pitch + 60);
+          const classes = [
+            "pitch-note",
+            isRap ? "is-rap" : "",
+            golden ? "is-golden" : "",
+            `is-${state}`,
+            index === pointer ? "is-active" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
 
-        const left = percentX(start);
-        const width = Math.max((end - start) / windowSpan * 100, 0.6);
-        const isRap = note.pitch === null;
-        const top = note.pitch === null ? RAP_TOP : percentY(note.pitch + 60);
-        const state = results[index] ?? "pending";
-        const golden = note.kind === "golden" || note.kind === "goldenRap";
-        const classes = [
-          "pitch-note",
-          isRap ? "is-rap" : "",
-          golden ? "is-golden" : "",
-          `is-${state}`,
-          index === pointer ? "is-active" : "",
-        ]
-          .filter(Boolean)
-          .join(" ");
-
-        return (
-          <div
-            key={index}
-            className={classes}
-            style={{ left: `${left}%`, width: `${width}%`, top: `${top}%` }}
-          >
-            <span className="pitch-note__lyric">{words[note.word]?.text}</span>
-          </div>
-        );
-      })}
-
-      <div className="pitch-now" style={{ left: `${nowPercent}%` }} />
-      {midi !== null ? (
-        <div
-          className="pitch-cursor"
-          style={{ left: `${nowPercent}%`, top: `${percentY(midi)}%` }}
-        />
-      ) : null}
+          return (
+            <div
+              key={index}
+              className={classes}
+              style={{ left: `${left}px`, width: `${width}px`, top: `${top}%` }}
+            />
+          );
+        })}
+      </div>
+      <div ref={nowLineRef} className="pitch-now" />
+      <div ref={cursorRef} className="pitch-cursor" />
     </div>
   );
 }
 
+// Memoised: the lane re-renders only when a note resolves, not on every tick of
+// the island's clock. Its scroll and cursor run on their own animation frame.
 export default memo(PitchHighway);

@@ -315,6 +315,8 @@ export default function GameApp({
   // Read by the microphone frame callback, which outlives individual renders.
   const scoredRef = useRef(false);
   const playingRef = useRef(false);
+  /** Throttles scoring dispatches so the island does not re-render every frame. */
+  const lastSingSampleRef = useRef(0);
 
   const localKind = local?.kind ?? null;
   const localVideoFile = local && local.kind === "video" ? local.media : null;
@@ -581,8 +583,31 @@ export default function GameApp({
   });
   const singLoop = useSingLoop({ notes: singNotes, offset, mode, getTime });
   const pitchInput = usePitchInput((frame) => {
-    if (scoredRef.current && playingRef.current) singLoop.sample(frame.midi, frame.rms);
+    if (!scoredRef.current || !playingRef.current) return;
+    // Scoring does not need every animation frame; ~30 Hz is plenty and keeps
+    // the island from re-rendering 60 times a second. The lane stays smooth on
+    // its own animation clock.
+    const now = performance.now();
+    if (now - lastSingSampleRef.current < 33) return;
+    lastSingSampleRef.current = now;
+    singLoop.sample(frame.midi, frame.rms);
   });
+
+  // Singing highlights the words against the music; typing against the pointer.
+  // Memoised so the 20 Hz clock tick does not rebuild (and re-render) the
+  // highway; the pointer only changes at word boundaries.
+  const lyricsFollowMusic = karaoke || scoredSing;
+  const lyricWordPointer = useMemo(
+    () => (lyricsFollowMusic ? karaokePointer(words, offset, time) : game.state.pointer),
+    [lyricsFollowMusic, words, offset, time, game.state.pointer],
+  );
+  const lyricResults = useMemo(
+    () =>
+      lyricsFollowMusic
+        ? words.map((_, index) => (index < lyricWordPointer ? "hit" : "pending") as WordResult)
+        : game.state.results,
+    [lyricsFollowMusic, words, lyricWordPointer, game.state.results],
+  );
 
   // Countdown, then play. After the last number, wait a beat before starting so
   // the countdown is fully gone 0.5s before the song does — the player can read
@@ -936,14 +961,6 @@ export default function GameApp({
       : words.length
         ? game.state.pointer / words.length
         : 0;
-  // Singing highlights the words against the music; typing against the pointer.
-  const lyricsFollowMusic = karaoke || scoredSing;
-  const lyricWordPointer = lyricsFollowMusic
-    ? karaokePointer(words, offset, time)
-    : game.state.pointer;
-  const lyricResults = lyricsFollowMusic
-    ? words.map((_, index) => (index < lyricWordPointer ? "hit" : "pending") as WordResult)
-    : game.state.results;
 
   // The HUD shows pitch accuracy while singing, keystroke accuracy while typing.
   const hudScore = scoredSing ? singLoop.state.score : game.state.score;
@@ -1091,12 +1108,11 @@ export default function GameApp({
           {scoredSing ? (
             <PitchHighway
               notes={singNotes}
-              words={words}
               results={singLoop.state.results}
               pointer={singLoop.state.pointer}
-              time={time}
               offset={offset}
-              midi={pitchInput.midi}
+              getTime={getTime}
+              midiRef={pitchInput.midiRef}
             />
           ) : null}
           <LyricHighway
@@ -1112,9 +1128,9 @@ export default function GameApp({
           {scoredSing ? (
             <p className="pitch-mic" data-state={pitchInput.status}>
               {pitchInput.error ??
-                (pitchInput.midi === null
-                  ? "sing — pitch is being scored"
-                  : "microphone live")}
+                (pitchInput.status === "listening"
+                  ? "microphone live"
+                  : "preparing microphone…")}
             </p>
           ) : null}
           {style === "sing" && micFallback ? (

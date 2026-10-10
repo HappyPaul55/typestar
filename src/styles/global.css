@@ -1151,27 +1151,21 @@
     );
     opacity: 0.5;
   }
+  /* The scrolling layer is moved by transform on each animation frame, so the
+     lane is smooth even when React re-renders for scoring. */
+  .pitch-highway__layer {
+    position: absolute;
+    inset: 0;
+    will-change: transform;
+  }
   .pitch-note {
     position: absolute;
     height: 15px;
     transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
     border: 1px solid var(--color-ink);
     border-radius: 999px;
     background: color-mix(in srgb, var(--color-ink) 20%, transparent);
     transition: background-color 0.12s linear, border-color 0.12s linear;
-  }
-  .pitch-note__lyric {
-    padding: 0 0.3em;
-    font-family: var(--font-mono);
-    font-size: 0.56rem;
-    font-weight: 700;
-    white-space: nowrap;
-    color: var(--color-ink);
-    opacity: 0.8;
   }
   .pitch-note.is-active {
     background: var(--color-yellow);
@@ -1198,6 +1192,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
+    left: 0;
     width: 2px;
     background: var(--color-ink);
     opacity: 0.5;
@@ -1205,8 +1200,11 @@
   }
   .pitch-cursor {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 24px;
     height: 24px;
+    opacity: 0;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: var(--color-yellow);

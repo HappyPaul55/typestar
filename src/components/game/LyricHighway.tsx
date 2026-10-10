@@ -141,7 +141,7 @@ interface Props {
   compact?: boolean;
 }
 
-export default function LyricHighway({
+function LyricHighway({
   track,
   results,
   pointer,
@@ -190,3 +190,7 @@ export default function LyricHighway({
     </div>
   );
 }
+
+// Memoised so the 20 Hz clock tick does not re-render every line; the props
+// only change when a word resolves or the active line moves.
+export default memo(LyricHighway);

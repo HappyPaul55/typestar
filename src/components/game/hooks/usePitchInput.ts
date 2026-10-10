@@ -36,10 +36,11 @@ export interface PitchInputHandle {
   supported: boolean;
   status: MicStatus;
   error: string | null;
-  /** Latest detected MIDI note, throttled for display. */
-  midi: number | null;
-  /** Latest frame loudness, throttled for display. */
-  rms: number;
+  /**
+   * The latest detected MIDI note, updated every frame (not throttled). The
+   * pitch lane reads this in its animation loop so the cursor stays smooth.
+   */
+  midiRef: { readonly current: number | null };
   /** Request the microphone and begin analysis. Resolves `true` on success. */
   start(): Promise<boolean>;
   /** Stop analysis and release the microphone. */
@@ -47,8 +48,6 @@ export interface PitchInputHandle {
 }
 
 const ANALYSER_FFT = 2048;
-/** UI updates run at ~20 Hz; frames are still delivered every animation frame. */
-const UI_INTERVAL_MS = 50;
 /** Voices rarely span more than this; it keeps the octave guard meaningful. */
 const MIN_FREQUENCY = 65;
 const MAX_FREQUENCY = 1000;
@@ -61,8 +60,6 @@ export function usePitchInput(
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState<MicStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [midi, setMidi] = useState<number | null>(null);
-  const [rmsValue, setRmsValue] = useState(0);
 
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
@@ -72,8 +69,9 @@ export function usePitchInput(
   const analyserRef = useRef<AnalyserNode | null>(null);
   const bufferRef = useRef<Float32Array<ArrayBuffer> | null>(null);
   const rafRef = useRef<number | null>(null);
-  const lastUiRef = useRef(0);
   const historyRef = useRef<number[]>([]);
+  /** The live detected note, updated every frame for the pitch cursor. */
+  const midiRef = useRef<number | null>(null);
 
   // Feature detection happens after mount so SSR and the first client render
   // agree (the browser globals are not available while rendering on the server).
@@ -109,6 +107,7 @@ export function usePitchInput(
       ctxRef.current = null;
     }
     historyRef.current = [];
+    midiRef.current = null;
   }, [stopLoop]);
 
   const smooth = useCallback((value: number | null): number | null => {
@@ -139,17 +138,12 @@ export function usePitchInput(
           maxFrequency: MAX_FREQUENCY,
         });
         const detected = smooth(raw);
+        midiRef.current = detected;
         onFrameRef.current?.({
           time: performance.now() / 1000,
           midi: detected,
           rms: loudness,
         });
-        const now = performance.now();
-        if (now - lastUiRef.current > UI_INTERVAL_MS) {
-          lastUiRef.current = now;
-          setMidi(detected);
-          setRmsValue(loudness);
-        }
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -158,8 +152,6 @@ export function usePitchInput(
 
   const stop = useCallback(() => {
     release();
-    setMidi(null);
-    setRmsValue(0);
     setStatus((current) =>
       current === "requesting" || current === "listening" ? "idle" : current,
     );
@@ -214,5 +206,5 @@ export function usePitchInput(
   // Release the microphone if the island unmounts mid-run.
   useEffect(() => release, [release]);
 
-  return { supported, status, error, midi, rms: rmsValue, start, stop };
+  return { supported, status, error, midiRef, start, stop };
 }
