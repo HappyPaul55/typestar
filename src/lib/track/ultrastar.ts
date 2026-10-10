@@ -52,6 +52,8 @@ export interface UltraStarSong {
   audio: string | null;
   /** `#VIDEO` file reference, relative to the song file. */
   video: string | null;
+  /** `#BACKGROUND` image reference, shown behind the lyrics. */
+  background: string | null;
   /** `#LANGUAGE`, when present. */
   language: string | null;
   /** `#BPM` value as written (beats per minute once multiplied by four). */
@@ -232,6 +234,7 @@ export function parseUltraStar(text: string): UltraStarSong {
     artist: headers.ARTIST ?? "",
     audio: headers.MP3 ?? null,
     video: headers.VIDEO ?? null,
+    background: headers.BACKGROUND ?? null,
     language: headers.LANGUAGE ?? null,
     bpm,
     gap: gapMs,

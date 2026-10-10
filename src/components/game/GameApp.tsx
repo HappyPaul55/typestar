@@ -307,8 +307,8 @@ export default function GameApp({
   const [turnstileError, setTurnstileError] = useState<string | null>(null);
   const [challengeId, setChallengeId] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
-  // Object URL for a local UltraStar `#COVER`, used when there is no video.
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  // Object URL for a local UltraStar `#BACKGROUND`, used when there is no video.
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const turnstileToken = useRef<string | null>(null);
   const turnstileFailures = useRef(0);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -324,20 +324,20 @@ export default function GameApp({
   const localVideoFile = local && local.kind === "video" ? local.media : null;
   const localAudioFile = local && local.kind === "audio" ? local.media : null;
   const backgroundVideoFile = local?.backgroundVideo ?? null;
-  const coverFile = local?.cover ?? null;
+  const backgroundFile = local?.background ?? null;
   const videoGap = local?.videoGap ?? 0;
 
-  // A local UltraStar cover is shown as the stage backdrop when there is no
-  // background video. Its object URL lives only as long as the song is open.
+  // A local UltraStar `#BACKGROUND` image is shown as the stage backdrop when
+  // there is no background video. Its object URL lives only as long as the song.
   useEffect(() => {
-    if (!coverFile) {
-      setCoverUrl(null);
+    if (!backgroundFile) {
+      setBackgroundUrl(null);
       return;
     }
-    const url = URL.createObjectURL(coverFile);
-    setCoverUrl(url);
+    const url = URL.createObjectURL(backgroundFile);
+    setBackgroundUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [coverFile]);
+  }, [backgroundFile]);
 
   const youtubePlayer = useYouTubePlayer(local ? null : (videoId ?? null), speed);
   const mediaPlayer = useMediaPlayer(localVideoFile, speed);
@@ -990,10 +990,11 @@ export default function GameApp({
   const locked = phase === "playing" || phase === "countdown" || phase === "paused";
 
   // The stage is always full width: a video where there is one, otherwise a
-  // local UltraStar cover, otherwise a plain dark backdrop.
+  // local UltraStar `#BACKGROUND` image, otherwise a plain dark backdrop.
   const stageMode: "youtube" | "video" | "audio" =
     localKind === "video" ? "video" : localKind === "audio" ? "audio" : "youtube";
-  const stageCover = stageMode === "audio" && !backgroundVideoFile ? coverUrl : null;
+  const stageBackground =
+    stageMode === "audio" && !backgroundVideoFile ? backgroundUrl : null;
   const overlays = (
     <>
       {phase === "idle" && ready ? (
@@ -1059,7 +1060,7 @@ export default function GameApp({
             containerRef={containerRef}
             videoRef={ultraStarPlayer.videoRef}
             mode={stageMode}
-            coverSrc={stageCover}
+            backgroundSrc={stageBackground}
             ready={ready}
             error={playerError}
             errorMessage={

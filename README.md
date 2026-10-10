@@ -7,7 +7,8 @@ typing / keyboard speed game**.
 - The video fills the stage and the game plays on top of it: the HUD sits along
   the top and the lyrics (or the singing pitch lane and lyrics) over the bottom,
   so the whole screen is the performance. When a local song has no video, its
-  cover art, or a plain dark backdrop, fills the stage instead.
+  UltraStar `#BACKGROUND` image, or a plain dark backdrop, fills the stage
+  instead.
 - Three difficulties: **Easy** (first letter of each word), **Normal** (every
   word, punctuation optional) and **Hard** (every word, punctuation required).
   Defaults to **Normal**.

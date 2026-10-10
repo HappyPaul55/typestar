@@ -12,6 +12,7 @@ const CHART = [
   "#ARTIST:Someone",
   "#MP3:audio.mp3",
   "#VIDEO:bg.mp4",
+  "#BACKGROUND:bg.jpg",
   "#BPM:120",
   "#GAP:1000",
   "#VIDEOGAP:2.5",
@@ -51,6 +52,7 @@ describe("parseUltraStar", () => {
     expect(song.artist).toBe("Someone");
     expect(song.audio).toBe("audio.mp3");
     expect(song.video).toBe("bg.mp4");
+    expect(song.background).toBe("bg.jpg");
     expect(song.videoGap).toBeCloseTo(2.5, 6);
     expect(song.bpm).toBe(120);
     expect(song.gap).toBe(1000);

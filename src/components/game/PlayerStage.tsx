@@ -17,8 +17,8 @@ interface Props {
    * while the hidden `<audio>` (rendered by the caller) drives the game.
    */
   mode?: "youtube" | "video" | "audio";
-  /** A cover image shown when there is no video to play. */
-  coverSrc?: string | null;
+  /** A `#BACKGROUND` image shown when there is no video to play. */
+  backgroundSrc?: string | null;
   ready: boolean;
   error: number | null;
   /** Overrides the generic message when the source is not YouTube. */
@@ -37,7 +37,7 @@ export default function PlayerStage({
   containerRef,
   videoRef,
   mode = "youtube",
-  coverSrc = null,
+  backgroundSrc = null,
   ready,
   error,
   errorMessage,
@@ -45,8 +45,8 @@ export default function PlayerStage({
   return (
     <div className="player-stage">
       {mode === "audio" ? (
-        coverSrc ? (
-          <img className="player-stage__cover" src={coverSrc} alt="" />
+        backgroundSrc ? (
+          <img className="player-stage__background" src={backgroundSrc} alt="" />
         ) : (
           <video ref={videoRef} className="player-stage__player" playsInline muted />
         )

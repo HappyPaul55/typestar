@@ -50,8 +50,8 @@ Routes: `/` (landing), `/play` (track picker), `/play/<youtubeId>` (the game),
    in an HTML5 `<video>` (`useMediaPlayer`); an UltraStar song plays its audio
    (`useUltraStarPlayer`, the master clock) with an optional muted background
    video synced via `#VIDEOGAP`. A song with no background video shows its
-   `#COVER` art (or a plain dark backdrop) instead, so the stage is always full
-   width with the game overlaid on it. Several folders can be added; they are
+   `#BACKGROUND` image (or a plain dark backdrop) instead, so the stage is always
+   full width with the game overlaid on it. Several folders can be added; they are
    remembered in IndexedDB, and the header shows the folder count with a hover
    list of their names. A footer lists each folder and how many songs it
    contributes; clicking a folder name there removes it. Songs appear as cards
