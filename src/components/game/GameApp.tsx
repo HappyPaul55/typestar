@@ -104,6 +104,13 @@ const MODE_HELP: Record<GameMode, string> = {
   hard: "Type every word, punctuation and all.",
 };
 
+/** Difficulty means pitch tolerance while singing. */
+const SING_MODE_HELP: Record<GameMode, string> = {
+  easy: "Generous — small pitch slips still count.",
+  normal: "Balanced — match each note within a semitone.",
+  hard: "Strict — you must be close to the note.",
+};
+
 /** The hero copy shown on `/play/local` while no song is open. */
 const LOCAL_PICKER_TITLE = "Play from this device";
 const LOCAL_PICKER_SUBTITLE =
@@ -127,6 +134,7 @@ function StartOverlay({
   mode,
   onSelectMode,
   singScored,
+  showDifficulty,
   onStart,
 }: {
   style: PlayStyle;
@@ -135,6 +143,8 @@ function StartOverlay({
   onSelectMode(mode: GameMode): void;
   /** Whether Sing on this track is scored (pitch) rather than plain karaoke. */
   singScored: boolean;
+  /** Show the difficulty picker (typing, or scored singing's pitch tolerance). */
+  showDifficulty: boolean;
   onStart(): void;
 }) {
   const title = style === "sing" ? "Sing along." : "Type the words in time.";
@@ -176,7 +186,7 @@ function StartOverlay({
         ))}
       </div>
 
-      {style === "type" ? (
+      {showDifficulty ? (
         <>
           <div className="mode-picker" role="group" aria-label="Difficulty">
             {GAME_MODES.map((value) => (
@@ -191,7 +201,9 @@ function StartOverlay({
               </button>
             ))}
           </div>
-          <p className="mode-picker__help">{MODE_HELP[mode]}</p>
+          <p className="mode-picker__help">
+            {style === "sing" ? SING_MODE_HELP[mode] : MODE_HELP[mode]}
+          </p>
         </>
       ) : null}
     </div>
@@ -406,12 +418,13 @@ export default function GameApp({
     }
   }, [local, videoId, mode, failMode, speed, style]);
 
-  // A new song starts from a clean Turnstile slate.
+  // A new song starts from a clean Turnstile slate, and a fresh microphone try.
   useEffect(() => {
     turnstileToken.current = null;
     turnstileFailures.current = 0;
     setNeedsTurnstile(false);
     setTurnstileError(null);
+    setMicFallback(false);
   }, [videoId]);
 
   // Load the track, and restore its saved sync offset.
@@ -773,6 +786,7 @@ export default function GameApp({
   const selectLocal = useCallback((selection: LocalSelection) => {
     setLocal(selection);
     setLocalRequest(selection.filePath);
+    setMicFallback(false);
     setPhase("idle");
     const target = `/play/local?file=${encodeURIComponent(selection.filePath)}`;
     const current = `${window.location.pathname}${window.location.search}`;
@@ -958,6 +972,7 @@ export default function GameApp({
           mode={mode}
           onSelectMode={selectMode}
           singScored={singScored}
+          showDifficulty={style === "type" || singScored}
           onStart={start}
         />
       ) : null}
