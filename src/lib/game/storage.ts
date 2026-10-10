@@ -27,6 +27,7 @@ export function writeSetting(key: string, value: unknown): void {
 export const SETTING_MODE = "mode";
 export const SETTING_FAIL_MODE = "failMode";
 export const SETTING_SPEED = "speed";
+export const SETTING_PLAY_STYLE = "playStyle";
 export const SETTING_OFFSET_PREFIX = "offset:";
 
 /** Format seconds as `m:ss`. */

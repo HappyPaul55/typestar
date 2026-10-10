@@ -17,14 +17,21 @@ interface WordProps {
   isCued: boolean;
   input: string;
   mode: GameMode;
+  /** Karaoke: highlight the active word as a whole, with no letter feedback. */
+  karaoke?: boolean;
 }
 
-function Word({ word, status, isActive, isCued, input, mode }: WordProps) {
+function Word({ word, status, isActive, isCued, input, mode, karaoke }: WordProps) {
   if (status === "hit") {
     return <span className="lyric-word is-hit">{word.text}</span>;
   }
   if (status === "miss") {
     return <span className="lyric-word is-miss">{word.text}</span>;
+  }
+  if (karaoke) {
+    return (
+      <span className={"lyric-word" + (isActive ? " is-active" : "")}>{word.text}</span>
+    );
   }
   if (isCued) {
     return <span className="lyric-word is-cued">{word.text}</span>;
@@ -81,6 +88,7 @@ interface LineProps {
   pointer: number;
   input: string;
   mode: GameMode;
+  karaoke?: boolean;
 }
 
 const LyricLine = memo(function LyricLine({
@@ -94,6 +102,7 @@ const LyricLine = memo(function LyricLine({
   pointer,
   input,
   mode,
+  karaoke,
 }: LineProps) {
   return (
     <p data-line={lineIndex} className={"lyric-line" + (active ? " is-active" : "")}>
@@ -109,6 +118,7 @@ const LyricLine = memo(function LyricLine({
               isCued={index === pointer && cued}
               input={input}
               mode={mode}
+              karaoke={karaoke}
             />
           </Fragment>
         );
@@ -125,6 +135,8 @@ interface Props {
   mode: GameMode;
   /** True while the next word is still ahead of its typeable window. */
   cued: boolean;
+  /** Karaoke: highlight the active word only, with no per-letter feedback. */
+  karaoke?: boolean;
 }
 
 export default function LyricHighway({
@@ -134,6 +146,7 @@ export default function LyricHighway({
   input,
   mode,
   cued,
+  karaoke,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLine = track.words[pointer]?.line ?? track.lines.length - 1;
@@ -163,6 +176,7 @@ export default function LyricHighway({
             pointer={pointer}
             input={input}
             mode={mode}
+            karaoke={karaoke}
           />
         ))}
       </div>

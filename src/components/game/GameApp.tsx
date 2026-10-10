@@ -41,6 +41,7 @@ import {
   type FailMode,
   type GameMode,
   type PlaybackSpeed,
+  type WordResult,
 } from "../../lib/game/engine";
 import { playSound, preloadSounds } from "../../lib/game/audio";
 import { TURNSTILE_ACTION, TURNSTILE_SITE_KEY } from "../../lib/game/turnstile";
@@ -50,9 +51,20 @@ import {
   SETTING_FAIL_MODE,
   SETTING_MODE,
   SETTING_OFFSET_PREFIX,
+  SETTING_PLAY_STYLE,
   SETTING_SPEED,
   writeSetting,
 } from "../../lib/game/storage";
+import { karaokePointer, karaokeProgress } from "../../lib/game/karaoke";
+import {
+  DEFAULT_PLAY_STYLE,
+  isPlayStyle,
+  PLAY_STYLE_HELP,
+  PLAY_STYLE_LABEL,
+  PLAY_STYLES,
+  singBehavior,
+  type PlayStyle,
+} from "../../lib/game/modes";
 import type { Track } from "../../lib/track/types";
 import { RATING_LABEL, ratingOf, type TrackRating } from "../../lib/track/rating";
 import { seoTagValues, trackSeo } from "../../lib/seo";
@@ -61,6 +73,7 @@ import { buildHash, parseHash } from "../../lib/game/url";
 import CueBar from "./CueBar";
 import EndScreen from "./EndScreen";
 import Hud from "./Hud";
+import KaraokeResults from "./KaraokeResults";
 import LocalLibrary, { type LocalSelection } from "./LocalLibrary";
 import LyricHighway from "./LyricHighway";
 import PlayerStage from "./PlayerStage";
@@ -100,14 +113,25 @@ interface GameFlash {
 const TIER_RANK: Record<ComboFlash, number> = { small: 0, medium: 1, large: 2 };
 
 function StartOverlay({
+  style,
+  onSelectStyle,
   mode,
   onSelectMode,
+  singScored,
   onStart,
 }: {
+  style: PlayStyle;
+  onSelectStyle(style: PlayStyle): void;
   mode: GameMode;
   onSelectMode(mode: GameMode): void;
+  /** Whether Sing on this track is scored (pitch) rather than plain karaoke. */
+  singScored: boolean;
   onStart(): void;
 }) {
+  const title = style === "sing" ? "Sing along." : "Type the words in time.";
+  const singHelp = singScored
+    ? "Hit the notes as they arrive — your pitch is scored."
+    : "The words light up as they arrive — sing along. No score is kept.";
   return (
     <div className="game-overlay game-overlay--start" role="dialog" aria-label="Start">
       <p className="comment on-ink">
@@ -116,9 +140,9 @@ function StartOverlay({
         </span>{" "}
         ready
       </p>
-      <h2 className="game-overlay__title">Type the words in time.</h2>
+      <h2 className="game-overlay__title">{title}</h2>
       <p className="game-overlay__help">
-        Words light up as they arrive. Type each one before its moment passes.
+        {style === "sing" ? singHelp : PLAY_STYLE_HELP.type}
       </p>
 
       <button
@@ -129,20 +153,38 @@ function StartOverlay({
         Start
       </button>
 
-      <div className="mode-picker" role="group" aria-label="Difficulty">
-        {GAME_MODES.map((value) => (
+      <div className="mode-picker" role="group" aria-label="Play style">
+        {PLAY_STYLES.map((value) => (
           <button
             key={value}
             type="button"
-            className={"mode-picker__option" + (value === mode ? " is-active" : "")}
-            aria-pressed={value === mode}
-            onClick={() => onSelectMode(value)}
+            className={"mode-picker__option" + (value === style ? " is-active" : "")}
+            aria-pressed={value === style}
+            onClick={() => onSelectStyle(value)}
           >
-            {MODE_LABEL[value]}
+            {PLAY_STYLE_LABEL[value]}
           </button>
         ))}
       </div>
-      <p className="mode-picker__help">{MODE_HELP[mode]}</p>
+
+      {style === "type" ? (
+        <>
+          <div className="mode-picker" role="group" aria-label="Difficulty">
+            {GAME_MODES.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={"mode-picker__option" + (value === mode ? " is-active" : "")}
+                aria-pressed={value === mode}
+                onClick={() => onSelectMode(value)}
+              >
+                {MODE_LABEL[value]}
+              </button>
+            ))}
+          </div>
+          <p className="mode-picker__help">{MODE_HELP[mode]}</p>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -233,6 +275,7 @@ export default function GameApp({
   const [countdown, setCountdown] = useState(3);
   const [mode, setMode] = useState<GameMode>(DEFAULT_MODE);
   const [failMode, setFailMode] = useState<FailMode>(DEFAULT_FAIL_MODE);
+  const [style, setStyle] = useState<PlayStyle>(DEFAULT_PLAY_STYLE);
   const [speed, setSpeed] = useState<PlaybackSpeed>(DEFAULT_SPEED);
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
@@ -302,21 +345,31 @@ export default function GameApp({
   // track fetched from the API.
   const activeTrack = local?.track ?? track;
 
+  // Sing on a track with measured notes is scored against them; anything else
+  // (YouTube captions, local `.vtt`) is an unscored karaoke sing-along.
+  const singScored = activeTrack ? singBehavior(activeTrack) === "scored" : false;
+  const karaoke = style === "sing" && !singScored;
+
   useEffect(() => {
     const parsed = parseHash(window.location.hash);
     const storedMode = readSetting<unknown>(SETTING_MODE, DEFAULT_MODE);
     const storedFail = readSetting<unknown>(SETTING_FAIL_MODE, DEFAULT_FAIL_MODE);
     const storedSpeed = readSetting<unknown>(SETTING_SPEED, DEFAULT_SPEED);
+    const storedStyle = readSetting<unknown>(SETTING_PLAY_STYLE, DEFAULT_PLAY_STYLE);
     const resolvedMode = parsed.mode ?? (isGameMode(storedMode) ? storedMode : DEFAULT_MODE);
     const resolvedFail = parsed.failMode ?? (isFailMode(storedFail) ? storedFail : DEFAULT_FAIL_MODE);
     const resolvedSpeed = parsed.speed ?? (isPlaybackSpeed(storedSpeed) ? storedSpeed : DEFAULT_SPEED);
+    const resolvedStyle =
+      parsed.style ?? (isPlayStyle(storedStyle) ? storedStyle : DEFAULT_PLAY_STYLE);
     setMode(resolvedMode);
     setFailMode(resolvedFail);
     setSpeed(resolvedSpeed);
+    setStyle(resolvedStyle);
     // Persist the resolved settings so later visits remember them.
     writeSetting(SETTING_MODE, resolvedMode);
     writeSetting(SETTING_FAIL_MODE, resolvedFail);
     writeSetting(SETTING_SPEED, resolvedSpeed);
+    writeSetting(SETTING_PLAY_STYLE, resolvedStyle);
   }, []);
 
   // Keep the URL hash in step with the settings, so the page is shareable.
@@ -324,14 +377,14 @@ export default function GameApp({
   // runs are not shareable, so they keep the plain `/play/local` URL.
   useEffect(() => {
     if (local || !videoId) return;
-    const hash = buildHash({ mode, failMode, speed });
+    const hash = buildHash({ mode, failMode, speed, style });
     const path = `${window.location.pathname}${window.location.search}`;
     const target = hash || path;
     const current = `${path}${window.location.hash}`;
     if (current !== target) {
       window.history.replaceState(null, "", target);
     }
-  }, [local, videoId, mode, failMode, speed]);
+  }, [local, videoId, mode, failMode, speed, style]);
 
   // A new song starts from a clean Turnstile slate.
   useEffect(() => {
@@ -486,7 +539,7 @@ export default function GameApp({
     offset,
     mode,
     failMode,
-    running: phase === "playing",
+    running: phase === "playing" && !karaoke,
     time,
     getTime,
     seek: seekTo,
@@ -513,16 +566,23 @@ export default function GameApp({
 
   // Finished when every word is resolved, or when the run fails.
   useEffect(() => {
-    if (phase === "playing" && (game.state.finished || game.state.failed)) {
+    if (!karaoke && phase === "playing" && (game.state.finished || game.state.failed)) {
       pause();
       setPhase("results");
     }
-  }, [phase, game.state.finished, game.state.failed, pause]);
+  }, [phase, karaoke, game.state.finished, game.state.failed, pause]);
 
-  // The video ending before the lyrics do counts as a finish.
+  // The video/audio ending before the lyrics do counts as a finish. Karaoke has
+  // no lyric pointer to exhaust, so the song ending is what finishes it.
   useEffect(() => {
-    if (phase === "playing" && playerState === 0) game.finish();
-  }, [phase, playerState, game.finish]);
+    if (phase !== "playing" || playerState !== 0) return;
+    if (karaoke) {
+      pause();
+      setPhase("results");
+    } else {
+      game.finish();
+    }
+  }, [phase, playerState, karaoke, pause, game.finish]);
 
   // If the tab is hidden the animation-frame clock stops, but the video keeps
   // playing; pause so the run can't fast-forward while away.
@@ -538,9 +598,9 @@ export default function GameApp({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [phase, pause]);
 
-  // Capture typing while playing.
+  // Capture typing while playing (karaoke keeps its hands free).
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || karaoke) return;
     const handler = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
@@ -565,7 +625,7 @@ export default function GameApp({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [phase, game.onKey]);
+  }, [phase, karaoke, game.onKey]);
 
   const start = useCallback(() => {
     if (!ready) return;
@@ -575,12 +635,13 @@ export default function GameApp({
     seekTo(0);
     setCountdown(COUNTDOWN_FROM);
     setPhase("countdown");
-    // Bring up the on-screen keyboard, then show the lyrics on small screens.
-    inputRef.current?.focus();
+    // Bring up the on-screen keyboard (typing only), then show the lyrics on
+    // small screens.
+    if (!karaoke) inputRef.current?.focus();
     if (window.matchMedia("(max-width: 919px)").matches) {
       lyricRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [ready, pause, seekTo]);
+  }, [ready, pause, seekTo, karaoke]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
@@ -616,6 +677,15 @@ export default function GameApp({
       if (phase !== "idle" && phase !== "results") return;
       setMode(next);
       writeSetting(SETTING_MODE, next);
+    },
+    [phase],
+  );
+
+  const selectStyle = useCallback(
+    (next: PlayStyle) => {
+      if (phase !== "idle" && phase !== "results") return;
+      setStyle(next);
+      writeSetting(SETTING_PLAY_STYLE, next);
     },
     [phase],
   );
@@ -791,7 +861,17 @@ export default function GameApp({
 
   const accuracy = accuracyOf(game.state);
   const multiplier = multiplierOf(game.state);
-  const progress = words.length ? game.state.pointer / words.length : 0;
+  // Karaoke has no typed pointer; its progress follows the music instead.
+  const karaokePos = karaoke ? karaokePointer(words, offset, time) : 0;
+  const progress = karaoke
+    ? karaokeProgress(words, offset, time)
+    : words.length
+      ? game.state.pointer / words.length
+      : 0;
+  const highwayPointer = karaoke ? karaokePos : game.state.pointer;
+  const highwayResults = karaoke
+    ? words.map((_, index) => (index < karaokePos ? "hit" : "pending") as WordResult)
+    : game.state.results;
   const featured = FEATURED_BY_ID.get(activeTrack.id);
   const locked = phase === "playing" || phase === "countdown" || phase === "paused";
 
@@ -804,7 +884,14 @@ export default function GameApp({
   const overlays = (
     <>
       {phase === "idle" && ready ? (
-        <StartOverlay mode={mode} onSelectMode={selectMode} onStart={start} />
+        <StartOverlay
+          style={style}
+          onSelectStyle={selectStyle}
+          mode={mode}
+          onSelectMode={selectMode}
+          singScored={singScored}
+          onStart={start}
+        />
       ) : null}
       {phase === "countdown" && countdown > 0 ? (
         <CountdownOverlay value={countdown} />
@@ -862,6 +949,7 @@ export default function GameApp({
         failMode={failMode}
         speed={speed}
         locked={locked}
+        karaoke={karaoke}
         paused={phase === "paused"}
         playing={phase === "playing"}
         onTogglePause={togglePause}
@@ -896,8 +984,10 @@ export default function GameApp({
             }
             title={activeTrack.title}
             artist={featured?.artist}
-            shielded={phase === "playing"}
-            onShield={() => inputRef.current?.focus()}
+            shielded={phase === "playing" && !karaoke}
+            onShield={() => {
+              if (!karaoke) inputRef.current?.focus();
+            }}
           >
             {overlays}
           </PlayerStage>
@@ -907,20 +997,23 @@ export default function GameApp({
           {!hasStage ? overlays : null}
           <CueBar
             cue={cue}
-            first={game.state.pointer === 0}
+            first={(karaoke ? karaokePos : game.state.pointer) === 0}
             onSkip={
-              phase === "playing" && game.state.pointer === 0 && skipTarget !== null
+              phase === "playing" &&
+              (karaoke ? karaokePos : game.state.pointer) === 0 &&
+              skipTarget !== null
                 ? skipIntro
                 : undefined
             }
           />
           <LyricHighway
             track={activeTrack}
-            results={game.state.results}
-            pointer={game.state.pointer}
-            input={game.state.input}
+            results={highwayResults}
+            pointer={highwayPointer}
+            input={karaoke ? "" : game.state.input}
             mode={mode}
             cued={cue.waiting}
+            karaoke={karaoke}
           />
         </div>
       </div>
@@ -936,20 +1029,31 @@ export default function GameApp({
       ) : null}
 
       {phase === "results" ? (
-        <EndScreen
-          state={game.state}
-          accuracy={accuracy}
-          rank={rankOf(game.state)}
-          mode={mode}
-          failMode={failMode}
-          speed={speed}
-          trackId={activeTrack.id}
-          elapsed={time}
-          progress={progress}
-          onReplay={replay}
-          onChangeSong={changeSong}
-          onClose={closeResults}
-        />
+        karaoke ? (
+          <KaraokeResults
+            title={activeTrack.title}
+            artist={featured?.artist ?? local?.artist}
+            elapsed={time}
+            onReplay={replay}
+            onChangeSong={changeSong}
+            onClose={closeResults}
+          />
+        ) : (
+          <EndScreen
+            state={game.state}
+            accuracy={accuracy}
+            rank={rankOf(game.state)}
+            mode={mode}
+            failMode={failMode}
+            speed={speed}
+            trackId={activeTrack.id}
+            elapsed={time}
+            progress={progress}
+            onReplay={replay}
+            onChangeSong={changeSong}
+            onClose={closeResults}
+          />
+        )
       ) : null}
     </div>
   );

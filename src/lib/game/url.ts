@@ -20,11 +20,13 @@ import {
   type GameMode,
   type PlaybackSpeed,
 } from "./engine";
+import { DEFAULT_PLAY_STYLE, isPlayStyle, type PlayStyle } from "./modes";
 
 export interface ParsedHash {
   mode?: GameMode;
   failMode?: FailMode;
   speed?: PlaybackSpeed;
+  style?: PlayStyle;
 }
 
 /** Build the hash for a set of settings; defaults are left out. */
@@ -32,12 +34,16 @@ export function buildHash(state: {
   mode: GameMode;
   failMode: FailMode;
   speed?: PlaybackSpeed;
+  style?: PlayStyle;
 }): string {
   const parts: string[] = [];
   if (state.mode !== DEFAULT_MODE) parts.push(`difficulty=${state.mode}`);
   if (state.failMode !== DEFAULT_FAIL_MODE) parts.push(`run=${state.failMode}`);
   if (state.speed !== undefined && state.speed !== DEFAULT_SPEED) {
     parts.push(`speed=${state.speed}`);
+  }
+  if (state.style !== undefined && state.style !== DEFAULT_PLAY_STYLE) {
+    parts.push(`style=${state.style}`);
   }
   return parts.length ? `#${parts.join("&")}` : "";
 }
@@ -49,9 +55,11 @@ export function parseHash(hash: string): ParsedHash {
   const run = params.get("run");
   const rawSpeed = params.get("speed");
   const speed = rawSpeed === null ? Number.NaN : Number(rawSpeed);
+  const style = params.get("style");
   return {
     ...(isGameMode(mode) ? { mode } : {}),
     ...(isFailMode(run) ? { failMode: run } : {}),
     ...(isPlaybackSpeed(speed) ? { speed } : {}),
+    ...(isPlayStyle(style) ? { style } : {}),
   };
 }

@@ -31,6 +31,8 @@ interface Props {
   speed: PlaybackSpeed;
   /** True while a run is in progress, so the dropdowns are disabled. */
   locked: boolean;
+  /** Karaoke: no score is kept, so the stats and scoring dropdowns are hidden. */
+  karaoke?: boolean;
   paused: boolean;
   playing: boolean;
   onTogglePause(): void;
@@ -93,6 +95,7 @@ export default function Hud({
   failMode,
   speed,
   locked,
+  karaoke = false,
   paused,
   playing,
   onTogglePause,
@@ -112,11 +115,13 @@ export default function Hud({
 
   return (
     <div className="hud">
-      <div className="hud__stats">
-        <Stat label="score" value={score.toLocaleString("en-GB")} />
-        <Stat label="combo" value={combo > 0 ? `×${multiplier}` : "—"} />
-        <Stat label="accuracy" value={attempted ? `${percent}%` : "—"} />
-      </div>
+      {karaoke ? null : (
+        <div className="hud__stats">
+          <Stat label="score" value={score.toLocaleString("en-GB")} />
+          <Stat label="combo" value={combo > 0 ? `×${multiplier}` : "—"} />
+          <Stat label="accuracy" value={attempted ? `${percent}%` : "—"} />
+        </div>
+      )}
 
       <div className="hud__progress">
         <div
@@ -140,36 +145,40 @@ export default function Hud({
         <Control onClick={onReset} title="Reset">
           ↺
         </Control>
-        <label className="hud__mode" data-tooltip="Difficulty">
-          <span className="sr-only">Difficulty</span>
-          <select
-            className="hud__select"
-            value={mode}
-            disabled={locked}
-            onChange={(event) => onSelectMode(event.target.value as GameMode)}
-          >
-            {GAME_MODES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="hud__mode" data-tooltip="Run mode">
-          <span className="sr-only">Run mode</span>
-          <select
-            className="hud__select"
-            value={failMode}
-            disabled={locked}
-            onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
-          >
-            {FAIL_MODES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
+        {karaoke ? null : (
+          <>
+            <label className="hud__mode" data-tooltip="Difficulty">
+              <span className="sr-only">Difficulty</span>
+              <select
+                className="hud__select"
+                value={mode}
+                disabled={locked}
+                onChange={(event) => onSelectMode(event.target.value as GameMode)}
+              >
+                {GAME_MODES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="hud__mode" data-tooltip="Run mode">
+              <span className="sr-only">Run mode</span>
+              <select
+                className="hud__select"
+                value={failMode}
+                disabled={locked}
+                onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
+              >
+                {FAIL_MODES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
         <label className="hud__mode" data-tooltip="Playback speed">
           <span className="sr-only">Playback speed</span>
           <select

@@ -40,6 +40,29 @@ export interface TrackLine {
   to: number;
 }
 
+/** How a note is scored, mirroring the UltraStar note types. */
+export type TrackNoteKind = "normal" | "golden" | "rap" | "goldenRap";
+
+/**
+ * A single measured note (an UltraStar syllable) with pitch. Caption-based
+ * tracks have no notes at all; only sources that carry pitch produce them.
+ */
+export interface TrackNote {
+  /** Index into {@link Track.words} this note belongs to. */
+  word: number;
+  /** Seconds from the start of the audio/video. */
+  start: number;
+  /** Seconds from the start of the audio/video. */
+  end: number;
+  /**
+   * Pitch in semitones relative to C4 (MIDI 60), or `null` for rap notes whose
+   * pitch is ignored. Rap notes are still timed and scored on presence.
+   */
+  pitch: number | null;
+  /** The note type, which affects scoring. */
+  kind: TrackNoteKind;
+}
+
 export interface TrackSource {
   captions: CaptionKind;
   /** ISO timestamp of when the captions were fetched. */
@@ -64,6 +87,12 @@ export interface Track {
   lines: TrackLine[];
   /** Flat, time-ordered list of every word in the track. */
   words: TrackWord[];
+  /**
+   * Per-note pitch data, present only for sources that carry it (UltraStar).
+   * Caption-based tracks have no notes, so they can only be typed or sung as
+   * unscored karaoke. Optional so older cached/seeded tracks still validate.
+   */
+  notes?: TrackNote[];
 }
 
 /** A caption segment as returned by `youtube-caption-extractor`. */
