@@ -2,6 +2,12 @@
  * The heads-up display: score, combo multiplier, accuracy, progress and the
  * controls. Difficulty and run mode are dropdowns so they can be changed
  * mid-session.
+ *
+ * The game bar is the same in every style: the score/combo/accuracy block, the
+ * difficulty and run-mode dropdowns, and every control are always shown. A
+ * karaoke run keeps them too — its stats simply read "—", since there is no
+ * score. What is shown is still driven by the active engine's
+ * {@link Capabilities}, so a future style can hide a control if it must.
  */
 
 import {
@@ -13,17 +19,13 @@ import {
   type GameMode,
   type PlaybackSpeed,
 } from "../../lib/game/engine";
+import type { Capabilities, RunSummary } from "../../lib/game/game";
 import { formatTime } from "../../lib/game/storage";
 import Calibration from "./Calibration";
 
 interface Props {
-  score: number;
-  combo: number;
-  multiplier: number;
-  accuracy: number;
-  /** True once any key has been typed, so accuracy is meaningful. */
-  attempted: boolean;
-  progress: number;
+  summary: RunSummary;
+  capabilities: Capabilities;
   time: number;
   duration: number;
   mode: GameMode;
@@ -31,8 +33,6 @@ interface Props {
   speed: PlaybackSpeed;
   /** True while a run is in progress, so the dropdowns are disabled. */
   locked: boolean;
-  /** Karaoke: no score is kept, so the stats and scoring dropdowns are hidden. */
-  karaoke?: boolean;
   paused: boolean;
   playing: boolean;
   onTogglePause(): void;
@@ -83,19 +83,14 @@ function Control({
 }
 
 export default function Hud({
-  score,
-  combo,
-  multiplier,
-  accuracy,
-  attempted,
-  progress,
+  summary,
+  capabilities,
   time,
   duration,
   mode,
   failMode,
   speed,
   locked,
-  karaoke = false,
   paused,
   playing,
   onTogglePause,
@@ -111,27 +106,33 @@ export default function Hud({
   onFullscreen,
   onChangeSong,
 }: Props) {
-  const percent = Math.round(accuracy * 100);
+  const percent = Math.round(summary.accuracy * 100);
 
   return (
     <div className="hud">
-      {karaoke ? null : (
+      {capabilities.scoreBar ? (
         <div className="hud__stats">
-          <Stat label="score" value={score.toLocaleString("en-GB")} />
-          <Stat label="combo" value={combo > 0 ? `×${multiplier}` : "—"} />
-          <Stat label="accuracy" value={attempted ? `${percent}%` : "—"} />
+          <Stat label="score" value={summary.score.toLocaleString("en-GB")} />
+          <Stat
+            label="combo"
+            value={summary.combo > 0 ? `×${summary.multiplier}` : "—"}
+          />
+          <Stat label="accuracy" value={summary.attempted ? `${percent}%` : "—"} />
         </div>
-      )}
+      ) : null}
 
       <div className="hud__progress">
         <div
           className="hud__bar"
           role="progressbar"
-          aria-valuenow={Math.round(progress * 100)}
+          aria-valuenow={Math.round(summary.progress * 100)}
           aria-valuemin={0}
           aria-valuemax={100}
         >
-          <div className="hud__bar-fill" style={{ width: `${Math.min(100, progress * 100)}%` }} />
+          <div
+            className="hud__bar-fill"
+            style={{ width: `${Math.min(100, summary.progress * 100)}%` }}
+          />
         </div>
         <div className="hud__time">
           {formatTime(time)} <span aria-hidden="true">/</span> {formatTime(duration)}
@@ -145,40 +146,40 @@ export default function Hud({
         <Control onClick={onReset} title="Reset">
           ↺
         </Control>
-        {karaoke ? null : (
-          <>
-            <label className="hud__mode" data-tooltip="Difficulty">
-              <span className="sr-only">Difficulty</span>
-              <select
-                className="hud__select"
-                value={mode}
-                disabled={locked}
-                onChange={(event) => onSelectMode(event.target.value as GameMode)}
-              >
-                {GAME_MODES.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="hud__mode" data-tooltip="Run mode">
-              <span className="sr-only">Run mode</span>
-              <select
-                className="hud__select"
-                value={failMode}
-                disabled={locked}
-                onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
-              >
-                {FAIL_MODES.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </>
-        )}
+        {capabilities.difficulty ? (
+          <label className="hud__mode" data-tooltip="Difficulty">
+            <span className="sr-only">Difficulty</span>
+            <select
+              className="hud__select"
+              value={mode}
+              disabled={locked}
+              onChange={(event) => onSelectMode(event.target.value as GameMode)}
+            >
+              {GAME_MODES.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {capabilities.runMode ? (
+          <label className="hud__mode" data-tooltip="Run mode">
+            <span className="sr-only">Run mode</span>
+            <select
+              className="hud__select"
+              value={failMode}
+              disabled={locked}
+              onChange={(event) => onSelectFailMode(event.target.value as FailMode)}
+            >
+              {FAIL_MODES.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <label className="hud__mode" data-tooltip="Playback speed">
           <span className="sr-only">Playback speed</span>
           <select

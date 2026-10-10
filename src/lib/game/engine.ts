@@ -2,8 +2,9 @@
  * The rhythm-typing engine, as a pure reducer.
  *
  * Keeping the whole game loop in a reducer means the scoring, timing windows
- * and easy mode are unit-testable without a browser or a video. The React hook
- * in `src/components/game/hooks/useGameLoop.ts` just feeds it keystrokes and
+ * and easy mode are unit-testable without a browser or a video. The Type engine
+ * adapter (`type-game.ts`) and the React session hook
+ * (`src/components/game/hooks/useGameSession.ts`) just feed it keystrokes and
  * the player's clock.
  */
 
@@ -68,6 +69,9 @@ export const LINE_BONUS = 250;
 /** Normal mode fails once the score drops below this. */
 export const NORMAL_FAIL_THRESHOLD = -150;
 
+/** Consecutive misses that ends the run: "they've clearly lost it". */
+export const MISS_STREAK_LIMIT = 20;
+
 /** The combo count at which each multiplier tier starts, highest first. */
 const COMBO_TIERS: [number, number][] = [
   [50, 3],
@@ -128,6 +132,8 @@ export interface GameState {
   maxCombo: number;
   hits: number;
   misses: number;
+  /** Consecutive misses without a hit (reset by a hit). */
+  missStreak: number;
   correctKeys: number;
   errorKeys: number;
   /** Whole lines cleared without a miss or a wrong key. */
@@ -137,7 +143,7 @@ export interface GameState {
   finished: boolean;
   /** Set when the run is over because of a failure (score or mistake). */
   failed: boolean;
-  failReason: "score" | "mistake" | null;
+  failReason: "score" | "mistake" | "streak" | null;
   /** Practise rewinds taken. */
   replays: number;
   /** Practise: the time the player should be sent back to, or null. */
@@ -201,6 +207,7 @@ export function createGameState(wordCount: number): GameState {
     maxCombo: 0,
     hits: 0,
     misses: 0,
+    missStreak: 0,
     correctKeys: 0,
     errorKeys: 0,
     perfectLines: 0,
@@ -400,17 +407,19 @@ function skipToWord(
 ): GameState {
   const results = [...state.results];
   let misses = state.misses;
+  let missStreak = state.missStreak;
   let score = state.score;
   for (let index = state.pointer; index < target; index++) {
     if (results[index] === "pending") {
       results[index] = "miss";
       misses++;
+      missStreak++;
       score -= MISS_PENALTY;
     }
   }
 
   const skipped = afterPenalty(
-    { ...state, pointer: target, input: "", results, misses, score, combo: 0 },
+    { ...state, pointer: target, input: "", results, misses, missStreak, score, combo: 0 },
     config,
   );
   // A failing mode (instant, or normal crossing the score floor) ends the run.
@@ -431,6 +440,7 @@ function practiseRewind(state: GameState, time: number, config: GameConfig): Gam
     results: state.results.map((result, index) => (index < pointer ? result : "pending")),
     input: "",
     combo: 0,
+    missStreak: 0,
     lineWrong: 0,
     replays: state.replays + 1,
     rewindTo: target,
@@ -462,10 +472,22 @@ function finish(state: GameState, config: GameConfig): GameState {
   };
 }
 
+/**
+ * Whether a run of misses ends the run in this mode. Fun never fails, and
+ * Practise rewinds instead of penalising, so only the failing modes can lose on
+ * a streak.
+ */
+export function missStreakEndsRun(failMode: FailMode): boolean {
+  return failMode === "normal" || failMode === "instant";
+}
+
 /** Apply the fail-mode outcome of a mistake that already cost points. */
 function afterPenalty(state: GameState, config: GameConfig): GameState {
   if (config.failMode === "instant") {
     return { ...state, failed: true, failReason: "mistake" };
+  }
+  if (missStreakEndsRun(config.failMode) && state.missStreak >= MISS_STREAK_LIMIT) {
+    return { ...state, failed: true, failReason: "streak" };
   }
   if (config.failMode === "normal" && state.score < NORMAL_FAIL_THRESHOLD) {
     return { ...state, failed: true, failReason: "score" };
@@ -479,6 +501,7 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
   let pointer = state.pointer;
   let results = state.results;
   let misses = state.misses;
+  let missStreak = state.missStreak;
   let combo = state.combo;
   let score = state.score;
   let lineWrong = state.lineWrong;
@@ -490,7 +513,7 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     // section that was already rewound.
     if (config.failMode === "practise" && !ignoring) {
       return practiseRewind(
-        { ...state, pointer, results, misses, combo, score, lineWrong },
+        { ...state, pointer, results, misses, missStreak, combo, score, lineWrong },
         time,
         config,
       );
@@ -502,6 +525,7 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     }
     results[pointer] = "miss";
     misses++;
+    missStreak++;
     if (!ignoring) {
       combo = 0;
       score -= MISS_PENALTY;
@@ -515,6 +539,7 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
         pointer,
         results,
         misses,
+        missStreak,
         combo,
         score,
         lineWrong,
@@ -531,6 +556,7 @@ function tick(state: GameState, time: number, config: GameConfig): GameState {
     pointer,
     results,
     misses,
+    missStreak,
     combo,
     score,
     lineWrong,
@@ -608,6 +634,7 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
       input: "",
       results,
       hits: state.hits + 1,
+      missStreak: 0,
       correctKeys,
       lineWrong,
       finished: pointer >= config.words.length,
@@ -645,6 +672,7 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
     combo,
     maxCombo: Math.max(state.maxCombo, combo),
     hits: state.hits + 1,
+    missStreak: 0,
     correctKeys,
     perfectLines,
     lineWrong,
@@ -703,9 +731,4 @@ export function rankOf(state: GameState): Rank {
 
 export function progressOf(state: GameState, config: GameConfig): number {
   return config.words.length ? state.pointer / config.words.length : 0;
-}
-
-/** The score multiplier currently in effect. */
-export function multiplierOf(state: GameState): number {
-  return comboTier(state.combo);
 }

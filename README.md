@@ -16,7 +16,8 @@ typing / keyboard speed game**.
   the score drops below −150), **Instant** (fails on the first mistake — a wrong
   key, or a missed word/note), **Fun** (never stops) and **Practise** (rewinds 5
   seconds on a mistake, then ignores scoring for that replay and counts it).
-  Defaults to **Fun**. Karaoke is unscored, so run modes do not apply there.
+  Defaults to **Fun**. Karaoke is unscored, so run modes do not apply there
+  (the controls stay visible, but have no effect).
 - Playback speed from **0.5×** to **1.5×**, applied to the YouTube player, so a
   fast song can be slowed down while learning it.
 - Every song is rated **EASY**, **MEDIUM** or **HARD** from how fast its lyrics
@@ -221,7 +222,12 @@ in both:
 | **Fun** | Never fails; play to the end. |
 | **Practise** | Rewinds 5 seconds on a mistake, then ignores scoring for that replay and counts it. |
 
-Karaoke is unscored, so the run-mode choice is hidden there.
+In the failing modes (Normal and Instant), a run also ends after **20 misses in a
+row** — twenty words let past while typing, or twenty notes missed while singing.
+Fun and Practise never fail this way.
+
+Karaoke is unscored, so the run-mode choice has no effect there — the game bar
+stays the same in every mode.
 
 ## API
 

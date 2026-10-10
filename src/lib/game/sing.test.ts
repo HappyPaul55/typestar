@@ -145,10 +145,44 @@ describe("run modes", () => {
   });
 
   test("normal fails once the score drops below the floor", () => {
-    const notes = Array.from({ length: 20 }, (_, i) => note(i, i + 1, 0));
-    const state = run(notes, frames(20, 67), { failMode: "normal" });
+    // 17 notes: 16 resolve below the floor (-160), before the 20-miss streak.
+    const notes = Array.from({ length: 17 }, (_, i) => note(i, i + 1, 0));
+    const state = run(notes, frames(17, 67), { failMode: "normal" });
     expect(state.failed).toBe(true);
     expect(state.failReason).toBe("score");
+  });
+
+  test("normal fails after 20 missed notes in a row", () => {
+    const notes = Array.from({ length: 21 }, (_, i) => note(i, i + 1, 0));
+    // Hold the first note, then miss the next twenty in a row.
+    const actions: SingAction[] = [];
+    for (let t = 0; t <= 21.1; t += 1 / 60) {
+      actions.push({ type: "sample", time: t, midi: t < 1 ? 60 : 67, rms: 0.2 });
+    }
+    const state = run(notes, actions, { failMode: "normal" });
+    expect(state.missStreak).toBeGreaterThanOrEqual(20);
+    expect(state.failed).toBe(true);
+    expect(state.failReason).toBe("streak");
+  });
+
+  test("a hit resets the miss streak", () => {
+    const notes = [note(0, 1, 0), note(1, 2, 0), note(2, 3, 0)];
+    const actions: SingAction[] = [];
+    for (let t = 0; t <= 3.1; t += 1 / 60) {
+      // Miss, then hit, then miss again.
+      const midi = t < 1 ? 67 : t < 2 ? 60 : 67;
+      actions.push({ type: "sample", time: t, midi, rms: 0.2 });
+    }
+    const state = run(notes, actions);
+    expect(state.results).toEqual(["miss", "hit", "miss"]);
+    expect(state.missStreak).toBe(1);
+  });
+
+  test("fun never fails on a miss streak", () => {
+    const notes = Array.from({ length: 25 }, (_, i) => note(i, i + 1, 0));
+    const state = run(notes, frames(25, 67), { failMode: "fun" });
+    expect(state.missStreak).toBeGreaterThanOrEqual(20);
+    expect(state.failed).toBe(false);
   });
 
   test("normal survives a couple of misses", () => {

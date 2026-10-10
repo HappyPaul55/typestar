@@ -10,6 +10,7 @@ import {
   LINE_CATCH_UP,
   LINE_HEAD_START,
   MISS_PENALTY,
+  MISS_STREAK_LIMIT,
   progressOf,
   rankOf,
   requiredCharIndices,
@@ -297,6 +298,41 @@ describe("failure modes", () => {
     const cfg = config({ failMode: "fun" });
     const state = gameReducer(createGameState(WORDS.length), { type: "tick", time: 3.1 }, cfg);
     expect(state.score).toBeLessThan(0);
+    expect(state.failed).toBe(false);
+  });
+
+  test("normal fails after 20 missed words in a row", () => {
+    const many = Array.from({ length: 21 }, (_, i) => word(`w${i}`, i, i + 0.5));
+    const lines = [{ start: 0, end: 21, from: 0, to: many.length }];
+    const cfg = config({ words: many, lines, failMode: "normal" });
+    let state = createGameState(many.length);
+    // Bank a hit first, so the score floor is not what ends the run.
+    state = type(state, "w0", 0.2, cfg);
+    expect(state.missStreak).toBe(0);
+    // Words 1..20 (twenty of them) all pass their windows.
+    state = gameReducer(state, { type: "tick", time: 25 }, cfg);
+    expect(state.missStreak).toBeGreaterThanOrEqual(MISS_STREAK_LIMIT);
+    expect(state.failed).toBe(true);
+    expect(state.failReason).toBe("streak");
+  });
+
+  test("a hit resets the miss streak", () => {
+    const many = Array.from({ length: 10 }, (_, i) => word(`w${i}`, i, i + 0.5));
+    const lines = [{ start: 0, end: 10, from: 0, to: many.length }];
+    const cfg = config({ words: many, lines, failMode: "normal" });
+    let state = createGameState(many.length);
+    state = gameReducer(state, { type: "tick", time: 5 }, cfg);
+    expect(state.missStreak).toBeGreaterThan(0);
+    state = type(state, `w${state.pointer}`, state.pointer + 0.2, cfg);
+    expect(state.missStreak).toBe(0);
+  });
+
+  test("fun never fails on a miss streak", () => {
+    const many = Array.from({ length: 25 }, (_, i) => word(`w${i}`, i, i + 0.5));
+    const lines = [{ start: 0, end: 25, from: 0, to: many.length }];
+    const cfg = config({ words: many, lines, failMode: "fun" });
+    const state = gameReducer(createGameState(many.length), { type: "tick", time: 30 }, cfg);
+    expect(state.missStreak).toBeGreaterThanOrEqual(MISS_STREAK_LIMIT);
     expect(state.failed).toBe(false);
   });
 

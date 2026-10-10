@@ -68,8 +68,14 @@ modes, independent of difficulty and shared by typing and scored singing:
 -150), **instant** (fails on the first mistake — a wrong key, or a missed note),
 **fun** (never fails) and
 **practise** (rewinds 5 seconds on a mistake, then ignores scoring for that
-replay and counts it). The defaults are difficulty **normal**, run mode **fun**
-and playback speed **1**. Karaoke is unscored, so it hides the run-mode choice.
+replay and counts it). In the failing modes (normal and instant) a run also ends
+after **20 misses in a row** — twenty words let past while typing, or twenty
+notes missed while singing (`MISS_STREAK_LIMIT`, `missStreakEndsRun` in
+`engine.ts`) — since the player has clearly lost it; fun and practise never fail
+this way. The defaults are difficulty **normal**, run mode **fun**
+and playback speed **1**. Karaoke is unscored, so its run-mode choice has no
+effect — but the game bar is the same in every style, so the controls stay
+visible and the stats simply read “—”.
 The HUD also carries a **Speed** dropdown (0.5× to
 1.5×) applied to the YouTube player via `setPlaybackRate`. Scoring
 rewards chains with combo tiers and a perfect-line bonus. Typing is forgiving:
@@ -88,22 +94,30 @@ Feedback is part of the feel: perfect lines and combo milestones flash on screen
 (small at 10/25, medium every 100, large every 500) and every wrong key plays a
 short blip. The difficulty is
 chosen on the start screen; both difficulty and run mode are dropdowns in the
-HUD, and both persist locally. The end screen shows the score, rank, how far
-through the song you got, fun stats and a local personal best per track +
-difficulty + run mode. The page title and header show the loaded song.
+HUD, and both persist locally. The shared results modal shows the score, rank,
+how far through the song you got, fun stats and a local personal best per style +
+track + difficulty + run mode + speed. The page title and header show the loaded
+song.
 
 Settings travel in the URL hash so a run can be shared:
 `/play/<id>#difficulty=hard&run=practise&speed=1.25`. Values left at their
 defaults are omitted, so the common link has no hash. `src/lib/game/url.ts`
-builds and parses it, and the end screen has a Share button. Only the setup is
+builds and parses it, and the results modal has a Share button. Only the setup is
 shared, not the score or results. The play style travels there too (`style=sing`).
 
 Every track can also be **sung**. The start screen offers a play style (**type**
-or **sing**), and `src/lib/game/modes.ts` decides what sing means from the
-track's data. A pitched UltraStar chart (its `track.notes`) is **scored** with
-the microphone: `usePitchInput` detects the pitch every frame
-(`src/lib/game/pitch.ts`, a unit-tested YIN), `useSingLoop` drives the pure
-`src/lib/game/sing.ts` reducer, and `PitchHighway.tsx` draws the note bars and a
+or **sing**), and the two are one interface with two implementations:
+`src/lib/game/game.ts` defines the pure `GameEngine` contract, `type-game.ts`
+wraps the typing reducer (`engine.ts`), `sing-game.ts` wraps the singing reducer
+(`sing.ts`), and `engines.ts` is the registry the shell picks from.
+`useGameSession` owns the state for whichever engine is in play, and the shared
+`Hud`, `StartScreen` and `ResultsModal` render from the engine's declared
+capabilities and summary — so a new style (a Combo of typing and singing is
+planned) is a new engine file, not a new branch everywhere. What sing means is
+decided from the track's data (`src/lib/game/modes.ts`): a pitched UltraStar
+chart (its `track.notes`) is **scored** with the microphone — `usePitchInput`
+detects the pitch every frame (`src/lib/game/pitch.ts`, a unit-tested YIN), the
+`SingGame` engine scores it, and `PitchHighway.tsx` draws the note bars and a
 live cursor. Difficulty is the pitch tolerance, the comparison ignores octaves,
 rap notes are graded on presence and golden notes score double. YouTube/`.vtt`
 tracks (no pitch), and any run where the microphone is refused, fall back to an
@@ -129,7 +143,7 @@ offsets where present) and otherwise shares a line's duration across its words.
 It preserves the caption's own line breaks, so the highway reads like the source
 captions. `TRACK_VERSION` is bumped when the built shape changes so stale R2 /
 dev caches are rebuilt. The pure game rules live in `src/lib/game/engine.ts` and
-are unit-tested.
+`src/lib/game/sing.ts`, and are unit-tested.
 
 ## Commands
 
@@ -164,13 +178,13 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/pages/play.astro` — page shell that mounts the React island
   `src/components/game/GameApp.tsx`.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
-  `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane), `Hud`,
-  `EndScreen`, `KaraokeResults`, `SingResults`, `Calibration`, `TrackPicker`,
-  `LocalLibrary` (the local-folder picker), `TrackCard` (the shared song card
-  used by both pickers) and the `hooks/` for the YouTube
+  `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane),
+  `StartScreen`, `Hud`, `ResultsModal` (shared by every style), `Calibration`,
+  `TrackPicker`, `LocalLibrary` (the local-folder picker), `TrackCard` (the
+  shared song card used by both pickers) and the `hooks/` for the YouTube
   player, the HTML5 media player (`useMediaPlayer`), the UltraStar player
-  (`useUltraStarPlayer`), the microphone (`usePitchInput`), the singing loop
-  (`useSingLoop`) and the typing game loop.
+  (`useUltraStarPlayer`), the microphone (`usePitchInput`) and the game session
+  (`useGameSession`).
 - `src/lib/track/**` — track types, caption parsing, build, validation, the
   WebVTT parser (`vtt.ts`), the UltraStar parser (`ultrastar.ts`), the song
   rating (`rating.ts`), the build-time seed reader (`seed.ts`) and the cache
@@ -178,7 +192,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/lib/local/**` — the local library: pairing videos with `.vtt` captions and
   UltraStar charts with their audio/video (`library.ts`, pure and tested) and
   the IndexedDB folder-handle store (`idb.ts`).
-- `src/lib/game/**` — the pure game logic: the typing engine (`engine.ts`), the
+- `src/lib/game/**` — the pure game logic: the shared engine contract
+  (`game.ts`), the Type and Sing engines (`type-game.ts`, `sing-game.ts`) and
+  their registry (`engines.ts`), the typing engine (`engine.ts`), the
   play-style/capability helpers (`modes.ts`), the karaoke playhead
   (`karaoke.ts`), the singing engine (`sing.ts`), the YIN pitch detector
   (`pitch.ts`), plus the browser client, audio helpers and storage. All pure and

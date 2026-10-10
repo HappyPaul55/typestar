@@ -10,6 +10,7 @@
  * offered; what `sing` actually does is decided by {@link singBehavior}.
  */
 
+import type { GameMode } from "./engine";
 import type { Track, TrackNote } from "../track/types";
 
 export type PlayStyle = "type" | "sing";
@@ -22,14 +23,30 @@ export function isPlayStyle(value: unknown): value is PlayStyle {
   return value === "type" || value === "sing";
 }
 
-export const PLAY_STYLE_LABEL: Record<PlayStyle, string> = {
-  type: "Type",
-  sing: "Sing",
-};
-
 export const PLAY_STYLE_HELP: Record<PlayStyle, string> = {
   type: "Type each word before its moment passes.",
   sing: "Follow the words and sing along — karaoke style.",
+};
+
+/** The difficulty label shown on the start screen and in the HUD. */
+export const DIFFICULTY_LABEL: Record<GameMode, string> = {
+  easy: "Easy",
+  normal: "Normal",
+  hard: "Hard",
+};
+
+/** Difficulty means typing forgiveness. */
+export const TYPE_DIFFICULTY_HELP: Record<GameMode, string> = {
+  easy: "Type just the first letter of each word.",
+  normal: "Type every word — punctuation is optional.",
+  hard: "Type every word, punctuation and all.",
+};
+
+/** Difficulty means pitch tolerance while singing. */
+export const SING_DIFFICULTY_HELP: Record<GameMode, string> = {
+  easy: "Generous — small pitch slips still count.",
+  normal: "Balanced — match each note within a semitone.",
+  hard: "Strict — you must be close to the note.",
 };
 
 /** How a track is sung: scored against pitch data, or an unscored sing-along. */

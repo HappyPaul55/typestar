@@ -18,6 +18,8 @@ import {
   comboTier,
   HIT_BASE,
   MISS_PENALTY,
+  MISS_STREAK_LIMIT,
+  missStreakEndsRun,
   NORMAL_FAIL_THRESHOLD,
   PRACTISE_REWIND,
   type FailMode,
@@ -77,6 +79,8 @@ export interface SingState {
   maxCombo: number;
   hits: number;
   misses: number;
+  /** Consecutive missed notes without a hit (reset by a hit). */
+  missStreak: number;
   /** Pitched frames heard while a note was active. */
   pitchedSamples: number;
   /** Of those, how many were within tolerance. */
@@ -88,7 +92,7 @@ export interface SingState {
   finished: boolean;
   /** Set when the run is over because of a failure (score or a missed note). */
   failed: boolean;
-  failReason: "score" | "mistake" | null;
+  failReason: "score" | "mistake" | "streak" | null;
   /** Practise rewinds taken. */
   replays: number;
   /** Practise: the time the singer should be sent back to, or null. */
@@ -113,6 +117,7 @@ export function createSingState(noteCount: number): SingState {
     maxCombo: 0,
     hits: 0,
     misses: 0,
+    missStreak: 0,
     pitchedSamples: 0,
     inTuneSamples: 0,
     noteInTune: Array.from({ length: noteCount }, () => 0),
@@ -204,6 +209,7 @@ function practiseRewind(state: SingState, time: number, config: SingConfig): Sin
     // Fresh in-tune time for the notes being replayed.
     noteInTune: state.noteInTune.map((seconds, index) => (index < pointer ? seconds : 0)),
     combo: 0,
+    missStreak: 0,
     replays: state.replays + 1,
     rewindTo: target,
     ignoreUntil: time,
@@ -230,6 +236,7 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
   let maxCombo = state.maxCombo;
   let hits = state.hits;
   let misses = state.misses;
+  let missStreak = state.missStreak;
   let changed = false;
 
   while (pointer < config.notes.length) {
@@ -247,6 +254,7 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
       }
       results[pointer] = "hit";
       hits += 1;
+      missStreak = 0;
       if (!ignoring) {
         const points = Math.round(
           HIT_BASE * fraction * (golden ? 2 : 1) * comboTier(combo),
@@ -283,6 +291,7 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
     }
     results[pointer] = "miss";
     misses += 1;
+    missStreak += 1;
     if (!ignoring) {
       combo = 0;
       score -= MISS_PENALTY;
@@ -299,6 +308,7 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
         maxCombo,
         hits,
         misses,
+        missStreak,
         finished: pointer >= config.notes.length,
         failed: true,
         failReason: "mistake",
@@ -316,8 +326,12 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
     maxCombo,
     hits,
     misses,
+    missStreak,
     finished: pointer >= config.notes.length,
   };
+  if (missStreakEndsRun(config.failMode) && missStreak >= MISS_STREAK_LIMIT) {
+    return { ...next, failed: true, failReason: "streak" };
+  }
   if (config.failMode === "normal" && score < NORMAL_FAIL_THRESHOLD) {
     return { ...next, failed: true, failReason: "score" };
   }
