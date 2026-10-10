@@ -20,6 +20,7 @@ import {
   type PlaybackSpeed,
 } from "../../lib/game/engine";
 import type { Capabilities, RunSummary } from "../../lib/game/game";
+import { DIFFICULTY_LABEL } from "../../lib/game/modes";
 import { formatTime } from "../../lib/game/storage";
 import Calibration from "./Calibration";
 
@@ -47,6 +48,10 @@ interface Props {
   onCloseCalibration(): void;
   onFullscreen(): void;
   onChangeSong(): void;
+  /** Nudge the fullscreen button on the first visit, until the player uses it. */
+  highlightFullscreen: boolean;
+  /** The HUD root, so the shell can measure it and clear the start overlay. */
+  rootRef?: React.Ref<HTMLDivElement>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -63,11 +68,14 @@ function Control({
   children,
   active = false,
   title,
+  hint = false,
 }: {
   onClick(): void;
   children: React.ReactNode;
   active?: boolean;
   title?: string;
+  /** Draw attention to the control (the first-visit fullscreen nudge). */
+  hint?: boolean;
 }) {
   return (
     <button
@@ -75,7 +83,11 @@ function Control({
       onClick={onClick}
       aria-label={title}
       data-tooltip={title}
-      className={"hud__control" + (active ? " is-active" : "")}
+      className={
+        "hud__control" +
+        (active ? " is-active" : "") +
+        (hint ? " hud__control--hint" : "")
+      }
     >
       {children}
     </button>
@@ -105,11 +117,13 @@ export default function Hud({
   onCloseCalibration,
   onFullscreen,
   onChangeSong,
+  highlightFullscreen,
+  rootRef,
 }: Props) {
   const percent = Math.round(summary.accuracy * 100);
 
   return (
-    <div className="hud">
+    <div className="hud" ref={rootRef}>
       {capabilities.scoreBar ? (
         <div className="hud__stats">
           <Stat label="score" value={summary.score.toLocaleString("en-GB")} />
@@ -157,7 +171,7 @@ export default function Hud({
             >
               {GAME_MODES.map((value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {DIFFICULTY_LABEL[value]}
                 </option>
               ))}
             </select>
@@ -209,7 +223,11 @@ export default function Hud({
             />
           ) : null}
         </div>
-        <Control onClick={onFullscreen} title="Fullscreen">
+        <Control
+          onClick={onFullscreen}
+          title={highlightFullscreen ? "Go fullscreen" : "Fullscreen"}
+          hint={highlightFullscreen}
+        >
           ⛶
         </Control>
         <Control onClick={onChangeSong} title="Change song">

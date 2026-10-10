@@ -27,7 +27,32 @@ export default function ResultsModal({
   const [best, setBest] = useState<number | null>(null);
   const [newBest, setNewBest] = useState(false);
   const [copied, setCopied] = useState(false);
+  // The run often ends mid-keystroke, so the modal ignores keys briefly; without
+  // this a space still being typed would fire the focused button (close or
+  // replay) the instant the results appear.
+  const [armed, setArmed] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Hold every key for a moment after the modal opens.
+  useEffect(() => {
+    setArmed(false);
+    const timer = window.setTimeout(() => setArmed(true), 1000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (armed) return;
+    const swallow = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    window.addEventListener("keydown", swallow, true);
+    window.addEventListener("keyup", swallow, true);
+    return () => {
+      window.removeEventListener("keydown", swallow, true);
+      window.removeEventListener("keyup", swallow, true);
+    };
+  }, [armed]);
 
   // The results overlay is modal: move focus into it, keep Tab inside it, and
   // restore focus when it closes.
@@ -131,22 +156,32 @@ export default function ResultsModal({
           </button>
         </div>
 
-        <div className="results__grade">
-          {failed ? (
-            <>
-              <span className="results__verdict">Failed</span>
-              <span className="results__reason">{summary.failMessage ?? ""}</span>
-            </>
-          ) : summary.rank ? (
-            <span className="results__rank" aria-label={`Rank ${summary.rank}`}>
-              {summary.rank}
-            </span>
-          ) : null}
+        <div className="results__headline">
           {summary.scored ? (
-            <span className="results__progress">
-              {Math.round(summary.progress * 100)}% through
-            </span>
+            <div className="results__score">
+              <span className="results__score-label">score</span>
+              <span className="results__score-value">
+                {summary.score.toLocaleString("en-GB")}
+              </span>
+            </div>
           ) : null}
+          <div className="results__grade">
+            {failed ? (
+              <>
+                <span className="results__verdict">Failed</span>
+                <span className="results__reason">{summary.failMessage ?? ""}</span>
+              </>
+            ) : summary.rank ? (
+              <span className="results__rank" aria-label={`Rank ${summary.rank}`}>
+                {summary.rank}
+              </span>
+            ) : null}
+            {summary.scored ? (
+              <span className="results__progress">
+                {Math.round(summary.progress * 100)}% through
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <p className="results__best">

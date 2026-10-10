@@ -49,6 +49,7 @@ import {
   formatDuration,
   readSetting,
   SETTING_FAIL_MODE,
+  SETTING_FULLSCREEN_HINT,
   SETTING_MODE,
   SETTING_OFFSET_PREFIX,
   SETTING_PLAY_STYLE,
@@ -58,8 +59,6 @@ import {
 import {
   DEFAULT_PLAY_STYLE,
   isPlayStyle,
-  SING_DIFFICULTY_HELP,
-  TYPE_DIFFICULTY_HELP,
   type PlayStyle,
 } from "../../lib/game/modes";
 import type { Track, TrackNote } from "../../lib/track/types";
@@ -224,6 +223,8 @@ export default function GameApp({
   const [micFallback, setMicFallback] = useState(false);
   const [offset, setOffset] = useState(0);
   const [showCalibration, setShowCalibration] = useState(false);
+  // The first-visit nudge that points at the fullscreen button in the game bar.
+  const [highlightFullscreen, setHighlightFullscreen] = useState(false);
   // Turnstile is only needed when a track is not already cached or bundled.
   const [needsTurnstile, setNeedsTurnstile] = useState(false);
   const [turnstileError, setTurnstileError] = useState<string | null>(null);
@@ -234,6 +235,7 @@ export default function GameApp({
   const turnstileToken = useRef<string | null>(null);
   const turnstileFailures = useRef(0);
   const shellRef = useRef<HTMLDivElement>(null);
+  const hudRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lyricRef = useRef<HTMLDivElement>(null);
   // Read by the microphone frame callback, which outlives individual renders.
@@ -833,12 +835,72 @@ export default function GameApp({
     else openRemotePicker();
   }, [isLocal, openLocalPicker, openRemotePicker]);
 
+  // Point first-time players at the fullscreen button: the game is much better
+  // in fullscreen, and the nudge is only worth showing once.
+  const dismissFullscreenHint = useCallback(() => {
+    setHighlightFullscreen(false);
+    writeSetting(SETTING_FULLSCREEN_HINT, true);
+  }, []);
+
+  useEffect(() => {
+    if (!activeTrack || document.fullscreenElement) {
+      setHighlightFullscreen(false);
+      return;
+    }
+    if (readSetting<boolean>(SETTING_FULLSCREEN_HINT, false)) {
+      setHighlightFullscreen(false);
+      return;
+    }
+    // Mark it seen as soon as it is shown, so later songs stay quiet.
+    writeSetting(SETTING_FULLSCREEN_HINT, true);
+    setHighlightFullscreen(true);
+    // A brief flash: the button returns to normal on its own.
+    const timer = window.setTimeout(() => setHighlightFullscreen(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [activeTrack]);
+
+  // If the player goes fullscreen by any route, the nudge has done its job.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (document.fullscreenElement) setHighlightFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  // The control deck floats over the top of the stage. Publish the distance from
+  // the stage's top edge to the deck's bottom edge, so the start overlay can pad
+  // past it on small screens rather than hiding beneath it.
+  useEffect(() => {
+    const hud = hudRef.current;
+    const shell = shellRef.current;
+    const stage = hud?.parentElement;
+    if (!hud || !shell || !stage) return;
+    const apply = () => {
+      const clearance =
+        hud.getBoundingClientRect().bottom - stage.getBoundingClientRect().top;
+      shell.style.setProperty("--hud-clearance", `${clearance}px`);
+    };
+    apply();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(hud);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty("--hud-clearance");
+    };
+  }, [activeTrack]);
+
   const toggleFullscreen = useCallback(() => {
     const element = shellRef.current;
     if (!element) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void element.requestFullscreen?.();
-  }, []);
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void element.requestFullscreen?.();
+      dismissFullscreenHint();
+    }
+  }, [dismissFullscreenHint]);
 
   const cue = useMemo(
     () => cueAt({ words, offset, lead: DEFAULT_LEAD }, lyricView.pointer, time),
@@ -977,12 +1039,6 @@ export default function GameApp({
   }
 
   const locked = phase === "playing" || phase === "countdown" || phase === "paused";
-  const difficultyHelp =
-    style === "sing"
-      ? capabilities.scored
-        ? SING_DIFFICULTY_HELP[mode]
-        : "Karaoke is unscored — difficulty only affects scored singing."
-      : TYPE_DIFFICULTY_HELP[mode];
 
   // The stage is always full width: a video where there is one, otherwise a
   // local UltraStar `#BACKGROUND` image, otherwise a plain dark backdrop.
@@ -995,11 +1051,7 @@ export default function GameApp({
         <StartScreen
           style={style}
           onSelectStyle={selectStyle}
-          mode={mode}
-          onSelectMode={selectMode}
           help={engine.help(activeTrack, micFallback)}
-          showDifficulty={capabilities.difficulty}
-          difficultyHelp={difficultyHelp}
           onStart={start}
         />
       ) : null}
@@ -1142,6 +1194,8 @@ export default function GameApp({
           onCloseCalibration={() => setShowCalibration(false)}
           onFullscreen={toggleFullscreen}
           onChangeSong={changeSong}
+          highlightFullscreen={highlightFullscreen}
+          rootRef={hudRef}
         />
 
         {overlays}

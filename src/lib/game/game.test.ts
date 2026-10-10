@@ -184,4 +184,15 @@ describe("SingGame", () => {
     expect(results.scored).toBe(true);
     expect(results.metrics.some((metric) => metric.label === "speed")).toBe(true);
   });
+
+  test("combines notes hit and missed into one metric", () => {
+    const t = track([note(1, 2, 3)]);
+    const state = { ...SingGame.createState(t), hits: 150, misses: 63 };
+    const results = SingGame.results(state, t, RUN, { time: 5, micFallback: false });
+    const labels = results.metrics.map((metric) => metric.label);
+    expect(labels).not.toContain("notes hit");
+    expect(labels).not.toContain("notes missed");
+    expect(labels).not.toContain("score");
+    expect(results.metrics).toContainEqual({ label: "notes", value: "150/213" });
+  });
 });

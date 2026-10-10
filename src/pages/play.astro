@@ -40,6 +40,17 @@ const crumbs = [{ name: "play", path: "/play" }];
     >
       <Container>
         <div class="play-head">
+          <p
+            id="play-rating"
+            class="play-rating"
+            title="How hard the lyrics are to type, rated from the song's words per second"
+            hidden
+          >
+            <span class="play-rating__caption">
+              <span class="slash" aria-hidden="true">//</span> rating
+            </span>
+            <span id="play-rating-value" class="play-rating__value">Medium</span>
+          </p>
           <div class="play-head__text">
             <Breadcrumbs
               items={crumbs}
@@ -61,25 +72,12 @@ const crumbs = [{ name: "play", path: "/play" }];
               lyrics as the words arrive.
             </p>
           </div>
-          <p
-            id="play-rating"
-            class="play-rating"
-            title="How hard the lyrics are to type, rated from the song's words per second"
-            hidden
-          >
-            <span class="play-rating__caption">
-              <span class="slash" aria-hidden="true">//</span> rating
-            </span>
-            <span id="play-rating-value" class="play-rating__value">Medium</span>
-          </p>
         </div>
       </Container>
     </section>
 
-    <div class="grid-paper bg-paper py-[clamp(2rem,5vw,3.5rem)]">
-      <Container>
-        <GameApp client:load site={site} ratings={ratings} />
-      </Container>
+    <div class="game-zone grid-paper bg-paper">
+      <GameApp client:load site={site} ratings={ratings} />
     </div>
   </main>
 </BaseLayout>

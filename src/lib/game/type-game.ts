@@ -115,7 +115,6 @@ export const TypeGame: GameEngine<GameState> = {
     const wpm =
       elapsed > 0 ? Math.round(state.correctKeys / 5 / (elapsed / 60)) : 0;
     const metrics = [
-      { label: "score", value: state.score.toLocaleString("en-GB") },
       { label: "accuracy", value: `${Math.round(accuracy * 100)}%` },
       { label: "best combo", value: `×${state.maxCombo}` },
       { label: "perfect lines", value: `${state.perfectLines}` },

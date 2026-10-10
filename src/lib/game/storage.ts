@@ -29,6 +29,8 @@ export const SETTING_FAIL_MODE = "failMode";
 export const SETTING_SPEED = "speed";
 export const SETTING_PLAY_STYLE = "playStyle";
 export const SETTING_OFFSET_PREFIX = "offset:";
+/** Set once the fullscreen nudge has been shown, so it only appears once. */
+export const SETTING_FULLSCREEN_HINT = "fullscreenHint";
 
 /** Format seconds as `m:ss`. */
 export function formatTime(seconds: number): string {

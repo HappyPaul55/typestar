@@ -168,12 +168,9 @@ export const SingGame: GameEngine<SingState> = {
     const accuracy = Math.round(singPitchAccuracy(state) * 100);
     const notes = state.hits + state.misses;
     const metrics = [
-      { label: "score", value: state.score.toLocaleString("en-GB") },
       { label: "pitch accuracy", value: `${accuracy}%` },
-      { label: "notes hit", value: `${state.hits}` },
-      { label: "notes missed", value: `${state.misses}` },
+      { label: "notes", value: `${state.hits}/${notes}` },
       { label: "best combo", value: `×${state.maxCombo}` },
-      { label: "notes", value: `${notes}` },
       { label: "time", value: formatTime(ctx.time) },
       { label: "difficulty", value: run.difficulty },
       { label: "run mode", value: run.runMode },
