@@ -1622,6 +1622,10 @@
     opacity: 0.5;
     pointer-events: none;
   }
+  /* UltraStar cover art is 1:1; video thumbnails keep the default 16:9. */
+  .track-card--square .track-card__media {
+    aspect-ratio: 1 / 1;
+  }
   .track-card__media {
     position: relative;
     display: block;
@@ -1888,7 +1892,7 @@
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
     gap: 0.9rem;
   }
-  /* The cover image fills the 16:9 media area; without one, a muted glyph sits
+  /* The cover image fills the media area; without one, a muted glyph sits
      on paper. */
   .track-card__placeholder {
     display: grid;

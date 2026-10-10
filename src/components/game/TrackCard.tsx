@@ -17,6 +17,7 @@ export default function TrackCard({
   badge,
   onOpen,
   busy = false,
+  square = false,
 }: {
   /** Where the card points; a new tab opens this address. */
   href: string;
@@ -35,10 +36,19 @@ export default function TrackCard({
   onOpen?: () => void;
   /** Dim the card and ignore clicks while a song is being read. */
   busy?: boolean;
+  /**
+   * Crop the cover to a square. UltraStar cover art is 1:1; video thumbnails
+   * (the default) stay 16:9.
+   */
+  square?: boolean;
 }) {
   return (
     <a
-      className={"track-card" + (busy ? " track-card--busy" : "")}
+      className={
+        "track-card" +
+        (busy ? " track-card--busy" : "") +
+        (square ? " track-card--square" : "")
+      }
       href={href}
       aria-busy={busy || undefined}
       aria-disabled={busy || undefined}

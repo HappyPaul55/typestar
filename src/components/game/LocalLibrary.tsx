@@ -450,6 +450,7 @@ export default function LocalLibrary({
                     title={song.title}
                     subtitle={song.artist}
                     busy={busy}
+                    square
                     onOpen={() => openItem(song)}
                     media={
                       <LocalCover
