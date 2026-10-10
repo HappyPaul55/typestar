@@ -569,14 +569,15 @@
     gap: clamp(0.5rem, 1.4vw, 0.9rem);
     padding: clamp(0.7rem, 1.6vw, 1.15rem);
   }
-  /* The control deck sits at the top of the stage and is always visible, over
-     every overlay (start, countdown, pause and results). */
+  /* The control deck sits at the top of the stage and is visible over the start,
+     countdown and pause overlays. It stays below the results dialog (z-index
+     60), which is a modal over the whole game. */
   .game-stage > .hud {
     position: absolute;
     top: clamp(0.7rem, 1.6vw, 1.15rem);
     left: clamp(0.7rem, 1.6vw, 1.15rem);
     right: clamp(0.7rem, 1.6vw, 1.15rem);
-    z-index: 70;
+    z-index: 40;
   }
   /* Keystroke sink for the game. Pinned inside the viewport (not pushed
      off-screen) so focusing it never scrolls the page — an off-screen field
