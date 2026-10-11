@@ -20,6 +20,8 @@ import {
   seedIdOf,
   ultraStarHash,
   ultraStarId,
+  youtubeTrackId,
+  youtubeWatchUrl,
   YOUTUBE_ID_RE,
   type TrackSourceRef,
 } from "./track/source";
@@ -262,13 +264,14 @@ async function resolveTrack(
   }
 
   const track = buildTrack({
-    id: source.id,
+    id: youtubeTrackId(source.id),
     lang,
     title: captionSource.title,
     description: captionSource.description,
     subtitles: captionSource.subtitles,
     json3: captionSource.json3,
     captionKind: captionSource.captionKind,
+    sourceUrl: youtubeWatchUrl(source.id),
   });
 
   if (!track.words.length) {
@@ -311,7 +314,6 @@ async function resolveUltraStar(
     id: ultraStarId(source.url),
     lang,
     description: `UltraStar — ${remote.song.artist || "a chart from the web"}`,
-    origin: "ultrastar",
     sourceUrl: remote.sourceUrl,
     artist: remote.song.artist,
     media: remote.media,

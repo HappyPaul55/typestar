@@ -15,8 +15,8 @@
  * the Worker and the unit tests share one implementation.
  */
 
-import { trackOrigin, trackPath } from "./track/source";
-import type { TrackMedia, TrackOrigin } from "./track/types";
+import { trackPath, trackType, videoIdOf } from "./track/source";
+import type { TrackMedia, TrackType } from "./track/types";
 
 const SITE_NAME = "TypeStar";
 
@@ -38,8 +38,8 @@ export interface TrackSeo {
 interface SeoTrack {
   id: string;
   title: string;
-  origin?: TrackOrigin;
-  sourceUrl?: string;
+  type?: TrackType;
+  source?: { url?: string };
   artist?: string;
   media?: TrackMedia;
 }
@@ -60,7 +60,7 @@ export function trackSeo(track: SeoTrack, origin: string): TrackSeo {
   const base = origin.replace(/\/+$/, "");
   const canonical = `${base}${trackPath(track)}`;
 
-  if (trackOrigin(track) === "ultrastar") {
+  if (trackType(track) === "ultrastar") {
     const cover = track.media?.cover;
     const by = track.artist ? ` by ${track.artist}` : "";
     return {
@@ -80,7 +80,7 @@ export function trackSeo(track: SeoTrack, origin: string): TrackSeo {
     title: `${title} — ${SITE_NAME}`,
     description: `Play ${title} on ${SITE_NAME}: type the lyrics in time in this free rhythm touch-typing game.`,
     canonical,
-    image: `https://i.ytimg.com/vi/${track.id}/maxresdefault.jpg`,
+    image: `https://i.ytimg.com/vi/${videoIdOf(track.id)}/maxresdefault.jpg`,
     imageType: "image/jpeg",
     imageAlt: `Cover art for ${title}`,
     imageWidth: 1280,

@@ -8,7 +8,10 @@ import {
   seedIdOf,
   toRawUrl,
   trackPath,
+  trackType,
   ultraStarId,
+  videoIdOf,
+  youtubeTrackId,
 } from "./source";
 
 const SONG_URL = "https://raw.githubusercontent.com/example/songs/main/Code Monkey/song.txt";
@@ -79,14 +82,35 @@ describe("parseSourceValue", () => {
 });
 
 describe("trackPath", () => {
-  test("YouTube uses the id", () => {
+  test("YouTube uses the video id, with or without the namespace", () => {
     expect(trackPath({ id: "dQw4w9WgXcQ" })).toBe("/play/youtube/dQw4w9WgXcQ");
+    expect(trackPath({ id: "youtube-dQw4w9WgXcQ" })).toBe("/play/youtube/dQw4w9WgXcQ");
   });
 
   test("UltraStar encodes its source URL", () => {
-    expect(trackPath({ id: "ultrastar-x", origin: "ultrastar", sourceUrl: SONG_URL })).toBe(
-      `/play/ultrastar/${encodeURIComponent(SONG_URL)}`,
-    );
+    expect(
+      trackPath({ id: "ultrastar-x", type: "ultrastar", source: { url: SONG_URL } }),
+    ).toBe(`/play/ultrastar/${encodeURIComponent(SONG_URL)}`);
+  });
+
+  test("a local UltraStar chart (no URL) falls back to the picker", () => {
+    expect(trackPath({ id: "ultrastar:Folder:song", type: "ultrastar" })).toBe("/play");
+  });
+});
+
+describe("id helpers", () => {
+  test("namespaces and un-namespaces a YouTube video id", () => {
+    expect(youtubeTrackId("dQw4w9WgXcQ")).toBe("youtube-dQw4w9WgXcQ");
+    expect(videoIdOf("youtube-dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+    // Legacy bare ids pass through unchanged.
+    expect(videoIdOf("dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+  });
+
+  test("trackType defaults to youtube for older tracks", () => {
+    expect(trackType({ id: "dQw4w9WgXcQ" })).toBe("youtube");
+    expect(trackType({ id: "youtube-dQw4w9WgXcQ" })).toBe("youtube");
+    expect(trackType({ id: "ultrastar-abc" })).toBe("ultrastar");
+    expect(trackType({ id: "anything", type: "ultrastar" })).toBe("ultrastar");
   });
 });
 

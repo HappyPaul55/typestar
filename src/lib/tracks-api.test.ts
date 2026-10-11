@@ -279,11 +279,17 @@ describe("handleTrackRequest UltraStar", () => {
 
     expect(response.status).toBe(200);
     const track = (await response.json()) as Track;
-    expect(track.origin).toBe("ultrastar");
+    expect(track.type).toBe("ultrastar");
+    expect(track.id.startsWith("ultrastar-")).toBe(true);
     expect(track.artist).toBe("Jonathan Coulton");
     expect(track.title).toBe("Code Monkey");
     expect(track.words.length).toBeGreaterThan(0);
     expect(track.notes?.length).toBeGreaterThan(0);
+    expect(track.source.url).toBe(SONG_URL);
+    // The raw headers are kept, known keys first.
+    expect(track.headers?.TITLE).toBe("Code Monkey");
+    expect(track.headers?.MP3).toBe("audio.mp3");
+    expect(Object.keys(track.headers ?? {})[0]).toBe("TITLE");
     expect(track.media?.audio).toBe(
       "https://raw.githubusercontent.com/example/songs/main/Code%20Monkey/audio.mp3",
     );
@@ -318,8 +324,8 @@ describe("handleTrackRequest UltraStar", () => {
       ...TRACK,
       id: "ultrastar-abc",
       title: "Code Monkey",
-      origin: "ultrastar",
-      sourceUrl: SONG_URL,
+      type: "ultrastar",
+      source: { ...TRACK.source, url: SONG_URL },
       media: { audio: "https://example.com/audio.mp3" },
     };
     const store = memoryStore({

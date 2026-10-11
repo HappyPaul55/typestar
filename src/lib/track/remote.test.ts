@@ -46,6 +46,8 @@ describe("fetchRemoteUltraStar", () => {
   test("parses the chart and resolves media against its URL", async () => {
     const remote = await fetchRemoteUltraStar(SONG_URL, { fetchImpl: chartFetch(CHART) });
     expect(remote.song.title).toBe("Code Monkey");
+    expect(remote.song.headers.TITLE).toBe("Code Monkey");
+    expect(remote.song.headers.MP3).toBe("audio.mp3");
     expect(remote.media.audio).toBe("https://example.com/songs/Code%20Monkey/audio.mp3");
     expect(remote.media.video).toBe("https://example.com/songs/Code%20Monkey/bg.mp4");
     expect(remote.media.cover).toBe("https://example.com/songs/Code%20Monkey/cover.jpg");

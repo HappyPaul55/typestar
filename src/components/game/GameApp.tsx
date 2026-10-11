@@ -62,7 +62,7 @@ import {
   type PlayStyle,
 } from "../../lib/game/modes";
 import type { Track, TrackNote } from "../../lib/track/types";
-import type { TrackSourceRef } from "../../lib/track/source";
+import { videoIdOf, type TrackSourceRef } from "../../lib/track/source";
 import { RATING_LABEL, ratingOf, type TrackRating } from "../../lib/track/rating";
 import { seoTagValues, trackSeo } from "../../lib/seo";
 import type { SiteSettings } from "../../lib/site";
@@ -329,7 +329,7 @@ export default function GameApp({
     () => ({ difficulty: mode, runMode: failMode, speed, style, offset }),
     [mode, failMode, speed, style, offset],
   );
-  const featured = activeTrack ? FEATURED_BY_ID.get(activeTrack.id) : undefined;
+  const featured = activeTrack ? FEATURED_BY_ID.get(videoIdOf(activeTrack.id)) : undefined;
   const artist = featured?.artist ?? song?.artist;
   const capabilities = useMemo(
     () => engine.capabilities(activeTrack, micFallback),

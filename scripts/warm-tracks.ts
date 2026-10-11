@@ -15,6 +15,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { FEATURED_TRACKS } from "../src/content/tracks/featured";
 import { buildTrack } from "../src/lib/track/build";
+import { youtubeTrackId, youtubeWatchUrl } from "../src/lib/track/source";
 import { fetchTrackSource } from "../src/lib/youtube-captions";
 
 const OUTPUT_DIR = join(process.cwd(), "public", "tracks");
@@ -46,13 +47,14 @@ async function warm(id: string, title: string): Promise<void> {
 
   const source = await fetchTrackSource(id, LANG);
   const track = buildTrack({
-    id,
+    id: youtubeTrackId(id),
     lang: LANG,
     title: source.title || title,
     description: source.description,
     subtitles: source.subtitles,
     json3: source.json3,
     captionKind: source.captionKind,
+    sourceUrl: youtubeWatchUrl(id),
   });
 
   if (!track.words.length) {

@@ -13,7 +13,7 @@
  * server, the React island and the unit tests all agree on the same values.
  */
 
-import type { TrackOrigin } from "./types";
+import type { TrackType } from "./types";
 
 /** A YouTube video id. */
 export const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/;
@@ -23,13 +23,25 @@ export type TrackSourceRef =
   | { kind: "youtube"; id: string }
   | { kind: "ultrastar"; url: string };
 
-/** The `origin` of a track, defaulting to YouTube for older cached tracks. */
-export function trackOrigin(track: {
-  origin?: TrackOrigin;
-  sourceUrl?: string;
-}): TrackOrigin {
-  if (track.origin) return track.origin;
-  return track.sourceUrl ? "ultrastar" : "youtube";
+/** The `type` of a track, defaulting to YouTube for older cached tracks. */
+export function trackType(track: { id?: string; type?: TrackType }): TrackType {
+  if (track.type) return track.type;
+  return track.id?.startsWith("ultrastar") ? "ultrastar" : "youtube";
+}
+
+/** The namespaced id for a YouTube video: `youtube-<videoId>`. */
+export function youtubeTrackId(videoId: string): string {
+  return `youtube-${videoId}`;
+}
+
+/** The video id inside a namespaced track id (`youtube-<id>` → `<id>`). */
+export function videoIdOf(id: string): string {
+  return id.startsWith("youtube-") ? id.slice("youtube-".length) : id;
+}
+
+/** The canonical watch URL for a YouTube video id. */
+export function youtubeWatchUrl(videoId: string): string {
+  return `https://www.youtube.com/watch?v=${videoId}`;
 }
 
 /** Whether a URL string is plain `http(s)`. */
@@ -109,13 +121,14 @@ export function seedIdOf(source: TrackSourceRef): string {
 /** The canonical `/play/...` path for a track. */
 export function trackPath(track: {
   id: string;
-  origin?: TrackOrigin;
-  sourceUrl?: string;
+  type?: TrackType;
+  source?: { url?: string };
 }): string {
-  if (trackOrigin(track) === "ultrastar" && track.sourceUrl) {
-    return `/play/ultrastar/${encodeURIComponent(track.sourceUrl)}`;
+  if (trackType(track) === "ultrastar") {
+    const url = track.source?.url;
+    return url ? `/play/ultrastar/${encodeURIComponent(url)}` : "/play";
   }
-  return `/play/youtube/${track.id}`;
+  return `/play/youtube/${videoIdOf(track.id)}`;
 }
 
 /** Decode a URL path segment, returning `null` when it is malformed. */

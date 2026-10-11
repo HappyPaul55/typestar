@@ -19,7 +19,6 @@ import {
   type TrackMedia,
   type TrackNote,
   type TrackNoteKind,
-  type TrackOrigin,
   type TrackWord,
 } from "./types";
 
@@ -60,6 +59,8 @@ export interface UltraStarSong {
   cover: string | null;
   /** `#LANGUAGE`, when present. */
   language: string | null;
+  /** The raw `#KEY:VALUE` map, known keys first and capped at 128 entries. */
+  headers: Record<string, string>;
   /** `#BPM` value as written (beats per minute once multiplied by four). */
   bpm: number;
   /** `#GAP` in milliseconds: the time from the audio start to beat 0. */
@@ -83,6 +84,50 @@ export function parseUltraStarHeaders(text: string): Record<string, string> {
     if (key) headers[key] = value;
   }
   return headers;
+}
+
+/** Header keys we understand, kept first in this order when storing them. */
+const KNOWN_HEADERS = [
+  "TITLE",
+  "ARTIST",
+  "LANGUAGE",
+  "GENRE",
+  "YEAR",
+  "CREATOR",
+  "EDITION",
+  "AUDIO",
+  "MP3",
+  "VIDEO",
+  "COVER",
+  "BACKGROUND",
+  "VIDEOGAP",
+  "BPM",
+  "GAP",
+  "RELATIVE",
+  "COMMENT",
+] as const;
+
+/** A hard cap on stored headers, so a hostile chart cannot bloat the cache. */
+const MAX_HEADERS = 128;
+
+/** Reorder a header map with the known keys first, capped at {@link MAX_HEADERS}. */
+function orderedHeaders(headers: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  let count = 0;
+  for (const key of KNOWN_HEADERS) {
+    if (count >= MAX_HEADERS) break;
+    if (headers[key] !== undefined) {
+      out[key] = headers[key];
+      count += 1;
+    }
+  }
+  for (const [key, value] of Object.entries(headers)) {
+    if (count >= MAX_HEADERS) break;
+    if (key in out) continue;
+    out[key] = value;
+    count += 1;
+  }
+  return out;
 }
 
 function toNumber(value: string | undefined): number | null {
@@ -236,11 +281,13 @@ export function parseUltraStar(text: string): UltraStarSong {
   return {
     title: headers.TITLE ?? "",
     artist: headers.ARTIST ?? "",
-    audio: headers.MP3 ?? null,
+    // The newer spec uses `#AUDIO`; fall back to the classic `#MP3`.
+    audio: headers.AUDIO ?? headers.MP3 ?? null,
     video: headers.VIDEO ?? null,
     background: headers.BACKGROUND ?? null,
     cover: headers.COVER ?? null,
     language: headers.LANGUAGE ?? null,
+    headers: orderedHeaders(headers),
     bpm,
     gap: gapMs,
     videoGap,
@@ -369,9 +416,7 @@ export interface UltraStarTrackMeta {
   id: string;
   lang: string;
   description: string;
-  /** Where the chart came from. Defaults to YouTube for legacy local use. */
-  origin?: TrackOrigin;
-  /** The chart's own URL, for a chart fetched from the web. */
+  /** The chart's own URL, when it was fetched from the web. */
   sourceUrl?: string;
   /** The artist, when the chart names one. */
   artist?: string;
@@ -385,18 +430,23 @@ export function ultraStarTrack(song: UltraStarSong, meta: UltraStarTrackMeta): T
   return {
     version: TRACK_VERSION,
     id: meta.id,
+    type: "ultrastar",
     title: song.title,
     description: meta.description,
     lang: meta.lang,
-    source: { captions: "manual", fetchedAt: new Date().toISOString() },
+    source: {
+      captions: "manual",
+      fetchedAt: new Date().toISOString(),
+      ...(meta.sourceUrl ? { url: meta.sourceUrl } : {}),
+    },
     offset: 0,
     lines,
     words,
     // Pitch data is what lets a singer be scored; caption tracks have none.
     ...(notes.length ? { notes } : {}),
-    ...(meta.origin ? { origin: meta.origin } : {}),
-    ...(meta.sourceUrl ? { sourceUrl: meta.sourceUrl } : {}),
     ...(meta.artist ? { artist: meta.artist } : {}),
     ...(meta.media ? { media: meta.media } : {}),
+    // The raw header map is kept for reference (known keys first, capped).
+    ...(Object.keys(song.headers).length ? { headers: song.headers } : {}),
   };
 }

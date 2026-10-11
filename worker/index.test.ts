@@ -85,8 +85,8 @@ describe("worker /play routes", () => {
       ...TRACK,
       id: "ultrastar-abc",
       title: "Code Monkey",
-      origin: "ultrastar",
-      sourceUrl: url,
+      type: "ultrastar",
+      source: { ...TRACK.source, url },
       artist: "Jonathan Coulton",
       media: { cover: "https://example.com/songs/cover.jpg" },
     };

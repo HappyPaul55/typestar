@@ -331,7 +331,8 @@ export function pairUltraStarSongs(
   const songs: LocalUltraStarSong[] = [];
   for (const chart of charts) {
     const headers = parseUltraStarHeaders(chart.text);
-    const mp3 = headers.MP3;
+    // The newer spec uses `#AUDIO`; fall back to the classic `#MP3`.
+    const mp3 = headers.AUDIO ?? headers.MP3;
     if (!mp3) continue;
     const lookup = (reference: string) =>
       available.get(

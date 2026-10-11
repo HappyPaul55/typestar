@@ -46,8 +46,8 @@ describe("trackSeo", () => {
       {
         id: "ultrastar-abc",
         title: "Code Monkey",
-        origin: "ultrastar",
-        sourceUrl: url,
+        type: "ultrastar",
+        source: { url },
         artist: "Jonathan Coulton",
         media: { cover: "https://example.com/songs/Code Monkey/cover.png" },
       },
@@ -68,13 +68,22 @@ describe("trackSeo", () => {
       {
         id: "ultrastar-abc",
         title: "Code Monkey",
-        origin: "ultrastar",
-        sourceUrl: "https://example.com/song.txt",
+        type: "ultrastar",
+        source: { url: "https://example.com/song.txt" },
       },
       "https://typestar.happypaul55.com",
     );
     expect(seo.image).toBe("https://typestar.happypaul55.com/og-image.png");
     expect(seo.imageType).toBe("image/png");
+  });
+
+  test("uses the video id from a namespaced YouTube track id", () => {
+    const seo = trackSeo(
+      { id: "youtube-dQw4w9WgXcQ", title: "x" },
+      "https://typestar.happypaul55.com",
+    );
+    expect(seo.image).toBe("https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg");
+    expect(seo.canonical).toBe("https://typestar.happypaul55.com/play/youtube/dQw4w9WgXcQ");
   });
 });
 

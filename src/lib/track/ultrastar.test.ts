@@ -191,8 +191,7 @@ describe("note kinds and pitch", () => {
   });
 });
 
-describe("ultraStarTrack", () => {
-  test("builds a word-timed track", () => {
+describe("ultraStarTrack", () => {  test("builds a word-timed track", () => {
     const song = parseUltraStar(CHART);
     const track = ultraStarTrack(song, {
       id: "ultrastar:song",
@@ -200,10 +199,14 @@ describe("ultraStarTrack", () => {
       description: "UltraStar — Someone",
     });
     expect(track.id).toBe("ultrastar:song");
+    expect(track.type).toBe("ultrastar");
     expect(track.title).toBe("Test Song");
     expect(track.words).toHaveLength(4);
     expect(track.lines).toHaveLength(2);
     expect(track.source.captions).toBe("manual");
+    // The raw header map is kept for reference.
+    expect(track.headers?.TITLE).toBe("Test Song");
+    expect(track.headers?.MP3).toBe("audio.mp3");
   });
 
   test("attaches per-note pitch data", () => {
@@ -224,5 +227,38 @@ describe("ultraStarTrack", () => {
       description: "",
     });
     expect(track.notes).toBeUndefined();
+  });
+});
+
+describe("audio field and stored headers", () => {
+  test("prefers #AUDIO over the classic #MP3", () => {
+    const chart = [
+      "#TITLE:x",
+      "#MP3:old.mp3",
+      "#AUDIO:new.ogg",
+      "#BPM:120",
+      ": 0 4 0  hi",
+      "E",
+    ].join("\n");
+    expect(parseUltraStar(chart).audio).toBe("new.ogg");
+  });
+
+  test("falls back to #MP3 when #AUDIO is absent", () => {
+    expect(parseUltraStar(CHART).audio).toBe("audio.mp3");
+  });
+
+  test("keeps the raw header map, known keys first", () => {
+    const song = parseUltraStar(CHART);
+    expect(song.headers.TITLE).toBe("Test Song");
+    expect(song.headers.MP3).toBe("audio.mp3");
+    expect(Object.keys(song.headers)[0]).toBe("TITLE");
+  });
+
+  test("caps stored headers at 128, known ones first", () => {
+    const extra = Array.from({ length: 200 }, (_, i) => `#X${i}:v${i}`);
+    const chart = ["#TITLE:t", ...extra, "#BPM:120", ": 0 4 0  hi", "E"].join("\n");
+    const headers = parseUltraStar(chart).headers;
+    expect(Object.keys(headers)).toHaveLength(128);
+    expect(headers.TITLE).toBe("t");
   });
 });

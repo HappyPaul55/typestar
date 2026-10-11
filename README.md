@@ -170,8 +170,9 @@ picker on `/play` offers **Open local files** (`/play/local`). It scans the
 chosen folders (up to four deep each) and finds two kinds of song:
 
 - **UltraStar** charts — a `.txt` file in the
-  [UltraStar format](https://github.com/UltraStar-Deluxe/format). Its `#MP3`
-  header names the audio (and an optional `#VIDEO` background, plus an optional
+  [UltraStar format](https://github.com/UltraStar-Deluxe/format). Its `#AUDIO`
+  header (or the classic `#MP3`) names the audio (and an optional `#VIDEO`
+  background, plus an optional
   `#COVER` image shown on the song's card). Because
   UltraStar times every syllable, the words line up exactly with the music
   rather than being estimated. Syllables are merged into whole words using the
@@ -209,8 +210,9 @@ Beyond the featured YouTube tracks, you can paste any of:
 
 A YouTube song is timed from its captions. An UltraStar chart is fetched once by
 the Worker, parsed into the same word-timed track shape (with per-note pitch, so
-it can be scored when sung) and cached in R2 under a hash of its URL. Its `#MP3`
-audio, `#VIDEO` background, `#BACKGROUND` image and `#COVER` art are resolved
+it can be scored when sung) and cached in R2 under a hash of its URL. Its `#AUDIO`
+(or classic `#MP3`) audio, `#VIDEO` background, `#BACKGROUND` image and `#COVER`
+art are resolved
 against the chart's own URL and streamed by the browser **directly from that
 host** — TypeStar never proxies the media. The first time a song is requested it
 goes through the same one-off Turnstile human check as a new YouTube video.

@@ -279,18 +279,22 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   re-requested on a user gesture. `media-src blob:` in `public/_headers` is
   required for the video to load under the CSP. Pairing is by relative path
   (case-insensitive, capped at `MAX_SCAN_DEPTH = 4`). UltraStar charts are found
-  by their `#MP3`/`#VIDEO` headers (resolved relative to the `.txt`), and the
+  by their `#AUDIO`/`#MP3`/`#VIDEO` headers (resolved relative to the `.txt`), and the
   background video is synced to the audio with `#VIDEOGAP` (`audioTime -
   videoGap`); freestyle notes are dropped and duets sing voice 1.
 - **Songs from a URL are server-fetched; their media is hotlinked.** An UltraStar
   chart URL is fetched by the Worker (`src/lib/track/remote.ts`) behind the same
   Turnstile gate as a new YouTube song. Only `http(s)` is allowed, private and
   loopback hosts and IP literals are refused, and redirects, response size and
-  time are capped. The chart's `#MP3`, `#VIDEO`, `#BACKGROUND` and `#COVER` are
-  resolved to absolute URLs and streamed by the browser from the chart's own
-  host — never proxied. The cache key is the hash of the **request** URL; the
-  track's `sourceUrl` records the post-redirect URL (the canonical link and the
-  media base). Legacy `/play/<id>` 301-redirects to `/play/youtube/<id>`; the
+  time are capped. The chart's `#AUDIO`/`#MP3`, `#VIDEO`, `#BACKGROUND` and
+  `#COVER` are resolved to absolute URLs and streamed by the browser from the
+  chart's own host — never proxied. The cache key is the hash of the **request**
+  URL; the
+  track's `source.url` records the post-redirect URL (the canonical link and the
+  media base). A track carries `type` (`youtube` / `ultrastar`) and a namespaced
+  `id` (`youtube-<videoId>` / `ultrastar-<hash>`); an UltraStar track also keeps
+  the raw `headers` map (known keys first, capped at 128). `#AUDIO` is preferred
+  over the classic `#MP3`. Legacy `/play/<id>` 301-redirects to `/play/youtube/<id>`; the
   browser carries the `#hash` across the fragment-less redirect.
 - `nodejs_compat` is required: `youtube-caption-extractor` depends on `he` and
   `striptags`.
