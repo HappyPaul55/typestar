@@ -96,6 +96,10 @@ describe("trackPath", () => {
   test("a local UltraStar chart (no URL) falls back to the picker", () => {
     expect(trackPath({ id: "ultrastar:Folder:song", type: "ultrastar" })).toBe("/play");
   });
+
+  test("a local video pair is not shareable", () => {
+    expect(trackPath({ id: "local:Folder:song" })).toBe("/play");
+  });
 });
 
 describe("id helpers", () => {

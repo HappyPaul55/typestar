@@ -2,8 +2,10 @@
  * Publish pre-warmed tracks to R2.
  *
  * Uploads every `public/tracks/<id>.json` produced by `bun run tracks:warm` to
- * the `typestar-tracks` bucket at `tracks/<id>/en.json`, so the deployed API
- * serves them from R2 without a live YouTube lookup.
+ * the `typestar-tracks` bucket, so the deployed API serves them from R2 without
+ * a live lookup. A YouTube seed (a bare video id) goes to `tracks/<id>/en.json`;
+ * an UltraStar seed (`ultrastar-<hash>.json`) goes to
+ * `tracks/ultrastar/<hash>/en.json`.
  *
  * Needs Cloudflare credentials (`wrangler login`, or `CLOUDFLARE_API_TOKEN` and
  * `CLOUDFLARE_ACCOUNT_ID`) and the bucket to exist — `bun run tracks:bucket`

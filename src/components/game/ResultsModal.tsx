@@ -112,6 +112,8 @@ export default function ResultsModal({
 
   /** Share the same track and settings so someone else can take the same run. */
   async function share() {
+    // Local songs have no shareable URL; the button is hidden for them anyway.
+    if (summary.sharePath === "/play") return;
     const url = `${window.location.origin}${summary.sharePath}${buildHash(summary.share)}`;
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
@@ -205,9 +207,11 @@ export default function ResultsModal({
           <button type="button" className="btn-game btn-game--primary" onClick={onReplay}>
             Try Again
           </button>
-          <button type="button" className="btn-game" onClick={share}>
-            {copied ? "Copied!" : "Share"}
-          </button>
+          {summary.sharePath !== "/play" ? (
+            <button type="button" className="btn-game" onClick={share}>
+              {copied ? "Copied!" : "Share"}
+            </button>
+          ) : null}
           <button type="button" className="btn-game" onClick={onChangeSong}>
             Change song
           </button>

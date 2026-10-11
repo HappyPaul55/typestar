@@ -56,7 +56,8 @@ persistent fullscreen target and must stay mounted across every play screen.
    player chooses a folder and TypeStar finds two kinds of song (up to four
    folders deep — `MAX_SCAN_DEPTH` in `src/lib/local/library.ts`): a video paired
    with a same-named `.vtt` caption, and an **UltraStar** `.txt` chart whose
-   `#MP3` names its audio (and optional `#VIDEO` and `#COVER`). Both are built
+   `#AUDIO` (or classic `#MP3`) names its audio (and optional `#VIDEO` and
+   `#COVER`). Both are built
    into the same
    word-timed track shape in the browser. A `.vtt` video plays from an object URL
    in an HTML5 `<video>` (`useMediaPlayer`); an UltraStar song plays its audio

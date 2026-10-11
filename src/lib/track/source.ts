@@ -118,7 +118,7 @@ export function seedIdOf(source: TrackSourceRef): string {
   return source.kind === "ultrastar" ? ultraStarId(source.url) : source.id;
 }
 
-/** The canonical `/play/...` path for a track. */
+/** The canonical `/play/...` path for a track, or `/play` when not shareable. */
 export function trackPath(track: {
   id: string;
   type?: TrackType;
@@ -128,7 +128,9 @@ export function trackPath(track: {
     const url = track.source?.url;
     return url ? `/play/ultrastar/${encodeURIComponent(url)}` : "/play";
   }
-  return `/play/youtube/${videoIdOf(track.id)}`;
+  const videoId = videoIdOf(track.id);
+  // A local or otherwise unshareable track has no pretty video URL.
+  return YOUTUBE_ID_RE.test(videoId) ? `/play/youtube/${videoId}` : "/play";
 }
 
 /** Decode a URL path segment, returning `null` when it is malformed. */
