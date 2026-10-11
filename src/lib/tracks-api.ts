@@ -60,7 +60,11 @@ export interface TracksEnv {
 export interface TurnstileConfig {
   /** Widget secret (a Worker secret in production). */
   secret: string;
-  /** Hostnames allowed to have produced the token, from siteverify. */
+  /**
+   * Hostnames allowed to have produced the token, from siteverify. A listed
+   * hostname also allows its subdomains, mirroring how Turnstile's own hostname
+   * allowlist authorises a domain and everything beneath it.
+   */
   hostnames: string[];
   /** The expected token action, e.g. `track`. */
   action?: string;
@@ -71,14 +75,34 @@ export interface TurnstileConfig {
 /** The header the browser sends the widget token in. */
 export const TURNSTILE_TOKEN_HEADER = "x-turnstile-token";
 
+/**
+ * Whether `hostname` is one of `allowed`, or a subdomain of one.
+ *
+ * Turnstile has no wildcard syntax of its own: adding a hostname to a widget
+ * authorises that hostname and every subdomain beneath it. The server-side check
+ * mirrors that rule, so a listed `typestar.happypaul55.com` also accepts a branch
+ * preview on `feature-x.typestar.happypaul55.com`. The match is on a label
+ * boundary, so `evil-typestar.happypaul55.com` is not accepted.
+ */
+export function hostnameAllowed(hostname: string, allowed: Iterable<string>): boolean {
+  const host = hostname.trim().toLowerCase();
+  if (!host) return false;
+  for (const entry of allowed) {
+    const base = entry.trim().toLowerCase();
+    if (base && (host === base || host.endsWith(`.${base}`))) return true;
+  }
+  return false;
+}
+
 type TurnstileVerdict = "ok" | "missing" | "failed";
 
 /**
  * Verify a Turnstile token with Cloudflare's siteverify.
  *
  * Fails closed: a missing token is `missing` (the client should run the
- * widget), and anything else — a non-2xx, a network error, a bad action or an
- * unapproved hostname — is `failed`.
+ * widget), and anything else — a non-2xx, a network error, a bad action or a
+ * hostname that is neither an allowed host nor a subdomain of one — is
+ * `failed`.
  */
 export async function verifyTurnstile(
   request: Request,
@@ -88,10 +112,10 @@ export async function verifyTurnstile(
   if (!token) return "missing";
   if (token.length > 2048) return "failed";
 
-  const allowed = new Set(
-    config.hostnames.map((hostname) => hostname.trim().toLowerCase()).filter(Boolean),
-  );
-  if (!config.secret || allowed.size === 0) return "failed";
+  const allowed = config.hostnames
+    .map((hostname) => hostname.trim().toLowerCase())
+    .filter(Boolean);
+  if (!config.secret || allowed.length === 0) return "failed";
 
   const doFetch = config.fetchImpl ?? fetch;
   const remoteip = request.headers.get("cf-connecting-ip");
@@ -118,7 +142,7 @@ export async function verifyTurnstile(
 
   if (result.success !== true) return "failed";
   if (config.action && result.action !== config.action) return "failed";
-  if (!result.hostname || !allowed.has(result.hostname.toLowerCase())) return "failed";
+  if (!result.hostname || !hostnameAllowed(result.hostname, allowed)) return "failed";
   return "ok";
 }
 

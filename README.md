@@ -148,10 +148,11 @@ EASY/MEDIUM/HARD rating is derived from the built track's word timing
 the pre-warmed seeds in `public/tracks/`.
 
 ```bash
-bun run tracks:warm      # fetch + build the featured tracks into public/tracks/
-bun run tracks:bucket    # create the R2 bucket (once)
-bun run tracks:publish   # upload public/tracks/*.json to the R2 bucket
-bun run tracks:purge     # delete the cached tracks from R2 (needs an API token)
+bun run tracks:warm           # fetch + build the featured tracks into public/tracks/
+bun run tracks:bucket         # create the production R2 bucket (once)
+bun run tracks:bucket:preview # create the preview R2 bucket (once)
+bun run tracks:publish        # upload public/tracks/*.json to the R2 bucket
+bun run tracks:purge          # delete the cached tracks from R2 (needs an API token)
 ```
 
 `tracks:warm` should be run from a normal residential connection: YouTube gates
@@ -284,7 +285,8 @@ Only `/api/*`, `/play` and `/play/*` run the Worker (`run_worker_first` in
 ## Cloudflare
 
 - **Workers + static assets** — hosting and routing.
-- **R2** (`typestar-tracks`) — the processed-track cache.
+- **R2** (`typestar-tracks`) — the production processed-track cache; branch
+  previews use a separate `typestar-tracks-preview` bucket.
 - `nodejs_compat` is enabled because the captions library needs it.
 
 Scores are local to the browser for now; a leaderboard (D1 or Durable Objects)
@@ -297,6 +299,52 @@ Deployed as a Cloudflare Worker with static assets via Workers Builds
 
 Keep `astro.config.mjs` (`site`), `src/content/site/settings.json` (`url`) and
 `public/robots.txt` in step if the domain changes.
+
+### Branch previews
+
+Pushes to any branch other than `main` build a **Worker Preview**
+(`bunx wrangler preview`) under the same Worker, so a branch can be reviewed
+before it lands. Each branch is served from
+`https://<branch>.typestar.happypaul55.com`.
+
+Production is the apex custom domain and previews are its subdomains, which
+needs setting up once in the Cloudflare dashboard:
+
+1. **Enable preview builds.** Worker → **Settings** → **Build** →
+   **Branch control** → tick **Enable Preview Builds**, and confirm the
+   **Preview command** is `bunx wrangler preview`. The production **deploy
+   command** stays `bunx wrangler deploy`.
+2. **Serve previews on the subdomains.** Worker → **Domains** → the
+   `typestar.happypaul55.com` custom domain → set **Enable for** to
+   **Production and Preview**. Cloudflare then serves every Preview as
+   `<branch>.typestar.happypaul55.com` and issues the wildcard certificate.
+   (If the Worker is still on the older Version URL preview model, the
+   **Set up Worker Previews** banner switches it — the switch cannot be undone.)
+3. **Create the preview bucket** once: `bun run tracks:bucket:preview`.
+4. **Give previews their secrets.** Previews do not inherit production settings,
+   and secrets cannot live in `wrangler.jsonc`. Set `TURNSTILE_SECRET` in the
+   Previews Base configuration so the human check still runs on previews:
+   `bunx wrangler preview base-config secret put TURNSTILE_SECRET`
+   (secrets added there are copied only to *new* previews).
+
+`previews` in `wrangler.jsonc` repeats the vars (`CAPTION_FALLBACK_URL`,
+`TURNSTILE_HOSTNAMES`) and points the `TRACKS` binding at
+`typestar-tracks-preview`, so a branch can fetch and cache new songs without
+writing into the production cache. `TURNSTILE_HOSTNAMES` only lists the apex
+domain: a Turnstile token is accepted for a listed hostname **and its
+subdomains**, matching how the widget's own hostname allowlist behaves, so no
+per-branch entry is needed. Featured seeds are bundled with every build
+(`public/tracks/`), so previews still play them with an empty bucket.
+
+Two things worth knowing:
+
+- Preview URLs are public by default and, unlike `workers.dev` previews, custom
+  domain previews are **not** given an automatic `X-Robots-Tag: noindex`. Add
+  that header with a Transform Rule for `*.typestar.happypaul55.com`, or protect
+  the previews with Cloudflare Access.
+- Every page still declares `site` (`https://typestar.happypaul55.com`), so a
+  preview's canonical and social URLs point at production. That is intentional —
+  previews should not compete with production in search.
 
 ## Licence
 

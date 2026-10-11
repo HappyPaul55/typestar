@@ -5,6 +5,7 @@ import { TRACK_VERSION, type Track } from "./track/types";
 import {
   getCachedTrack,
   handleTrackRequest,
+  hostnameAllowed,
   trackKey,
   TURNSTILE_TOKEN_HEADER,
   verifyTurnstile,
@@ -88,6 +89,22 @@ describe("verifyTurnstile", () => {
     expect(result).toBe("failed");
   });
 
+  test("accepts a subdomain of an approved hostname", async () => {
+    const result = await verifyTurnstile(request("tok"), {
+      ...BASE,
+      fetchImpl: siteverify({ hostname: "feature-login.typestar.happypaul55.com" }),
+    });
+    expect(result).toBe("ok");
+  });
+
+  test("rejects a hostname that only looks like a subdomain", async () => {
+    const result = await verifyTurnstile(request("tok"), {
+      ...BASE,
+      fetchImpl: siteverify({ hostname: "evil-typestar.happypaul55.com" }),
+    });
+    expect(result).toBe("failed");
+  });
+
   test("fails closed when siteverify reports failure", async () => {
     const result = await verifyTurnstile(request("tok"), {
       ...BASE,
@@ -101,6 +118,34 @@ describe("verifyTurnstile", () => {
       throw new Error("boom");
     }) as unknown as typeof fetch;
     expect(await verifyTurnstile(request("tok"), { ...BASE, fetchImpl })).toBe("failed");
+  });
+});
+
+describe("hostnameAllowed", () => {
+  const allowed = ["typestar.happypaul55.com"];
+
+  test("allows the exact hostname", () => {
+    expect(hostnameAllowed("typestar.happypaul55.com", allowed)).toBe(true);
+  });
+
+  test("allows any subdomain", () => {
+    expect(hostnameAllowed("feature-x.typestar.happypaul55.com", allowed)).toBe(true);
+    expect(hostnameAllowed("a.b.typestar.happypaul55.com", allowed)).toBe(true);
+  });
+
+  test("is case-insensitive and tolerates whitespace", () => {
+    expect(hostnameAllowed(" Feature-X.TypeStar.HappyPaul55.com ", allowed)).toBe(true);
+  });
+
+  test("rejects a parent domain, a sibling and a lookalike", () => {
+    expect(hostnameAllowed("happypaul55.com", allowed)).toBe(false);
+    expect(hostnameAllowed("other.example.com", allowed)).toBe(false);
+    expect(hostnameAllowed("evil-typestar.happypaul55.com", allowed)).toBe(false);
+    expect(hostnameAllowed("typestar.happypaul55.com.evil.example", allowed)).toBe(false);
+  });
+
+  test("rejects an empty hostname", () => {
+    expect(hostnameAllowed("", allowed)).toBe(false);
   });
 });
 

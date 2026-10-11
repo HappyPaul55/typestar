@@ -17,6 +17,7 @@
     "tracks:publish": "bun scripts/publish-tracks.ts",
     "tracks:purge": "bun scripts/purge-tracks.ts",
     "tracks:bucket": "wrangler r2 bucket create typestar-tracks",
+    "tracks:bucket:preview": "wrangler r2 bucket create typestar-tracks-preview",
     "astro": "astro"
   },
   "dependencies": {

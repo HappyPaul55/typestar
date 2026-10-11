@@ -240,8 +240,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `/api/track/ultrastar?url=`, `/play?v=` and legacy `/play/<id>` → 301,
   `/play/youtube/<id>` and `/play/ultrastar/<url>` → the play page, with
   per-track SEO when the song is known.
-- `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding and
-  `run_worker_first: ["/api/*", "/play", "/play/*"]`.
+- `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding,
+  `run_worker_first: ["/api/*", "/play", "/play/*"]`, and the `previews` block
+  (the bindings and vars a branch Worker Preview uses).
 - `astro.config.mjs` — the `devServer` Vite plugin reproduces the Worker routing
   and runs the real API handler locally.
 - `public/tracks/*.json` — pre-warmed seed tracks (generated, committed).
@@ -269,9 +270,14 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `TURNSTILE_HOSTNAMES` is a var (see `wrangler.jsonc`). The client sitekey is
   public (`PUBLIC_TURNSTILE_SITEKEY`, falling back to the constant in
   `src/lib/game/turnstile.ts`). The widget's domain list must include the site
-  hostname or it will not render. The browser sends the token in the
+  hostname or it will not render. A listed hostname also allows its subdomains —
+  both in the widget's own allowlist and in the server-side check
+  (`hostnameAllowed` in `src/lib/tracks-api.ts`) — so the apex
+  `typestar.happypaul55.com` covers every branch preview without a per-branch
+  entry. The browser sends the token in the
   `x-turnstile-token` header; the gate is skipped entirely when no secret is
-  configured (so local dev needs no setup). To exercise it locally, put
+  configured (so local dev needs no setup, and a preview without the secret in
+  its Previews Base configuration). To exercise it locally, put
   Cloudflare's test keys in `.env*` (see README).
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
@@ -302,7 +308,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - The R2 bucket is `typestar-tracks`; create it once with `bun run tracks:bucket`
   (or `bunx wrangler r2 bucket create typestar-tracks`). `tracks:publish` uploads
   the pre-warmed seeds into it and needs Cloudflare credentials. A deploy fails
-  if the bucket is missing, since `wrangler.jsonc` binds it.
+  if the bucket is missing, since `wrangler.jsonc` binds it. Branch previews bind
+  the separate `typestar-tracks-preview` bucket (`bun run tracks:bucket:preview`),
+  which is bound in `wrangler.jsonc` under `previews`.
 - **Changing the track format is a breaking change, but the version keeps the
   cache honest.** The cache key includes `TRACK_VERSION`
   (`tracks/v<version>/youtube/<videoId>/<lang>.json` for YouTube,
@@ -353,6 +361,14 @@ page have all been deleted. `@astrojs/react` is kept for the game island.
   (`name: client-typestar-happypaul55-com`, `main: worker/index.ts`,
   `assets.directory: ./dist`, `assets.binding: ASSETS`,
   `r2_buckets: [{ binding: TRACKS, bucket_name: typestar-tracks }]`).
+- **Branch previews** build with `bunx wrangler preview` (Worker Previews) for
+  every non-`main` branch, served at `<branch>.typestar.happypaul55.com` — the
+  apex custom domain enabled for **Production and Preview** in the dashboard.
+  Previews do not inherit production settings, so `wrangler.jsonc` repeats their
+  bindings and vars in a `previews` block (their own `typestar-tracks-preview`
+  bucket); secrets are applied to the Previews Base configuration separately
+  (`bunx wrangler preview base-config secret put TURNSTILE_SECRET`). See the
+  README's "Branch previews" section.
 - `site` is `https://typestar.happypaul55.com`; keep `astro.config.mjs`,
   `settings.json.url` and `public/robots.txt` in step if the domain changes.
 - Scores are local to the browser. A leaderboard is a future addition and would
