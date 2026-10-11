@@ -307,10 +307,11 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `striptags`.
 - The R2 bucket is `typestar-tracks`; create it once with `bun run tracks:bucket`
   (or `bunx wrangler r2 bucket create typestar-tracks`). `tracks:publish` uploads
-  the pre-warmed seeds into it and needs Cloudflare credentials. A deploy fails
-  if the bucket is missing, since `wrangler.jsonc` binds it. Branch previews bind
-  the separate `typestar-tracks-preview` bucket (`bun run tracks:bucket:preview`),
-  which is bound in `wrangler.jsonc` under `previews`.
+  the pre-warmed seeds into it and needs Cloudflare credentials. Wrangler binds a
+  bucket but never creates one, so a deploy fails with `R2 bucket ... not found`
+  (code 10085) until the bucket exists. Branch previews bind the separate
+  `typestar-tracks-preview` bucket (`bun run tracks:bucket:preview`), which is
+  bound in `wrangler.jsonc` under `previews`.
 - **Changing the track format is a breaking change, but the version keeps the
   cache honest.** The cache key includes `TRACK_VERSION`
   (`tracks/v<version>/youtube/<videoId>/<lang>.json` for YouTube,

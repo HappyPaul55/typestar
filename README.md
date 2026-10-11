@@ -310,17 +310,20 @@ before it lands. Each branch is served from
 Production is the apex custom domain and previews are its subdomains, which
 needs setting up once in the Cloudflare dashboard:
 
-1. **Enable preview builds.** Worker → **Settings** → **Build** →
+1. **Create the preview bucket** once: `bun run tracks:bucket:preview`.
+   Wrangler only *binds* a bucket, it never creates one, so until it exists a
+   preview build fails with `R2 bucket 'typestar-tracks-preview' not found`
+   (code 10085).
+2. **Enable preview builds.** Worker → **Settings** → **Build** →
    **Branch control** → tick **Enable Preview Builds**, and confirm the
    **Preview command** is `bunx wrangler preview`. The production **deploy
    command** stays `bunx wrangler deploy`.
-2. **Serve previews on the subdomains.** Worker → **Domains** → the
+3. **Serve previews on the subdomains.** Worker → **Domains** → the
    `typestar.happypaul55.com` custom domain → set **Enable for** to
    **Production and Preview**. Cloudflare then serves every Preview as
    `<branch>.typestar.happypaul55.com` and issues the wildcard certificate.
    (If the Worker is still on the older Version URL preview model, the
    **Set up Worker Previews** banner switches it — the switch cannot be undone.)
-3. **Create the preview bucket** once: `bun run tracks:bucket:preview`.
 4. **Give previews their secrets.** Previews do not inherit production settings,
    and secrets cannot live in `wrangler.jsonc`. Set `TURNSTILE_SECRET` in the
    Previews Base configuration so the human check still runs on previews:
