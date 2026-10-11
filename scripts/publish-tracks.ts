@@ -4,8 +4,8 @@
  * Uploads every `public/tracks/<id>.json` produced by `bun run tracks:warm` to
  * the `typestar-tracks` bucket, so the deployed API serves them from R2 without
  * a live lookup. Keys match the API's `trackKey` and include the track version:
- * a YouTube seed (a bare video id) goes to `tracks/v<version>/<id>/en.json`; an
- * UltraStar seed (`ultrastar-<hash>.json`) goes to
+ * a YouTube seed (a bare video id) goes to `tracks/v<version>/youtube/<id>/en.json`;
+ * an UltraStar seed (`ultrastar-<hash>.json`) goes to
  * `tracks/v<version>/ultrastar/<hash>/en.json`.
  *
  * Needs Cloudflare credentials (`wrangler login`, or `CLOUDFLARE_API_TOKEN` and
@@ -40,10 +40,10 @@ function run(args: string[]): { ok: boolean; output: string } {
 let failures = 0;
 for (const file of files) {
   const id = file.replace(/\.json$/, "");
-  // UltraStar seeds are keyed by their URL hash; YouTube seeds keep the id.
+  // Seeds are namespaced by source: `youtube/<id>` or `ultrastar/<hash>`.
   const base = id.startsWith("ultrastar-")
     ? `ultrastar/${id.slice("ultrastar-".length)}`
-    : id;
+    : `youtube/${id}`;
   // The version is part of the key, matching `trackKey` in the API.
   const key = `${BUCKET}/tracks/v${TRACK_VERSION}/${base}/en.json`;
   const source = join(SOURCE_DIR, file);

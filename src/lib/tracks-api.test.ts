@@ -268,7 +268,9 @@ const SONG_URL = "https://raw.githubusercontent.com/example/songs/main/Code Monk
 
 describe("trackKey", () => {
   test("namespaces the key by version and source", () => {
-    expect(trackKey(YT, "en")).toBe(`tracks/v${TRACK_VERSION}/dQw4w9WgXcQ/en.json`);
+    expect(trackKey(YT, "en")).toBe(
+      `tracks/v${TRACK_VERSION}/youtube/dQw4w9WgXcQ/en.json`,
+    );
     expect(trackKey({ kind: "ultrastar", url: SONG_URL }, "en")).toBe(
       `tracks/v${TRACK_VERSION}/ultrastar/${ultraStarHash(SONG_URL)}/en.json`,
     );

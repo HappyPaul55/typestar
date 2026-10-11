@@ -305,7 +305,7 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   if the bucket is missing, since `wrangler.jsonc` binds it.
 - **Changing the track format is a breaking change, but the version keeps the
   cache honest.** The cache key includes `TRACK_VERSION`
-  (`tracks/v<version>/<videoId>/<lang>.json` for YouTube,
+  (`tracks/v<version>/youtube/<videoId>/<lang>.json` for YouTube,
   `tracks/v<version>/ultrastar/<hash>/<lang>.json` for UltraStar), so bumping the
   version moves every write to a fresh namespace — a new build never reads a
   stale object. `tracks:publish` only adds or overwrites, so old versions linger;

@@ -137,7 +137,7 @@ export function trackKey(source: TrackSourceRef, lang: string): string {
   const base =
     source.kind === "ultrastar"
       ? `ultrastar/${ultraStarHash(source.url)}`
-      : source.id;
+      : `youtube/${source.id}`;
   return `tracks/v${TRACK_VERSION}/${base}/${lang}.json`;
 }
 
