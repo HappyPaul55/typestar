@@ -303,16 +303,17 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   (or `bunx wrangler r2 bucket create typestar-tracks`). `tracks:publish` uploads
   the pre-warmed seeds into it and needs Cloudflare credentials. A deploy fails
   if the bucket is missing, since `wrangler.jsonc` binds it.
-- **Changing the track format is a breaking change.** The cache is keyed by
-  `tracks/<videoId>/<lang>.json` (YouTube) or `tracks/ultrastar/<hash>/<lang>.json`
-  (UltraStar), and `tracks:publish` only adds or overwrites — it never removes
-  stale objects. If you change the built track shape, you must bump
-  `TRACK_VERSION` (so `isTrack` rejects the old objects) **and** purge the
-  `tracks/` prefix in R2 (`bun run tracks:purge`) before republishing, otherwise
-  the deployed Worker keeps serving the old format. The current shape is
-  `TRACK_VERSION = 6` (required `type`, namespaced `id`, `source.url`, and the
-  UltraStar `headers` map); the committed seeds in `public/tracks/` are at that
-  version. Avoid format changes unless necessary.
+- **Changing the track format is a breaking change, but the version keeps the
+  cache honest.** The cache key includes `TRACK_VERSION`
+  (`tracks/v<version>/<videoId>/<lang>.json` for YouTube,
+  `tracks/v<version>/ultrastar/<hash>/<lang>.json` for UltraStar), so bumping the
+  version moves every write to a fresh namespace — a new build never reads a
+  stale object. `tracks:publish` only adds or overwrites, so old versions linger;
+  clear them with `bun run tracks:purge` (default prefix `tracks/`, or target one
+  version with `--prefix=tracks/v5/`). A bump also needs the committed seeds
+  (`public/tracks/`) re-warmed to match. The current shape is `TRACK_VERSION = 6`
+  (required `type`, namespaced `id`, `source.url`, and the UltraStar `headers`
+  map).
 - URL policy is `trailingSlash: "never"` + `build.format: "file"`. Output is
   `index.html` / `play.html` / etc.; canonical and sitemap URLs have no trailing
   slash. Active-nav logic in `Header.astro` normalises both `.html` and trailing

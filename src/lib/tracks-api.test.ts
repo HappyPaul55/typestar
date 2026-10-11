@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
-import { youtubeTrackId, youtubeWatchUrl } from "./track/source";
+import { ultraStarHash, youtubeTrackId, youtubeWatchUrl } from "./track/source";
 import { memoryStore } from "./track/store";
 import { TRACK_VERSION, type Track } from "./track/types";
 import {
@@ -265,6 +265,15 @@ const CHART = [
 ].join("\n");
 
 const SONG_URL = "https://raw.githubusercontent.com/example/songs/main/Code Monkey/song.txt";
+
+describe("trackKey", () => {
+  test("namespaces the key by version and source", () => {
+    expect(trackKey(YT, "en")).toBe(`tracks/v${TRACK_VERSION}/dQw4w9WgXcQ/en.json`);
+    expect(trackKey({ kind: "ultrastar", url: SONG_URL }, "en")).toBe(
+      `tracks/v${TRACK_VERSION}/ultrastar/${ultraStarHash(SONG_URL)}/en.json`,
+    );
+  });
+});
 
 describe("handleTrackRequest UltraStar", () => {
   test("fetches, builds, caches and resolves media against the chart URL", async () => {

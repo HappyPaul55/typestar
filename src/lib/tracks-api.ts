@@ -28,7 +28,7 @@ import {
 import type { TrackStore } from "./track/store";
 import { ultraStarTrack } from "./track/ultrastar";
 import { parseTrack } from "./track/validate";
-import type { Track } from "./track/types";
+import { TRACK_VERSION, type Track } from "./track/types";
 import { CaptionError, fetchTrackSource } from "./youtube-captions";
 
 export interface TracksEnv {
@@ -126,14 +126,19 @@ export async function verifyTurnstile(
 const LANG_RE = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
 
 /**
- * The cache key for a track. YouTube keeps its historical `tracks/<id>/…` shape
- * so the existing R2 cache stays valid; UltraStar charts are keyed by a hash of
- * their (normalised) source URL.
+ * The cache key for a track. The {@link TRACK_VERSION} is part of the path, so
+ * bumping it moves every write to a fresh namespace: a new build never reads a
+ * stale object, and the old one is simply left for a later cleanup.
+ *
+ * YouTube is keyed by its video id; UltraStar charts by a hash of their
+ * (normalised) source URL.
  */
 export function trackKey(source: TrackSourceRef, lang: string): string {
-  return source.kind === "ultrastar"
-    ? `tracks/ultrastar/${ultraStarHash(source.url)}/${lang}.json`
-    : `tracks/${source.id}/${lang}.json`;
+  const base =
+    source.kind === "ultrastar"
+      ? `ultrastar/${ultraStarHash(source.url)}`
+      : source.id;
+  return `tracks/v${TRACK_VERSION}/${base}/${lang}.json`;
 }
 
 /**

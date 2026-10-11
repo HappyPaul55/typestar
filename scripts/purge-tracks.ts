@@ -1,10 +1,10 @@
 /**
  * Purge processed tracks from R2.
  *
- * The track cache is keyed by `tracks/<id>/<lang>.json`, and `tracks:publish`
- * only adds or overwrites — it never removes stale objects. So when the built
- * track format changes (see TRACK_VERSION), the old objects must be purged or
- * the Worker keeps serving the previous format.
+ * The track cache is keyed by `tracks/v<version>/<source>/<lang>.json`, and
+ * `tracks:publish` only adds or overwrites — it never removes stale objects. A
+ * `TRACK_VERSION` bump moves new writes to a fresh namespace, so the Worker
+ * never serves the previous format; this script then clears the old objects.
  *
  * Uses the Cloudflare REST API, so it needs an API token with R2 edit access:
  *
