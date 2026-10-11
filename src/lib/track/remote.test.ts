@@ -90,7 +90,7 @@ describe("fetchRemoteUltraStar", () => {
     }) as unknown as typeof fetch;
 
     const remote = await fetchRemoteUltraStar(SONG_URL, { fetchImpl });
-    expect(remote.sourceUrl).toBe("https://cdn.example.com/song.txt");
+    expect(remote.url).toBe("https://cdn.example.com/song.txt");
     expect(remote.media.audio).toBe("https://cdn.example.com/audio.mp3");
   });
 

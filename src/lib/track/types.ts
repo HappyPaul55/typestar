@@ -8,14 +8,14 @@
  */
 
 /** Bump when the shape changes in a way the game cannot read. */
-export const TRACK_VERSION = 5;
+export const TRACK_VERSION = 6;
 
 /** How a caption track was produced, which hints at how reliable the timing is. */
 export type CaptionKind = "manual" | "asr" | "unknown";
 
 /**
- * Where a track's lyrics came from. Tracks cached before this field existed are
- * always YouTube, so a missing `type` means `youtube`.
+ * Where a track's lyrics came from: a YouTube caption track, or an UltraStar
+ * chart (local or fetched from a URL).
  */
 export type TrackType = "youtube" | "ultrastar";
 
@@ -102,15 +102,12 @@ export interface Track {
   version: number;
   /**
    * A namespaced, stable identifier: `youtube-<videoId>` or
-   * `ultrastar-<hash>`. Used for personal bests and the sync offset, so it must
-   * not change between loads. Older cached tracks carry a bare YouTube id.
+   * `ultrastar-<hash>` (or a `local:` id for a browser-local song). Used for
+   * personal bests and the sync offset, so it must not change between loads.
    */
   id: string;
-  /**
-   * Which source kind this track came from. Absent on older cached tracks,
-   * which are always YouTube; treat a missing value as `youtube`.
-   */
-  type?: TrackType;
+  /** Which source kind this track came from. */
+  type: TrackType;
   title: string;
   description: string;
   /** Caption language code, e.g. `en`. */

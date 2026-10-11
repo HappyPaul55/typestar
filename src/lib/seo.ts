@@ -15,7 +15,7 @@
  * the Worker and the unit tests share one implementation.
  */
 
-import { trackPath, trackType, videoIdOf } from "./track/source";
+import { trackPath, videoIdOf } from "./track/source";
 import type { TrackMedia, TrackType } from "./track/types";
 
 const SITE_NAME = "TypeStar";
@@ -38,7 +38,7 @@ export interface TrackSeo {
 interface SeoTrack {
   id: string;
   title: string;
-  type?: TrackType;
+  type: TrackType;
   source?: { url?: string };
   artist?: string;
   media?: TrackMedia;
@@ -60,7 +60,7 @@ export function trackSeo(track: SeoTrack, origin: string): TrackSeo {
   const base = origin.replace(/\/+$/, "");
   const canonical = `${base}${trackPath(track)}`;
 
-  if (trackType(track) === "ultrastar") {
+  if (track.type === "ultrastar") {
     const cover = track.media?.cover;
     const by = track.artist ? ` by ${track.artist}` : "";
     return {

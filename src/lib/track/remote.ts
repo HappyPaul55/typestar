@@ -160,7 +160,7 @@ export interface RemoteUltraStar {
   /** Absolute media URLs, resolved against the chart's own URL. */
   media: TrackMedia;
   /** The chart URL after any redirects, used as the canonical source. */
-  sourceUrl: string;
+  url: string;
 }
 
 /**
@@ -203,5 +203,5 @@ export async function fetchRemoteUltraStar(
     ...(song.videoGap ? { videoGap: song.videoGap } : {}),
   };
 
-  return { song, media, sourceUrl: finalUrl };
+  return { song, media, url: finalUrl };
 }

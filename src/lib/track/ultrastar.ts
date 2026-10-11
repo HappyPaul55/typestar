@@ -417,7 +417,7 @@ export interface UltraStarTrackMeta {
   lang: string;
   description: string;
   /** The chart's own URL, when it was fetched from the web. */
-  sourceUrl?: string;
+  url?: string;
   /** The artist, when the chart names one. */
   artist?: string;
   /** Remote media URLs, for a chart fetched from the web. */
@@ -437,7 +437,7 @@ export function ultraStarTrack(song: UltraStarSong, meta: UltraStarTrackMeta): T
     source: {
       captions: "manual",
       fetchedAt: new Date().toISOString(),
-      ...(meta.sourceUrl ? { url: meta.sourceUrl } : {}),
+      ...(meta.url ? { url: meta.url } : {}),
     },
     offset: 0,
     lines,

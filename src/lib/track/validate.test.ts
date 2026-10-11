@@ -6,7 +6,8 @@ import { isTrack, parseTrack } from "./validate";
 function track(overrides: Partial<Track> = {}): Track {
   return {
     version: TRACK_VERSION,
-    id: "dQw4w9WgXcQ",
+    id: "youtube-dQw4w9WgXcQ",
+    type: "youtube",
     title: "Song",
     description: "",
     lang: "en",
@@ -25,6 +26,11 @@ describe("isTrack", () => {
 
   test("rejects a stale version", () => {
     expect(isTrack(track({ version: TRACK_VERSION - 1 }))).toBe(false);
+  });
+
+  test("rejects a missing or unknown type", () => {
+    expect(isTrack({ ...track(), type: undefined })).toBe(false);
+    expect(isTrack({ ...track(), type: "karaoke" as Track["type"] })).toBe(false);
   });
 
   test("rejects an empty word list", () => {
@@ -65,7 +71,7 @@ describe("isTrack", () => {
 
 describe("parseTrack", () => {
   test("parses valid JSON", () => {
-    expect(parseTrack(JSON.stringify(track()))?.id).toBe("dQw4w9WgXcQ");
+    expect(parseTrack(JSON.stringify(track()))?.id).toBe("youtube-dQw4w9WgXcQ");
   });
 
   test("returns null for malformed JSON", () => {

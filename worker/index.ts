@@ -29,6 +29,7 @@ import {
   handleTrackRequest,
 } from "../src/lib/tracks-api";
 import { injectTrackSeo, trackSeo } from "../src/lib/seo";
+import type { Track } from "../src/lib/track/types";
 import { r2Store, type R2LikeBucket } from "../src/lib/track/store";
 
 type AssetsBinding = { fetch(request: Request): Promise<Response> };
@@ -49,7 +50,7 @@ type Env = {
 function withTrackSeo(
   page: Response,
   html: string,
-  track: { id: string; title: string },
+  track: Track,
   origin: string,
 ): Response {
   const headers = new Headers(page.headers);

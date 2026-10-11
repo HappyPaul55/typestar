@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { youtubeTrackId, youtubeWatchUrl } from "../src/lib/track/source";
 import { TRACK_VERSION, type Track } from "../src/lib/track/types";
 import worker from "./index";
 
@@ -6,11 +7,16 @@ const ID = "dQw4w9WgXcQ";
 
 const TRACK: Track = {
   version: TRACK_VERSION,
-  id: ID,
+  id: youtubeTrackId(ID),
+  type: "youtube",
   title: "Test song",
   description: "",
   lang: "en",
-  source: { captions: "manual", fetchedAt: "2026-01-01T00:00:00.000Z" },
+  source: {
+    captions: "manual",
+    fetchedAt: "2026-01-01T00:00:00.000Z",
+    url: youtubeWatchUrl(ID),
+  },
   offset: 0,
   lines: [{ start: 0, end: 1, from: 0, to: 1 }],
   words: [{ text: "Hi", match: "hi", start: 0, end: 1, line: 0 }],

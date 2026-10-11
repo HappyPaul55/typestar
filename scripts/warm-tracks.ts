@@ -54,7 +54,7 @@ async function warm(id: string, title: string): Promise<void> {
     subtitles: source.subtitles,
     json3: source.json3,
     captionKind: source.captionKind,
-    sourceUrl: youtubeWatchUrl(id),
+    url: youtubeWatchUrl(id),
   });
 
   if (!track.words.length) {

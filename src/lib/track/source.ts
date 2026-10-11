@@ -23,12 +23,6 @@ export type TrackSourceRef =
   | { kind: "youtube"; id: string }
   | { kind: "ultrastar"; url: string };
 
-/** The `type` of a track, defaulting to YouTube for older cached tracks. */
-export function trackType(track: { id?: string; type?: TrackType }): TrackType {
-  if (track.type) return track.type;
-  return track.id?.startsWith("ultrastar") ? "ultrastar" : "youtube";
-}
-
 /** The namespaced id for a YouTube video: `youtube-<videoId>`. */
 export function youtubeTrackId(videoId: string): string {
   return `youtube-${videoId}`;
@@ -121,10 +115,10 @@ export function seedIdOf(source: TrackSourceRef): string {
 /** The canonical `/play/...` path for a track, or `/play` when not shareable. */
 export function trackPath(track: {
   id: string;
-  type?: TrackType;
+  type: TrackType;
   source?: { url?: string };
 }): string {
-  if (trackType(track) === "ultrastar") {
+  if (track.type === "ultrastar") {
     const url = track.source?.url;
     return url ? `/play/ultrastar/${encodeURIComponent(url)}` : "/play";
   }

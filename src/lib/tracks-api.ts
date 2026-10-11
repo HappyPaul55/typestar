@@ -271,7 +271,7 @@ async function resolveTrack(
     subtitles: captionSource.subtitles,
     json3: captionSource.json3,
     captionKind: captionSource.captionKind,
-    sourceUrl: youtubeWatchUrl(source.id),
+    url: youtubeWatchUrl(source.id),
   });
 
   if (!track.words.length) {
@@ -288,7 +288,7 @@ async function resolveTrack(
  * Fetch an UltraStar chart from its URL, build a track from it and cache it.
  *
  * The cache key comes from the **request** URL (so a later request finds it),
- * while `sourceUrl` records the URL after any redirects, for the canonical link
+ * while `source.url` records the URL after any redirects, for the canonical link
  * and for resolving the chart's media.
  */
 async function resolveUltraStar(
@@ -314,7 +314,7 @@ async function resolveUltraStar(
     id: ultraStarId(source.url),
     lang,
     description: `UltraStar — ${remote.song.artist || "a chart from the web"}`,
-    sourceUrl: remote.sourceUrl,
+    url: remote.url,
     artist: remote.song.artist,
     media: remote.media,
   });

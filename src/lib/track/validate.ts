@@ -43,6 +43,8 @@ export function isTrack(value: unknown): value is Track {
   if (track.version !== TRACK_VERSION) return false;
   if (typeof track.id !== "string" || typeof track.lang !== "string") return false;
   if (typeof track.title !== "string") return false;
+  if (track.type !== "youtube" && track.type !== "ultrastar") return false;
+  if (!track.source || typeof track.source !== "object") return false;
   if (!Array.isArray(track.words) || !track.words.every(isWord)) return false;
   if (!Array.isArray(track.lines) || !track.lines.every(isLine)) return false;
   if (track.words.length === 0) return false;

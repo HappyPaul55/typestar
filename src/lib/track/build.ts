@@ -26,7 +26,7 @@ export interface BuildTrackInput {
   /** Caption kind detected from the caption track URL, when known. */
   captionKind?: CaptionKind;
   /** The source URL to record on the track (a YouTube watch URL). */
-  sourceUrl?: string;
+  url?: string;
 }
 
 /** Descriptions can run to several kilobytes; the game never needs them. */
@@ -68,7 +68,7 @@ export function buildTrack(input: BuildTrackInput): Track {
     source: {
       captions,
       fetchedAt: new Date().toISOString(),
-      ...(input.sourceUrl ? { url: input.sourceUrl } : {}),
+      ...(input.url ? { url: input.url } : {}),
     },
     offset: 0,
     lines,

@@ -304,12 +304,15 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   the pre-warmed seeds into it and needs Cloudflare credentials. A deploy fails
   if the bucket is missing, since `wrangler.jsonc` binds it.
 - **Changing the track format is a breaking change.** The cache is keyed by
-  `tracks/<id>/<lang>.json`, and `tracks:publish` only adds or overwrites — it
-  never removes stale objects. If you change the built track shape, you must
-  bump `TRACK_VERSION` (so `isTrack` rejects the old objects) **and** purge the
+  `tracks/<videoId>/<lang>.json` (YouTube) or `tracks/ultrastar/<hash>/<lang>.json`
+  (UltraStar), and `tracks:publish` only adds or overwrites — it never removes
+  stale objects. If you change the built track shape, you must bump
+  `TRACK_VERSION` (so `isTrack` rejects the old objects) **and** purge the
   `tracks/` prefix in R2 (`bun run tracks:purge`) before republishing, otherwise
-  the deployed Worker keeps serving the old format. Avoid format changes unless
-  necessary.
+  the deployed Worker keeps serving the old format. The current shape is
+  `TRACK_VERSION = 6` (required `type`, namespaced `id`, `source.url`, and the
+  UltraStar `headers` map); the committed seeds in `public/tracks/` are at that
+  version. Avoid format changes unless necessary.
 - URL policy is `trailingSlash: "never"` + `build.format: "file"`. Output is
   `index.html` / `play.html` / etc.; canonical and sitemap URLs have no trailing
   slash. Active-nav logic in `Header.astro` normalises both `.html` and trailing

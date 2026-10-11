@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { injectTrackSeo, trackSeo } from "./seo";
 
 const SEO = trackSeo(
-  { id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up" },
+  { id: "dQw4w9WgXcQ", type: "youtube", title: "Never Gonna Give You Up" },
   "https://typestar.happypaul55.com",
 );
 
@@ -30,12 +30,12 @@ describe("trackSeo", () => {
   });
 
   test("normalises a trailing slash on the origin", () => {
-    const seo = trackSeo({ id: "dQw4w9WgXcQ", title: "x" }, "https://example.com/");
+    const seo = trackSeo({ id: "dQw4w9WgXcQ", type: "youtube", title: "x" }, "https://example.com/");
     expect(seo.canonical).toBe("https://example.com/play/youtube/dQw4w9WgXcQ");
   });
 
   test("falls back to a title for an empty one", () => {
-    expect(trackSeo({ id: "dQw4w9WgXcQ", title: "  " }, "https://x.test").title).toBe(
+    expect(trackSeo({ id: "dQw4w9WgXcQ", type: "youtube", title: "  " }, "https://x.test").title).toBe(
       "Untitled track — TypeStar",
     );
   });
@@ -79,7 +79,7 @@ describe("trackSeo", () => {
 
   test("uses the video id from a namespaced YouTube track id", () => {
     const seo = trackSeo(
-      { id: "youtube-dQw4w9WgXcQ", title: "x" },
+      { id: "youtube-dQw4w9WgXcQ", type: "youtube", title: "x" },
       "https://typestar.happypaul55.com",
     );
     expect(seo.image).toBe("https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg");
@@ -102,7 +102,7 @@ describe("injectTrackSeo", () => {
   });
 
   test("escapes quotes and ampersands in attribute values", () => {
-    const seo = trackSeo({ id: "dQw4w9WgXcQ", title: 'Rock & "Roll"' }, "https://x.test");
+    const seo = trackSeo({ id: "dQw4w9WgXcQ", type: "youtube", title: 'Rock & "Roll"' }, "https://x.test");
     const out = injectTrackSeo(HTML, seo);
     expect(out).toContain("Rock &amp; &quot;Roll&quot;");
     expect(out).not.toContain('content="Play Rock & "Roll"');

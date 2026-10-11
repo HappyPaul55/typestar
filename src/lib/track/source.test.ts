@@ -8,7 +8,6 @@ import {
   seedIdOf,
   toRawUrl,
   trackPath,
-  trackType,
   ultraStarId,
   videoIdOf,
   youtubeTrackId,
@@ -82,9 +81,10 @@ describe("parseSourceValue", () => {
 });
 
 describe("trackPath", () => {
-  test("YouTube uses the video id, with or without the namespace", () => {
-    expect(trackPath({ id: "dQw4w9WgXcQ" })).toBe("/play/youtube/dQw4w9WgXcQ");
-    expect(trackPath({ id: "youtube-dQw4w9WgXcQ" })).toBe("/play/youtube/dQw4w9WgXcQ");
+  test("YouTube uses the video id", () => {
+    expect(trackPath({ id: "youtube-dQw4w9WgXcQ", type: "youtube" })).toBe(
+      "/play/youtube/dQw4w9WgXcQ",
+    );
   });
 
   test("UltraStar encodes its source URL", () => {
@@ -98,7 +98,7 @@ describe("trackPath", () => {
   });
 
   test("a local video pair is not shareable", () => {
-    expect(trackPath({ id: "local:Folder:song" })).toBe("/play");
+    expect(trackPath({ id: "local:Folder:song", type: "youtube" })).toBe("/play");
   });
 });
 
@@ -106,15 +106,6 @@ describe("id helpers", () => {
   test("namespaces and un-namespaces a YouTube video id", () => {
     expect(youtubeTrackId("dQw4w9WgXcQ")).toBe("youtube-dQw4w9WgXcQ");
     expect(videoIdOf("youtube-dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
-    // Legacy bare ids pass through unchanged.
-    expect(videoIdOf("dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
-  });
-
-  test("trackType defaults to youtube for older tracks", () => {
-    expect(trackType({ id: "dQw4w9WgXcQ" })).toBe("youtube");
-    expect(trackType({ id: "youtube-dQw4w9WgXcQ" })).toBe("youtube");
-    expect(trackType({ id: "ultrastar-abc" })).toBe("ultrastar");
-    expect(trackType({ id: "anything", type: "ultrastar" })).toBe("ultrastar");
   });
 });
 
