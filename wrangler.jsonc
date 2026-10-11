@@ -24,7 +24,10 @@
     // subdomains (matching Turnstile's own hostname allowlist), so this covers
     // the branch preview hostnames too. The widget secret itself lives as a
     // Worker secret (TURNSTILE_SECRET), not here.
-    "TURNSTILE_HOSTNAMES": "typestar.happypaul55.com"
+    "TURNSTILE_HOSTNAMES": "typestar.happypaul55.com",
+    // The `from` address on sign-in emails. The domain must be onboarded to
+    // Cloudflare Email Sending. See the README.
+    "AUTH_EMAIL_FROM": "TypeStar <signin@typestar.happypaul55.com>"
   },
   "assets": {
     "directory": "./dist",
@@ -42,6 +45,22 @@
       "bucket_name": "typestar-tracks"
     }
   ],
+  // Accounts (users, sessions, magic-link tokens) live in D1. Create it with:
+  //   bun run db:create   (then paste the printed database_id here)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "typestar-auth",
+      "database_id": "REPLACE_WITH_PRODUCTION_D1_ID"
+    }
+  ],
+  // Transactional email (sign-in links). The domain must be onboarded to
+  // Cloudflare Email Sending first: `bunx wrangler email sending enable …`.
+  "send_email": [
+    {
+      "name": "EMAIL"
+    }
+  ],
   // Worker Previews — the build for a non-production branch, run with
   // `bunx wrangler preview` — do not inherit the production settings above, so
   // every binding and var a preview needs is repeated here. Previews use their
@@ -51,12 +70,25 @@
   "previews": {
     "vars": {
       "CAPTION_FALLBACK_URL": "https://youtube.weblinq.dev/api/videoDetails",
-      "TURNSTILE_HOSTNAMES": "typestar.happypaul55.com"
+      "TURNSTILE_HOSTNAMES": "typestar.happypaul55.com",
+      "AUTH_EMAIL_FROM": "TypeStar <signin@typestar.happypaul55.com>"
     },
     "r2_buckets": [
       {
         "binding": "TRACKS",
         "bucket_name": "typestar-tracks-preview"
+      }
+    ],
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "typestar-auth-preview",
+        "database_id": "REPLACE_WITH_PREVIEW_D1_ID"
+      }
+    ],
+    "send_email": [
+      {
+        "name": "EMAIL"
       }
     ]
   }

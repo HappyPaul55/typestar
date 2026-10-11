@@ -2279,3 +2279,110 @@
     background-image: none !important;
   }
 }
+
+/* ------------------------------------------------------------------
+   Accounts (/signin, /account)
+------------------------------------------------------------------ */
+@layer components {
+  .auth-shell {
+    max-width: 34rem;
+    margin-inline: auto;
+  }
+
+  .auth-card {
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-brand);
+    background: var(--color-cream);
+    padding: clamp(1.4rem, 3vw, 2rem);
+    box-shadow: 6px 6px 0 0 var(--color-ink);
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .auth-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .auth-hint {
+    margin: 0 0 0.25rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+  }
+
+  .auth-turnstile {
+    margin-top: 0.85rem;
+    min-height: 65px;
+  }
+
+  .auth-submit {
+    align-self: flex-start;
+    margin-top: 1rem;
+  }
+
+  .auth-details {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0;
+  }
+  .auth-details dt {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .auth-details dd {
+    margin: 0.15rem 0 0;
+    font-size: 1rem;
+    color: var(--color-ink);
+  }
+
+  .auth-saved {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #1f7a3d;
+  }
+
+  .auth-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .auth-confirm {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--color-ink-soft);
+  }
+
+  .btn-game.auth-danger {
+    color: #b01027;
+    border-color: #b01027;
+  }
+
+  .auth-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}

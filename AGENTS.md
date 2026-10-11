@@ -13,14 +13,20 @@ keyboard speed game. YouTube supplies the music and visuals, and you type the
 lyrics as the words arrive. The game is **built**.
 
 The marketing shell (landing, privacy, 404) is plain Astro and ships no
-JavaScript. **`/play` is a React island** (`@astrojs/react`, `client:load`) and
-holds the game (`src/components/game/GameApp.tsx`). A **Cloudflare Worker**
-(`worker/index.ts`) serves the track API and the pretty play routes.
+JavaScript, and that stays the preference: reach for React only where
+interactivity genuinely needs it. **`/play` is a React island**
+(`@astrojs/react`, `client:load`) and holds the game
+(`src/components/game/GameApp.tsx`), and **`/signin` and `/account` are React
+islands** for the optional email sign-in. A **Cloudflare Worker**
+(`worker/index.ts`) serves the track API, the Better Auth account API and the
+pretty play routes.
 
 Routes: `/` (landing), `/play` (track picker), `/play/youtube/<id>` (a YouTube
 game), `/play/ultrastar/<url>` (a chart fetched from a URL), `/play/local` (the
-in-browser local-file picker), `/privacy`, `/404`, and
-`GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. The legacy
+in-browser local-file picker), `/signin` and `/account` (the optional email
+sign-in islands), `/privacy`, `/404`, and
+`GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. Accounts
+live behind `/api/auth/*` (Better Auth). The legacy
 `/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
 
 Moving between those play routes is done **in place** (History `pushState` plus
@@ -177,6 +183,10 @@ bun run tracks:warm     # fetch + build the featured tracks into public/tracks/
 bun run tracks:bucket   # create the R2 bucket (once)
 bun run tracks:publish  # upload public/tracks/*.json to the R2 bucket
 bun run tracks:purge    # delete the cached tracks from R2 (needs an API token)
+bun run auth:schema     # regenerate migrations/0001_auth.sql from the auth config
+bun run db:create       # create the accounts D1 database (once)
+bun run db:migrate      # apply the auth migrations to D1 (needs credentials)
+bun run db:migrate:local # apply them to the local D1 used by `wrangler dev`
 ```
 
 Use **Bun** for everything: `bun` (never `npm`) and `bunx` (never `npx`). The
@@ -195,6 +205,15 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/content/tracks/featured.ts` — the curated featured list shown on `/play`.
 - `src/pages/play.astro` — page shell that mounts the React island
   `src/components/game/GameApp.tsx`.
+- `src/pages/signin.astro` / `src/pages/account.astro` — the account pages,
+  mounting the `src/components/auth/**` islands.
+- `src/lib/auth/**` — the optional accounts: `server.ts` (the Better Auth
+  instance, D1-native, magic-link only), `client.ts` (the browser client),
+  `email.ts` (the magic-link email, pure and tested), `validate.ts` (handle and
+  email rules, pure and tested), `dev.ts` (the dev-only SQLite database) and
+  `types.ts` (the inline D1 / `send_email` binding types).
+- `migrations/0001_auth.sql` — the Better Auth schema, generated from the auth
+  config by `bun run auth:schema` (via `scripts/auth-schema.ts`).
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane),
   `StartScreen`, `Hud`, `ResultsModal` (shared by every style), `Calibration`,
@@ -279,6 +298,21 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   configured (so local dev needs no setup, and a preview without the secret in
   its Previews Base configuration). To exercise it locally, put
   Cloudflare's test keys in `.env*` (see README).
+- **Accounts are Better Auth, magic-link only.** Better Auth 1.5+ speaks D1
+  natively (`database: env.DB`), so production needs no Kysely/Drizzle adapter.
+  The instance is built once per Worker isolate and uses a **dynamic base URL**
+  (`allowedHosts`), so a branch preview authenticates against itself rather than
+  production. `BETTER_AUTH_SECRET` is a Worker secret (≥32 chars), the D1
+  binding is `DB`, and sign-in emails go through the `EMAIL` (`send_email`)
+  binding on a domain onboarded to Email Sending. The magic-link request is
+  gated by Turnstile (action `auth`), like a new track. `astro dev` has no D1,
+  so dev auth uses a file-backed `node:sqlite` database
+  (`.cache/auth.sqlite`, migrated through Better Auth's `getMigrations`) and
+  **logs the sign-in link to the console** instead of emailing it. The schema is
+  `migrations/0001_auth.sql`; regenerate it with `bun run auth:schema` after
+  changing the auth config. OAuth is a later addition: Better Auth already
+  records a linked `account` row per provider, so it is a config change, not a
+  migration.
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is
@@ -353,7 +387,10 @@ page have all been deleted. `@astrojs/react` is kept for the game island.
 - Structural motifs: graph-paper grid on light sections, dot grid on dark ones,
   monospace `//` "comment" labels, the yellow `.mark` highlighter, hard offset
   shadows, and a black header with a permanent yellow rule.
-- The marketing shell ships **no JavaScript**; React belongs on `/play` only.
+- Prefer static, JavaScript-free pages; reach for React only where
+  interactivity genuinely needs it (the game island on `/play`, and the account
+  islands on `/signin` and `/account`). Where two approaches are equal, choose
+  the static, no-JS one.
 
 ## Deployment and handover
 
@@ -361,7 +398,16 @@ page have all been deleted. `@astrojs/react` is kept for the game island.
   (`bun run build` → `bunx wrangler deploy`), configured by `wrangler.jsonc`
   (`name: client-typestar-happypaul55-com`, `main: worker/index.ts`,
   `assets.directory: ./dist`, `assets.binding: ASSETS`,
-  `r2_buckets: [{ binding: TRACKS, bucket_name: typestar-tracks }]`).
+  `r2_buckets: [{ binding: TRACKS, bucket_name: typestar-tracks }]`,
+  `d1_databases: [{ binding: DB, … }]`, `send_email: [{ name: EMAIL }]`).
+- **Accounts need three things set up once:** create the D1 databases
+  (`bun run db:create`, `bun run db:create:preview`) and paste their ids into
+  `wrangler.jsonc`; apply the schema (`bun run db:migrate`,
+  `bun run db:migrate:preview`); and set `BETTER_AUTH_SECRET` as a Worker secret
+  (and in the Previews Base configuration:
+  `bunx wrangler preview base-config secret put BETTER_AUTH_SECRET`). Onboard the
+  sending domain to Email Sending (`bunx wrangler email sending enable
+  typestar.happypaul55.com`) so the `EMAIL` binding can deliver sign-in links.
 - **Branch previews** build with `bunx wrangler preview` (Worker Previews) for
   every non-`main` branch, served at `<branch>.typestar.happypaul55.com` — the
   apex custom domain enabled for **Production and Preview** in the dashboard.

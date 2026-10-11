@@ -9,7 +9,14 @@ import { loadEnv } from "vite";
 
 const TRACKS_DIR = join(process.cwd(), "public", "tracks");
 const CACHE_DIR = join(process.cwd(), ".cache", "tracks");
+// The dev-only Better Auth database (see `src/lib/auth/dev.ts`).
+const AUTH_DB = join(process.cwd(), ".cache", "auth.sqlite");
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
+// Dev-only fallback secret for Better Auth. Production uses the
+// `BETTER_AUTH_SECRET` Worker secret; this only needs to be stable so a local
+// session survives a hot reload.
+const DEV_AUTH_SECRET = "typestar-dev-only-insecure-secret-change-me";
 
 // Env for the dev-only Turnstile gate. `.env*` is git-ignored; the values are
 // ignored entirely in a production build (the plugin only runs in `serve`).
@@ -44,12 +51,65 @@ function fileStore() {
 }
 
 /**
+ * Read a Node request body into a Buffer, or `undefined` when empty.
+ * @param {import("node:http").IncomingMessage} req
+ */
+async function readBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return chunks.length ? Buffer.concat(chunks) : undefined;
+}
+
+/**
+ * Build a Web `Request` from a Node request, preserving headers and body.
+ * @param {import("node:http").IncomingMessage} req
+ * @param {string} url
+ * @param {Buffer | undefined} body
+ */
+function toWebRequest(req, url, body) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (Array.isArray(value)) for (const item of value) headers.append(key, item);
+    else if (value !== undefined) headers.set(key, value);
+  }
+  // Better Auth's rate limiter reads the client address.
+  if (!headers.has("x-forwarded-for") && req.socket?.remoteAddress) {
+    headers.set("x-forwarded-for", req.socket.remoteAddress);
+  }
+  const method = req.method ?? "GET";
+  const hasBody = method !== "GET" && method !== "HEAD";
+  const requestBody = hasBody && body ? new Uint8Array(body) : undefined;
+  return new Request(url, { method, headers, body: requestBody });
+}
+
+/**
+ * Write a Web `Response` back to the Node response, preserving `set-cookie`
+ * (which `Headers.forEach` would otherwise collapse).
+ * @param {import("node:http").ServerResponse} res
+ * @param {Response} response
+ */
+async function sendWebResponse(res, response) {
+  res.statusCode = response.status;
+  for (const [key, value] of response.headers) {
+    if (key.toLowerCase() === "set-cookie") continue;
+    res.setHeader(key, value);
+  }
+  const cookies =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [];
+  if (cookies.length) res.setHeader("set-cookie", cookies);
+  res.end(Buffer.from(await response.arrayBuffer()));
+}
+
+/**
  * Dev-only middleware that reproduces the Worker's routing:
  * - `/play/youtube/<id>`, `/play/ultrastar/<url>` and `/play/local` are
  *   rewritten to `/play` so the static page renders while the browser keeps the
  *   pretty URL;
  * - `/play/<id>` and `/play?v=<id>` redirect to `/play/youtube/<id>`;
  * - `/api/track/...` runs the real track handler.
+ * - `/api/auth/...` runs the real Better Auth handler on a local SQLite DB.
  *
  * @param {Record<string, string>} env
  * @returns {import("vite").Plugin}
@@ -168,6 +228,90 @@ function devServer(env) {
           res.end(JSON.stringify({ error: "dev-api-failed" }));
         }
       });
+
+      // Dev-only accounts. Better Auth runs against a file-backed SQLite
+      // database (so a session survives a hot reload) and logs the magic link
+      // to the console instead of emailing it. The handler is the same one the
+      // Worker mounts, so `/api/auth/*` behaves identically.
+      /** @type {Promise<any> | null} */
+      let devAuthPromise = null;
+      const getDevAuth = () => {
+        devAuthPromise ??= (async () => {
+          const dev = await server.ssrLoadModule("/src/lib/auth/dev.ts");
+          const { createAuth } = await server.ssrLoadModule(
+            "/src/lib/auth/server.ts",
+          );
+          const db = dev.createDevDatabase(AUTH_DB);
+          const auth = createAuth({
+            database: { db, type: "sqlite" },
+            secret: env.BETTER_AUTH_SECRET || DEV_AUTH_SECRET,
+            sendMagicLink: async (
+              /** @type {{ email: string, url: string }} */ { email, url },
+            ) => {
+              server.config.logger.info(
+                `[auth] sign-in link for ${email}:\n  ${url}`,
+              );
+            },
+          });
+          await dev.migrateDevAuth(auth.options);
+          return auth;
+        })();
+        return devAuthPromise;
+      };
+
+      server.middlewares.use(async (req, res, next) => {
+        const path = (req.url ?? "").split("?")[0];
+        if (!path.startsWith("/api/auth")) {
+          next();
+          return;
+        }
+        try {
+          const auth = await getDevAuth();
+          const body = await readBody(req);
+          const request = toWebRequest(
+            req,
+            `http://localhost${req.url ?? ""}`,
+            body,
+          );
+
+          // Mirror the Worker's Turnstile gate when dev keys are present.
+          if (
+            path === "/api/auth/sign-in/magic-link" &&
+            request.method === "POST" &&
+            turnstile
+          ) {
+            const { verifyTurnstile } = await server.ssrLoadModule(
+              "/src/lib/tracks-api.ts",
+            );
+            const verdict = await verifyTurnstile(request, {
+              ...turnstile,
+              action: "auth",
+            });
+            if (verdict !== "ok") {
+              res.statusCode = 403;
+              res.setHeader("content-type", "application/json");
+              res.end(
+                JSON.stringify({
+                  error:
+                    verdict === "missing"
+                      ? "turnstile-required"
+                      : "turnstile-failed",
+                }),
+              );
+              return;
+            }
+          }
+
+          await sendWebResponse(res, await auth.handler(request));
+        } catch (error) {
+          server.config.logger.error(
+            `[dev-auth] ${error instanceof Error ? error.message : String(error)}`,
+          );
+          res.statusCode = 500;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: "dev-auth-failed" }));
+        }
+      });
     },
   };
 }
@@ -179,7 +323,11 @@ export default defineConfig({
     inlineStylesheets: "always",
   },
   trailingSlash: "never",
-  integrations: [sitemap(), react()],
+  integrations: [
+    // The account pages are private (noindex); keep them out of the sitemap.
+    sitemap({ filter: (page) => !/\/(account|signin)\/?$/.test(page) }),
+    react(),
+  ],
   vite: {
     plugins: [tailwindcss(), devServer(env)],
   },

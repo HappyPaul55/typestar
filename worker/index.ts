@@ -9,6 +9,7 @@
  * - `GET /api/track/youtube/:id`  → get-or-create a YouTube track
  * - `GET /api/track/ultrastar?url=:url` → get-or-create an UltraStar track
  * - `GET /api/track/:id`          → the legacy YouTube path (still supported)
+ * - `/api/auth/*`                 → Better Auth (email magic-link sign-in)
  * - `/play?v=<id>`                → 301 to `/play/youtube/<id>`
  * - `/play/<id>`                  → 301 to `/play/youtube/<id>` (legacy)
  * - `/play/youtube/<id>`          → the static play page; when the song is
@@ -27,7 +28,15 @@ import {
 import {
   getCachedTrack,
   handleTrackRequest,
+  verifyTurnstile,
+  type TurnstileConfig,
 } from "../src/lib/tracks-api";
+import { authFromEnv } from "../src/lib/auth/server";
+import type {
+  AuthEnv,
+  D1LikeDatabase,
+  SendEmailBinding,
+} from "../src/lib/auth/types";
 import { injectTrackSeo, trackSeo } from "../src/lib/seo";
 import type { Track } from "../src/lib/track/types";
 import { r2Store, type R2LikeBucket } from "../src/lib/track/store";
@@ -38,6 +47,14 @@ type Env = {
   ASSETS: AssetsBinding;
   /** R2 bucket binding for the track cache, configured in wrangler.jsonc. */
   TRACKS?: R2LikeBucket;
+  /** D1 binding for accounts, configured in wrangler.jsonc. */
+  DB?: D1LikeDatabase;
+  /** Better Auth signing secret (a Worker secret). */
+  BETTER_AUTH_SECRET?: string;
+  /** Cloudflare Email Sending binding, used to send sign-in links. */
+  EMAIL?: SendEmailBinding;
+  /** The `from` address for sign-in emails. */
+  AUTH_EMAIL_FROM?: string;
   /** Base URL of the fallback caption service, configured in wrangler.jsonc. */
   CAPTION_FALLBACK_URL?: string;
   /** Turnstile widget secret. When set, new tracks require a human check. */
@@ -67,6 +84,34 @@ function withTrackSeo(
   });
 }
 
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}
+
+/** The hostnames allowed on a Turnstile token, from the Worker var. */
+function allowedTurnstileHostnames(env: Env): string[] {
+  return (env.TURNSTILE_HOSTNAMES ?? "typestar.happypaul55.com")
+    .split(",")
+    .map((hostname) => hostname.trim())
+    .filter(Boolean);
+}
+
+/** The Turnstile config for a given action, or `undefined` when unconfigured. */
+function turnstileConfig(env: Env, action: string): TurnstileConfig | undefined {
+  if (!env.TURNSTILE_SECRET) return undefined;
+  return {
+    secret: env.TURNSTILE_SECRET,
+    hostnames: allowedTurnstileHostnames(env),
+    action,
+  };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -84,13 +129,34 @@ export default {
       return asset.ok ? asset.text() : null;
     };
 
+    // Accounts: Better Auth handles every /api/auth/* request. The instance is
+    // built once per isolate (bindings are stable for its lifetime) with a
+    // dynamic base URL, so a branch preview authenticates against itself.
+    if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) {
+      if (!env.DB || !env.BETTER_AUTH_SECRET) {
+        return json({ error: "auth-unavailable" }, 503);
+      }
+      // A magic-link request is gated by Turnstile — like a new track — so the
+      // endpoint cannot be used to spray sign-in emails.
+      if (pathname === "/api/auth/sign-in/magic-link" && request.method === "POST") {
+        const turnstile = turnstileConfig(env, "auth");
+        if (turnstile) {
+          const verdict = await verifyTurnstile(request, turnstile);
+          if (verdict !== "ok") {
+            return json(
+              { error: verdict === "missing" ? "turnstile-required" : "turnstile-failed" },
+              403,
+            );
+          }
+        }
+      }
+      return getAuth(env).handler(request);
+    }
+
     if (pathname.startsWith("/api/track/")) {
       const source = apiSourceFromRequest(pathname, url.searchParams);
       if (!source) {
-        return new Response(JSON.stringify({ error: "bad-request" }), {
-          status: 400,
-          headers: { "content-type": "application/json; charset=utf-8" },
-        });
+        return json({ error: "bad-request" }, 400);
       }
 
       return handleTrackRequest(
@@ -99,16 +165,7 @@ export default {
           store,
           seed,
           fallbackUrl: env.CAPTION_FALLBACK_URL,
-          turnstile: env.TURNSTILE_SECRET
-            ? {
-                secret: env.TURNSTILE_SECRET,
-                hostnames: (env.TURNSTILE_HOSTNAMES ?? "typestar.happypaul55.com")
-                  .split(",")
-                  .map((hostname) => hostname.trim())
-                  .filter(Boolean),
-                action: "track",
-              }
-            : undefined,
+          turnstile: turnstileConfig(env, "track"),
         },
         source,
       );
@@ -159,3 +216,22 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+/**
+ * The Better Auth instance, cached per Worker isolate. Bindings are stable for
+ * an isolate's lifetime, so building it once avoids re-creating the D1 adapter
+ * (and its schema check) on every request.
+ */
+let authInstance: ReturnType<typeof authFromEnv> | null = null;
+
+function getAuth(env: Env): ReturnType<typeof authFromEnv> {
+  if (authInstance) return authInstance;
+  const authEnv: AuthEnv = {
+    DB: env.DB as D1LikeDatabase,
+    BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET as string,
+    EMAIL: env.EMAIL,
+    AUTH_EMAIL_FROM: env.AUTH_EMAIL_FROM,
+  };
+  authInstance = authFromEnv(authEnv);
+  return authInstance;
+}
