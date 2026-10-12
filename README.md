@@ -78,6 +78,9 @@ typing / keyboard speed game**.
 - **Embeds**: any song can be dropped into a blog or forum as an `<iframe>`
   (`/embed/youtube/<id>`). Only the embed route may be framed; every other page
   stays unframeable.
+- **Languages**: the interface is available in English, German, French, Spanish,
+  Brazilian Portuguese and Japanese. `en` is at the root; the rest live under
+  `/de`, `/fr`, `/es`, `/pt-BR`, `/ja`. (Translations are machine-made for now.)
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
@@ -332,6 +335,26 @@ Any song can be embedded in a blog or forum:
 - A brand-new song still gets the Turnstile human check, inside the iframe.
 - Singing needs the embedder to add `allow="microphone"`; without it the run
   falls back to karaoke.
+
+## Languages
+
+The interface is translated, not just the lyrics. `en` is served at the root;
+the other locales live under a path prefix (`/de`, `/fr`, `/es`, `/pt-BR`,
+`/ja`).
+
+- Strings live in `src/i18n/ui/<locale>.ts`, keyed by dotted names, with `en` as
+  the complete source of truth. Any other locale is a **partial overlay** that
+  falls back to English key by key, so a half-finished translation still reads
+  sensibly.
+- `t("key", { name })` fills `{name}` placeholders. Astro pages use `tFor()`
+  (`src/i18n/astro.ts`); the game island uses `useT()` inside an `I18nProvider`
+  (`src/i18n/react.tsx`).
+- `Astro`'s `i18n` config (`astro.config.mjs`) sets the locales and
+  `prefixDefaultLocale: false`; `<html lang>`, `og:locale` and the JSON-LD
+  `inLanguage` follow the locale.
+- The **lyrics/caption language** (`?lang=` on the track API) is a separate
+  concern from the UI locale and is not wired to it.
+- The current translations are **machine-made** and pending human review.
 
 ## Singing
 

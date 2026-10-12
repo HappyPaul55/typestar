@@ -30,6 +30,9 @@ iframe-able widget), `/privacy`, `/404`, and
 `GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. Accounts
 live behind `/api/auth/*` (Better Auth) and scores behind `/api/scores/*`. The
 legacy `/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
+The interface is localized: `en` is at the root and the other locales live under
+a `/<locale>` prefix (`/de`, `/fr`, `/es`, `/pt-BR`, `/ja`) — currently the
+landing page.
 
 Moving between those play routes is done **in place** (History `pushState` plus
 React state), never a full document navigation, so a **fullscreen** session
@@ -224,6 +227,12 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `src/components/score/**` islands render the profiles, feed, boards and
   challenge; `/recent`, `/challenge` and `/u/*` are their pages, and
   `migrations/0002_scores.sql` is the `score` table.
+- `src/i18n/**` — the interface translations: `locales.ts` (the six locales,
+  default `en`), `ui/<locale>.ts` (the dictionaries; `en` is the source of truth
+  and the rest are partial overlays with English fallback), `index.ts` (`t`),
+  `astro.ts` (`tFor`, `localeFromPath`) and `react.tsx` (`I18nProvider`,
+  `useT`). The `[locale]/` routes and `LocaleSwitcher` render the non-default
+  locales.
 - `src/components/embed/**` + `src/pages/embed.astro` — the iframe-able widget: a
   compact `GameApp` (`embed`), no accounts or scores, plus the `EmbedButton` that
   copies the snippet.
@@ -349,6 +358,14 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `EmbedButton` on a song's page copies the `<iframe>` snippet. Framing is
   allowed only for `/embed/*` via a per-path CSP `frame-ancestors *` override;
   `X-Frame-Options` is intentionally not set.
+- **i18n is path-prefixed, with English fallback.** Six locales; `en` at the
+  root and the rest under `/<locale>`. `en.ts` is the source of truth and every
+  other dictionary is a partial overlay, so a missing key reads English. Astro
+  uses `tFor(localeFromPath(Astro.url.pathname))`; the island uses `useT()` in
+  an `I18nProvider`. **`build.format: "file"` means the build-time pathname ends
+  in `.html`**, so `localeFromPath` strips it before reading the first segment.
+  The current translations are machine-made and pending human review. The
+  lyrics/caption `?lang=` is a separate concern.
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is

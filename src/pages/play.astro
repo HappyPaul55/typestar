@@ -7,8 +7,10 @@ import GameApp from "../components/game/GameApp.tsx";
 import EmbedButton from "../components/embed/EmbedButton.tsx";
 import { FEATURED_TRACKS } from "../content/tracks/featured";
 import { loadSeedRatings } from "../lib/track/seed";
+import { localeFromPath } from "../i18n/astro";
 
 const site = (await getEntry("site", "main"))!.data;
+const locale = localeFromPath(Astro.url.pathname);
 // Rated from the pre-warmed seed tracks at build time, so the featured badges
 // match the rating the player sees once the track itself is opened.
 const ratings = loadSeedRatings(FEATURED_TRACKS.map((track) => track.id));
@@ -81,7 +83,7 @@ const crumbs = [{ name: "play", path: "/play" }];
     </section>
 
     <div class="game-zone grid-paper bg-paper">
-      <GameApp client:load site={site} ratings={ratings} />
+      <GameApp client:load site={site} ratings={ratings} locale={locale} />
     </div>
   </main>
 </BaseLayout>

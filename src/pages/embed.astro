@@ -2,12 +2,14 @@
 import "../styles/global.css";
 import { getEntry } from "astro:content";
 import GameApp from "../components/game/GameApp.tsx";
+import { localeFromPath } from "../i18n/astro";
 
 const site = (await getEntry("site", "main"))!.data;
+const locale = localeFromPath(Astro.url.pathname);
 ---
 
 <!doctype html>
-<html lang="en-GB">
+<html lang={locale}>
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -27,7 +29,7 @@ const site = (await getEntry("site", "main"))!.data;
     <meta name="theme-color" content="#0c0d0a" />
   </head>
   <body class="embed-body">
-    <GameApp client:load site={site} embed />
+    <GameApp client:load site={site} embed locale={locale} />
     <a
       class="embed-badge"
       href="/"

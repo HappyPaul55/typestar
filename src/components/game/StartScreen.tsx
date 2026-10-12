@@ -9,6 +9,7 @@
 
 import { gameEngineList } from "../../lib/game/engines";
 import type { PlayStyle } from "../../lib/game/modes";
+import { useT } from "../../i18n/react";
 
 interface Props {
   style: PlayStyle;
@@ -19,14 +20,15 @@ interface Props {
 }
 
 export default function StartScreen({ style, onSelectStyle, help, onStart }: Props) {
-  const title = style === "sing" ? "Sing along." : "Type the words in time.";
+  const t = useT();
+  const title = style === "sing" ? t("start.titleSing") : t("start.titleType");
   return (
-    <div className="game-overlay game-overlay--start" role="dialog" aria-label="Start">
+    <div className="game-overlay game-overlay--start" role="dialog" aria-label={t("start.start")}>
       <p className="comment on-ink">
         <span className="slash" aria-hidden="true">
           //
         </span>{" "}
-        ready
+        {t("start.ready")}
       </p>
       <h2 className="game-overlay__title">{title}</h2>
       <p className="game-overlay__help">{help}</p>
@@ -36,10 +38,10 @@ export default function StartScreen({ style, onSelectStyle, help, onStart }: Pro
         className="btn-game btn-game--primary btn-game--start"
         onClick={onStart}
       >
-        Start
+        {t("start.start")}
       </button>
 
-      <div className="mode-picker" role="group" aria-label="Play style">
+      <div className="mode-picker" role="group" aria-label={t("start.styleGroup")}>
         {gameEngineList().map((engine) => (
           <button
             key={engine.id}

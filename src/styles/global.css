@@ -2562,3 +2562,26 @@
 .embed-badge:hover {
   opacity: 1;
 }
+
+/* ------------------------------------------------------------------
+   Language switcher (landing)
+------------------------------------------------------------------ */
+.locale-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 1.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.locale-switcher a {
+  color: rgba(250, 250, 244, 0.6);
+  text-decoration: none;
+}
+.locale-switcher a:hover,
+.locale-switcher a[aria-current="true"] {
+  color: var(--color-yellow);
+}

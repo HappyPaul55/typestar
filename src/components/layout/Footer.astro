@@ -2,18 +2,20 @@
 import type { SiteSettings } from "../../lib/site";
 import Container from "../ui/Container.astro";
 import Mark from "../ui/Mark.astro";
+import { localeFromPath, tFor } from "../../i18n/astro";
 
 interface Props {
   settings: SiteSettings;
 }
 
 const { settings } = Astro.props;
+const t = tFor(localeFromPath(Astro.url.pathname));
 const year = new Date().getFullYear();
 const domain = settings.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
 const nav = [
-  { href: "/play", label: "Play" },
-  { href: "/privacy", label: "Privacy" },
+  { href: "/play", label: t("nav.play") },
+  { href: "/privacy", label: t("nav.privacy") },
 ];
 
 const link =
@@ -43,7 +45,7 @@ const heading =
       </div>
 
       <nav aria-label="Footer" class="no-print">
-        <h2 class={heading}>Pages</h2>
+        <h2 class={heading}>{t("footer.pages")}</h2>
         <ul class="mt-4 grid gap-[0.7rem]">
           {
             nav.map((item) => (
@@ -58,14 +60,14 @@ const heading =
       </nav>
 
       <div class="no-print">
-        <h2 class={heading}>Elsewhere</h2>
+        <h2 class={heading}>{t("footer.elsewhere")}</h2>
         <ul class="mt-4 grid gap-[0.7rem]">
           <li>
             <a
               class={link}
               href={settings.repo}
               target="_blank"
-              rel="noopener noreferrer">Source ↗</a
+              rel="noopener noreferrer">{t("footer.source")} ↗</a
             >
           </li>
           <li>
@@ -73,7 +75,8 @@ const heading =
               class={link}
               href={settings.licenseUrl}
               target="_blank"
-              rel="noopener noreferrer">{settings.license} licence ↗</a
+              rel="noopener noreferrer"
+              >{t("footer.licence", { licence: settings.license })} ↗</a
             >
           </li>
           <li>
@@ -103,9 +106,7 @@ const heading =
         </a>{" "}
         · {domain}
       </span>
-      <span class="font-mono"
-        >// no accounts, no cookies, no trackers</span
-      >
+      <span class="font-mono">{t("footer.private")}</span>
     </div>
   </Container>
 </footer>

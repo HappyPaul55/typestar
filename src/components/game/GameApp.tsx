@@ -83,6 +83,8 @@ import { usePitchInput } from "./hooks/usePitchInput";
 import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
 import { useSignedIn } from "../../lib/auth/session";
+import { I18nProvider } from "../../i18n/react";
+import type { Locale } from "../../i18n/locales";
 import {
   fetchRunNonce,
   submitRun,
@@ -212,12 +214,15 @@ export default function GameApp({
   site,
   ratings = {},
   embed = false,
+  locale = "en",
 }: {
   site: SiteSettings;
   /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
   ratings?: Record<string, TrackRating>;
   /** Compact, no-account mode for the iframe-able embed widget. */
   embed?: boolean;
+  /** The UI locale for the island. */
+  locale?: Locale;
 }) {
   const [source, setSource] = useState<TrackSourceRef | null | undefined>(undefined);
   const [song, setSong] = useState<LoadedSong | null>(null);
@@ -1201,9 +1206,11 @@ export default function GameApp({
   // has left a loaded track null, so anything past here has one.
   if (source === undefined || !activeTrack) {
     return (
-      <div ref={shellRef} className="game-root">
-        {body}
-      </div>
+      <I18nProvider locale={locale}>
+        <div ref={shellRef} className="game-root">
+          {body}
+        </div>
+      </I18nProvider>
     );
   }
 
@@ -1244,6 +1251,7 @@ export default function GameApp({
   return (
     // Same root element as the non-game screens above (same type, same
     // position), so React reuses the node and the fullscreen session holds.
+    <I18nProvider locale={locale}>
     <div ref={shellRef} className="game-shell game-root">
       {/*
         A visually-hidden input that holds focus during a run. On mobile it
@@ -1405,5 +1413,6 @@ export default function GameApp({
         />
       ) : null}
     </div>
+    </I18nProvider>
   );
 }

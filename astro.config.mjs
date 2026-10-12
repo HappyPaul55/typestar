@@ -390,6 +390,13 @@ function devServer(env) {
 
 export default defineConfig({
   site: "https://typestar.happypaul55.com",
+  // `en` is served without a prefix; the rest live under `/<locale>/…`. The
+  // lyrics/caption language (`?lang=`) is a separate concern.
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "de", "fr", "es", "pt-BR", "ja"],
+    routing: { prefixDefaultLocale: false },
+  },
   build: {
     format: "file",
     inlineStylesheets: "always",

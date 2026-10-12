@@ -1,0 +1,176 @@
+/**
+ * The English UI dictionary — the source of truth.
+ *
+ * Every other locale is a partial overlay on this: a missing key falls back to
+ * English, so a half-finished translation still reads sensibly. Keys are dotted
+ * by area. `{name}` placeholders are filled by `t()`.
+ *
+ * Machine translations live alongside (`de.ts`, `fr.ts`, …) and are expected to
+ * be reviewed by a human later.
+ */
+
+export const en = {
+  // Shared
+  "common.loading": "Loading…",
+  "common.retry": "Try again",
+  "common.close": "Close",
+
+  // Navigation and footer
+  "nav.primary": "Primary",
+  "nav.menu": "Menu",
+  "nav.play": "Play",
+  "nav.privacy": "Privacy",
+  "nav.challenge": "Challenge",
+  "nav.recent": "Recent",
+  "nav.account": "Account",
+  "nav.language": "Language",
+  "footer.pages": "Pages",
+  "footer.elsewhere": "Elsewhere",
+  "footer.source": "Source",
+  "footer.licence": "{licence} licence",
+  "footer.private": "// no accounts, no cookies, no trackers",
+
+  // Landing
+  "home.comment": "rhythm typing",
+  "home.titleBefore": "Type the lyrics",
+  "home.titleMark": "in time",
+  "home.titleAfter": ".",
+  "home.howComment": "how it works",
+  "home.step1Title": "Pick a track",
+  "home.step1Body":
+    "Paste a YouTube link, or start from the featured list. TypeStar reads the captions and times every word.",
+  "home.step2Title": "Type to the beat",
+  "home.step2Body":
+    "Words light up as they arrive. Type each one before its moment passes — like Guitar Hero, for your keyboard.",
+  "home.step3Title": "Chase the score",
+  "home.step3Body":
+    "Chains build a multiplier and clean lines pay a bonus. Three difficulties, four run modes, endless replays.",
+
+  // 404
+  "notFound.comment": "404 · not found",
+  "notFound.titleBefore": "This track didn't",
+  "notFound.titleMark": "load",
+  "notFound.titleAfter": ".",
+  "notFound.body":
+    "The link may be broken, or the page has moved. Head back home, or jump straight into the game.",
+  "notFound.home": "Back to home",
+  "notFound.play": "Play a game",
+
+  // Play page
+  "play.crumb": "play",
+  "play.localCrumb": "local",
+  "play.subtitle":
+    "{tagline} — YouTube supplies the music and visuals; you type the lyrics as the words arrive.",
+  "play.ratingComment": "rating",
+  "play.ratingTitle":
+    "How hard the lyrics are to type, rated from the song's words per second",
+  "play.embed": "Embed",
+  "play.embedCopied": "Copied!",
+
+  // Start screen
+  "start.ready": "ready",
+  "start.titleType": "Type the words in time.",
+  "start.titleSing": "Sing along.",
+  "start.start": "Start",
+  "start.styleGroup": "Play style",
+
+  // HUD
+  "hud.score": "score",
+  "hud.combo": "combo",
+  "hud.accuracy": "accuracy",
+  "hud.pause": "Pause",
+  "hud.resume": "Resume",
+  "hud.reset": "Reset",
+  "hud.difficulty": "Difficulty",
+  "hud.runMode": "Run mode",
+  "hud.speed": "Playback speed",
+  "hud.sync": "Sync offset",
+  "hud.fullscreen": "Fullscreen",
+  "hud.goFullscreen": "Go fullscreen",
+  "hud.changeSong": "Change song",
+
+  // Calibration
+  "calibration.comment": "sync",
+  "calibration.help":
+    "If the words run ahead of the music, nudge them later. If they lag, nudge them earlier.",
+  "calibration.offset": "offset",
+  "calibration.reset": "Reset",
+  "calibration.done": "Done",
+
+  // Results
+  "results.results": "results",
+  "results.runOver": "run over",
+  "results.karaoke": "karaoke",
+  "results.score": "score",
+  "results.best": "Best {score}",
+  "results.newBest": "New best!",
+  "results.thanks": "Thanks for playing!",
+  "results.failed": "Failed",
+  "results.through": "{percent}% through",
+  "results.tryAgain": "Try Again",
+  "results.share": "Share",
+  "results.copied": "Copied!",
+  "results.changeSong": "Change song",
+  "results.close": "Close results",
+  "results.saving": "Saving to the leaderboard…",
+  "results.saved": "Saved to the leaderboard",
+  "results.savedRank": "Saved to the leaderboard — #{rank}",
+  "results.invalid": "Saved as unverified ({reason}).",
+  "results.signedOut": "Sign in to save your scores to the leaderboard.",
+  "results.saveError": "Could not save to the leaderboard.",
+
+  // Track picker
+  "picker.pasteLabel": "Paste a YouTube link or an UltraStar URL",
+  "picker.placeholder": "https://www.youtube.com/watch?v=…  or  …/song.txt",
+  "picker.play": "Play",
+  "picker.note":
+    "A YouTube link is played from its captions; a link to an UltraStar .txt chart is fetched and its audio streamed from its own host. GitHub blob links are converted to raw automatically.",
+  "picker.localHeading": "On this device",
+  "picker.localNote":
+    "Play songs you already have. Pick a folder of UltraStar charts or videos with matching .vtt captions — nothing is uploaded.",
+  "picker.openLocal": "Open local files",
+  "picker.unsupported":
+    "Local playback isn't available in this browser — it needs the File System Access API. Try Chrome, Edge or Brave to play local files.",
+  "picker.checking": "Checking this browser…",
+  "picker.featured": "Featured",
+
+  // Score pages
+  "leaderboard.rank": "#",
+  "leaderboard.player": "Player",
+  "leaderboard.score": "Score",
+  "leaderboard.accuracy": "Accuracy",
+  "leaderboard.combo": "Combo",
+  "leaderboard.empty": "No scores yet — be the first.",
+  "leaderboard.emptySing": "No scored singing yet.",
+  "score.song": "Song",
+  "score.mode": "Mode",
+  "score.when": "When",
+  "profile.comment": "profile",
+  "profile.title": "Player profile",
+  "profile.lede": "Scores, bests and recent runs.",
+  "profile.missing": "No player with that handle.",
+  "profile.plays": "plays",
+  "profile.songs": "songs",
+  "profile.best": "best",
+  "profile.bestHeading": "Best scores",
+  "profile.recentHeading": "Recent",
+  "profile.noBests": "No verified scores yet.",
+  "profile.nothing": "Nothing yet.",
+  "recent.title": "Recently played",
+  "recent.lede": "The latest verified scores. Sign in and play to add yours.",
+  "recent.empty": "No scores yet — play a song and be the first on the board.",
+  "recent.loading": "Loading recent scores…",
+  "challenge.title": "Daily & weekly challenge",
+  "challenge.lede":
+    "One song and one modifier per period, with its own typing and singing boards. The same for everyone, and it changes on its own.",
+  "challenge.daily": "Daily",
+  "challenge.weekly": "Weekly",
+  "challenge.playTyping": "Play typing",
+  "challenge.playSinging": "Play singing",
+  "challenge.typingBoard": "Typing board",
+  "challenge.singingBoard": "Singing board",
+  "challenge.loading": "Loading challenges…",
+  "challenge.error": "The challenge could not be loaded.",
+} as const;
+
+export type MessageKey = keyof typeof en;

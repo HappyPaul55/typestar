@@ -1,0 +1,21 @@
+---
+import { getEntry } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import HomePage from "../../components/home/HomePage.astro";
+import { nonDefaultLocales } from "../../i18n/locales";
+
+export function getStaticPaths() {
+  return nonDefaultLocales().map((locale) => ({ params: { locale } }));
+}
+
+const site = (await getEntry("site", "main"))!.data;
+const { locale } = Astro.params;
+---
+
+<BaseLayout
+  title={`${site.name} — ${site.tagline}`}
+  description={site.description}
+  path={`/${locale}`}
+>
+  <HomePage site={site} />
+</BaseLayout>

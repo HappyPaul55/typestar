@@ -1,0 +1,31 @@
+---
+import {
+  DEFAULT_LOCALE,
+  HTML_LANG,
+  LOCALES,
+  LOCALE_LABEL,
+  type Locale,
+} from "../../i18n/locales";
+import { localeFromPath } from "../../i18n/astro";
+
+const current = localeFromPath(Astro.url.pathname);
+
+/** Only the landing page is localized so far, so every link points there. */
+function href(locale: Locale): string {
+  return locale === DEFAULT_LOCALE ? "/" : `/${locale}`;
+}
+---
+
+<nav class="locale-switcher" aria-label="Language">
+  {
+    LOCALES.map((locale) => (
+      <a
+        href={href(locale)}
+        hreflang={HTML_LANG[locale]}
+        aria-current={locale === current ? "true" : undefined}
+      >
+        {LOCALE_LABEL[locale]}
+      </a>
+    ))
+  }
+</nav>
