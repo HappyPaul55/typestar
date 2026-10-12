@@ -3,6 +3,7 @@
   "entry": [
     "src/pages/**/*.astro",
     "worker/index.ts",
+    "src/lib/auth/dev.ts",
     "scripts/*.{ts,mjs}"
   ],
   "project": [

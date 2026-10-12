@@ -65,6 +65,10 @@ typing / keyboard speed game**.
   their defaults are omitted, so the common link has no hash at all.
 - Accurate link previews: for a song already in the library, the play page's
   title, description and social tags name the song and use its cover art.
+- **Optional accounts**: sign in with a one-time email link (no password) to
+  keep an account across devices and claim a public handle. Signing in is
+  optional — the game plays without one — and a leaderboard is a future
+  addition.
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
@@ -113,7 +117,7 @@ bun run dev      # dev server on http://localhost:4321
 bun run build    # production build into dist/
 bun run preview  # serve the built site
 bun run check    # astro check — the type gate
-bun test         # unit tests: parser, game engine, ratings and track cache
+bun test         # unit tests: parser, game engine, ratings, track cache and accounts
 bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 ```
 
@@ -121,7 +125,10 @@ bun run icons    # regenerate public/icons from public/icons/brand-mark.svg
 `astro.config.mjs`), using a filesystem cache in `.cache/` instead of R2, and
 serves the bundled seeds in `public/tracks/`. The pretty `/play/youtube/<id>`,
 `/play/ultrastar/<url>` and `/play/local` URLs work in dev too; the legacy
-`/play/<id>` redirects to its typed form.
+`/play/<id>` redirects to its typed form. It also runs the real Better Auth
+handler for `/api/auth/*` against a file-backed SQLite database in
+`.cache/auth.sqlite`, **logging the sign-in link to the console** instead of
+emailing it (there is no D1 locally).
 
 `public/og-image.png` is the 1200×630 social card used by the Open Graph and
 Twitter tags. It is a committed design asset: its source layout is
@@ -153,6 +160,16 @@ bun run tracks:bucket         # create the production R2 bucket (once)
 bun run tracks:bucket:preview # create the preview R2 bucket (once)
 bun run tracks:publish        # upload public/tracks/*.json to the R2 bucket
 bun run tracks:purge          # delete the cached tracks from R2 (needs an API token)
+```
+
+Accounts have their own one-time setup:
+
+```bash
+bun run auth:schema           # regenerate migrations/0001_auth.sql from the config
+bun run db:create             # create the production D1 database (once)
+bun run db:create:preview     # create the preview D1 database (once)
+bun run db:migrate            # apply the auth schema to D1 (needs credentials)
+bun run db:migrate:preview    # apply it to the preview database
 ```
 
 `tracks:warm` should be run from a normal residential connection: YouTube gates
@@ -223,6 +240,38 @@ refuses private/loopback hosts and IP literals, follows at most three redirects
 (re-checking each), and caps the response size and time. `media-src` and
 `img-src` in `public/_headers` allow `https:` so the hotlinked media can load.
 
+## Accounts
+
+Playing never requires an account. Signing in is optional and exists to keep an
+account across devices (and to claim a public handle for the planned
+leaderboard).
+
+- **Sign in with a link.** Enter your email on `/signin` and we send a one-time
+  sign-in link; there is no password. The link expires after 15 minutes and can
+  be used once. New emails become an account the first time a link is used.
+- **Your account** (`/account`) shows your email and member-since date, lets you
+  choose a **handle** (your public name), sign out, and delete the account and
+  everything stored with it.
+- **Built on [Better Auth](https://better-auth.com/).** Better Auth 1.5+ speaks
+  Cloudflare **D1** natively (`database: env.DB`), so no separate ORM is needed.
+  The instance is built once per Worker isolate with a **dynamic base URL**, so
+  branch previews authenticate against themselves. OAuth is a later addition:
+  Better Auth already records a linked `account` row per provider, so adding a
+  provider is a config change, not a migration.
+- **Sign-in emails** go through Cloudflare **Email Sending** (the `send_email`
+  binding) — no third-party email service or API key.
+- **The magic-link request is gated by Turnstile** (action `auth`), like a new
+  track, so the endpoint cannot be used to spray emails.
+- **In development** there is no D1, so `astro dev` uses a file-backed
+  `node:sqlite` database (`.cache/auth.sqlite`) and prints the sign-in link to
+  the console instead of emailing it.
+
+The auth module lives in `src/lib/auth/`: `server.ts` (the instance),
+`client.ts` (the browser client), `email.ts` (the magic-link email),
+`validate.ts` (handle and email rules) and `dev.ts` (the dev database). The
+schema is `migrations/0001_auth.sql`, generated from the config by
+`bun run auth:schema`.
+
 ## Singing
 
 The start screen offers two play styles: **Type** (the game above) and **Sing**.
@@ -271,6 +320,7 @@ stays the same in every mode.
 | Route | Description |
 | --- | --- |
 | `GET /api/track/youtube/:id?lang=en` | Get-or-create a YouTube track. `422` when the video has no captions, `502` when YouTube is unreachable. |
+| `/api/auth/*` | Better Auth: email magic-link sign-in, session, sign-out and account management. |
 | `GET /api/track/ultrastar?url=:url&lang=en` | Get-or-create an UltraStar track from a chart URL. `422` when the chart has no lyrics or no audio. |
 | `GET /api/track/:id?lang=en` | Legacy YouTube path, still supported. |
 | `/play?v=<id>` | `301` redirect to `/play/youtube/<id>`. |
@@ -287,15 +337,32 @@ Only `/api/*`, `/play` and `/play/*` run the Worker (`run_worker_first` in
 - **Workers + static assets** — hosting and routing.
 - **R2** (`typestar-tracks`) — the production processed-track cache; branch
   previews use a separate `typestar-tracks-preview` bucket.
-- `nodejs_compat` is enabled because the captions library needs it.
+- **D1** (`typestar-auth`) — accounts: users, sessions, accounts and the
+  short-lived magic-link verification records. Branch previews use
+  `typestar-auth-preview`.
+- **Email Sending** — delivers sign-in links through the `send_email` binding;
+  the sending domain must be onboarded first.
+- `nodejs_compat` is enabled because the captions library needs it (and Better
+  Auth uses `AsyncLocalStorage`).
 
-Scores are local to the browser for now; a leaderboard (D1 or Durable Objects)
-is a future addition and would need a privacy-notice update.
+Scores are still local to the browser; a leaderboard is a future addition and
+will build on the accounts above (the `user.handle` is already reserved for it).
 
 ## Deployment
 
 Deployed as a Cloudflare Worker with static assets via Workers Builds
 (`bun run build` → `bunx wrangler deploy`), configured by `wrangler.jsonc`.
+
+Accounts need three things set up once:
+
+1. **Create the D1 databases** and paste the printed ids into `wrangler.jsonc`:
+   `bun run db:create` (production) and `bun run db:create:preview`. Then apply
+   the schema with `bun run db:migrate` / `bun run db:migrate:preview`.
+2. **Set the Better Auth secret** (≥32 characters) as a Worker secret:
+   `bunx wrangler secret put BETTER_AUTH_SECRET`.
+3. **Onboard the sending domain** to Email Sending so the `EMAIL` binding can
+   deliver sign-in links:
+   `bunx wrangler email sending enable typestar.happypaul55.com`.
 
 Keep `astro.config.mjs` (`site`), `src/content/site/settings.json` (`url`) and
 `public/robots.txt` in step if the domain changes.
@@ -325,15 +392,18 @@ needs setting up once in the Cloudflare dashboard:
    (If the Worker is still on the older Version URL preview model, the
    **Set up Worker Previews** banner switches it — the switch cannot be undone.)
 4. **Give previews their secrets.** Previews do not inherit production settings,
-   and secrets cannot live in `wrangler.jsonc`. Set `TURNSTILE_SECRET` in the
-   Previews Base configuration so the human check still runs on previews:
-   `bunx wrangler preview base-config secret put TURNSTILE_SECRET`
+   and secrets cannot live in `wrangler.jsonc`. Set `TURNSTILE_SECRET` **and
+   `BETTER_AUTH_SECRET`** in the Previews Base configuration so the human check
+   and sign-in still work on previews:
+   `bunx wrangler preview base-config secret put TURNSTILE_SECRET` and
+   `bunx wrangler preview base-config secret put BETTER_AUTH_SECRET`
    (secrets added there are copied only to *new* previews).
 
 `previews` in `wrangler.jsonc` repeats the vars (`CAPTION_FALLBACK_URL`,
-`TURNSTILE_HOSTNAMES`) and points the `TRACKS` binding at
-`typestar-tracks-preview`, so a branch can fetch and cache new songs without
-writing into the production cache. `TURNSTILE_HOSTNAMES` only lists the apex
+`TURNSTILE_HOSTNAMES`, `AUTH_EMAIL_FROM`) and points the `TRACKS` binding at
+`typestar-tracks-preview` and the `DB` binding at `typestar-auth-preview`, so a
+branch can fetch and cache new songs and create accounts without writing into
+the production data. `TURNSTILE_HOSTNAMES` only lists the apex
 domain: a Turnstile token is accepted for a listed hostname **and its
 subdomains**, matching how the widget's own hostname allowlist behaves, so no
 per-branch entry is needed. Featured seeds are bundled with every build
