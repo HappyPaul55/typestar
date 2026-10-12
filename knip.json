@@ -4,6 +4,7 @@
     "src/pages/**/*.astro",
     "worker/index.ts",
     "src/lib/auth/dev.ts",
+    "src/lib/score/dev-store.ts",
     "scripts/*.{ts,mjs}"
   ],
   "project": [

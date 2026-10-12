@@ -51,6 +51,21 @@ function fileStore() {
 }
 
 /**
+ * Read a pre-warmed seed track from `public/tracks/`, mirroring the Worker's
+ * asset-backed seed. Only the default language is bundled.
+ * @param {string} seedId
+ * @param {string} lang
+ */
+async function readSeed(seedId, lang) {
+  if (lang !== "en") return null;
+  try {
+    return await readFile(join(TRACKS_DIR, `${seedId}.json`), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Read a Node request body into a Buffer, or `undefined` when empty.
  * @param {import("node:http").IncomingMessage} req
  */
@@ -165,6 +180,13 @@ function devServer(env) {
           return;
         }
 
+        // A public profile at `/u/<handle>` renders the `/u` page.
+        if (path === "/u" || /^\/u\/[^/]+\/?$/.test(path)) {
+          req.url = "/u";
+          next();
+          return;
+        }
+
         next();
       });
 
@@ -195,15 +217,7 @@ function devServer(env) {
             return;
           }
 
-          /** @param {string} seedId @param {string} lang */
-          const seed = async (seedId, lang) => {
-            if (lang !== "en") return null;
-            try {
-              return await readFile(join(TRACKS_DIR, `${seedId}.json`), "utf8");
-            } catch {
-              return null;
-            }
-          };
+          const seed = readSeed;
 
           const request = new Request(`http://localhost${req.url ?? ""}`, {
             method: req.method,
@@ -312,6 +326,57 @@ function devServer(env) {
           res.end(JSON.stringify({ error: "dev-auth-failed" }));
         }
       });
+
+      // Dev-only scores. The score API runs against a local SQLite database in
+      // the same file as the dev auth database, so the `userId` reference
+      // resolves. Tracks come from the dev cache/seeds, exactly as in the
+      // Worker, so the server replay reads the same track the player did.
+      server.middlewares.use(async (req, res, next) => {
+        const path = (req.url ?? "").split("?")[0];
+        if (!path.startsWith("/api/scores")) {
+          next();
+          return;
+        }
+        try {
+          const [scoreApi, devStore, load, auth] = await Promise.all([
+            server.ssrLoadModule("/src/lib/score/api.ts"),
+            server.ssrLoadModule("/src/lib/score/dev-store.ts"),
+            server.ssrLoadModule("/src/lib/score/load.ts"),
+            getDevAuth(),
+          ]);
+
+          const body = await readBody(req);
+          const request = toWebRequest(
+            req,
+            `http://localhost${req.url ?? ""}`,
+            body,
+          );
+          const trackStore = fileStore();
+
+          const envScore = {
+            store: devStore.createDevScoreStore(AUTH_DB),
+            user: async (/** @type {Request} */ req2) => {
+              const session = await auth.api.getSession({ headers: req2.headers });
+              const user = session?.user;
+              return user
+                ? { id: user.id, handle: user.handle ?? null }
+                : null;
+            },
+            loadTrack: (/** @type {string} */ id) =>
+              load.loadTrackById(id, { store: trackStore, seed: readSeed }),
+            secret: env.BETTER_AUTH_SECRET || DEV_AUTH_SECRET,
+          };
+
+          await sendWebResponse(res, await scoreApi.handleScoreRequest(request, envScore));
+        } catch (error) {
+          server.config.logger.error(
+            `[dev-scores] ${error instanceof Error ? error.message : String(error)}`,
+          );
+          res.statusCode = 500;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: "dev-scores-failed" }));
+        }
+      });
     },
   };
 }
@@ -325,7 +390,7 @@ export default defineConfig({
   trailingSlash: "never",
   integrations: [
     // The account pages are private (noindex); keep them out of the sitemap.
-    sitemap({ filter: (page) => !/\/(account|signin)\/?$/.test(page) }),
+    sitemap({ filter: (page) => !/\/(account|signin|u)\/?$/.test(page) }),
     react(),
   ],
   vite: {

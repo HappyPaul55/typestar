@@ -33,7 +33,7 @@ const CAPABILITIES = {
   runMode: true,
 } as const;
 
-function makeConfig(track: Track | null, run: RunSettings): GameConfig {
+export function makeConfig(track: Track | null, run: RunSettings): GameConfig {
   return {
     words: track?.words ?? [],
     lines: track?.lines ?? [],

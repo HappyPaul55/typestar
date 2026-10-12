@@ -1,0 +1,50 @@
+---
+import { getEntry } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Container from "../components/ui/Container.astro";
+import Breadcrumbs from "../components/layout/Breadcrumbs.astro";
+import ProfileView from "../components/score/ProfileView.tsx";
+
+const site = (await getEntry("site", "main"))!.data;
+const breadcrumbs = [
+  { name: "Home", path: "/" },
+  { name: "Profile", path: "/u" },
+];
+const crumbs = [{ name: "profile", path: "/u" }];
+---
+
+<BaseLayout
+  title={`Player profile — ${site.name}`}
+  description="A TypeStar player's scores, bests and recent runs."
+  path="/u"
+  noindex
+  breadcrumbs={breadcrumbs}
+>
+  <main id="main">
+    <section
+      class="on-ink grid-ink border-b border-line-ink bg-ink pt-[clamp(2.5rem,6vw,4rem)] pb-[clamp(2rem,5vw,3rem)]"
+    >
+      <Container>
+        <Breadcrumbs items={crumbs} />
+        <h1
+          class="mt-4 font-display text-[clamp(1.9rem,5vw,3rem)] leading-[1] font-bold tracking-[-0.03em] text-cream"
+        >
+          Player profile
+        </h1>
+        <p
+          class="mt-3 max-w-[44rem] text-[clamp(0.96rem,1.4vw,1.1rem)] leading-[1.6] text-[rgba(250,250,244,0.7)]"
+        >
+          Scores, bests and recent runs.
+        </p>
+      </Container>
+    </section>
+
+    <div class="grid-paper bg-paper py-[clamp(2.5rem,6vw,4rem)]">
+      <Container>
+        <div class="score-shell">
+          <ProfileView client:load />
+        </div>
+      </Container>
+    </div>
+  </main>
+</BaseLayout>

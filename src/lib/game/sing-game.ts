@@ -10,7 +10,7 @@
  */
 
 import { comboTier, type WordResult } from "./engine";
-import { bestKey, runMetrics, type Capabilities, type GameEngine, type Metric } from "./game";
+import { bestKey, runMetrics, type Capabilities, type GameEngine, type Metric, type RunSettings } from "./game";
 import { karaokePointer, karaokeProgress } from "./karaoke";
 import { trackCanSing } from "./modes";
 import { trackPath } from "../track/source";
@@ -31,6 +31,15 @@ import type { Track } from "../track/types";
 /** Scored singing needs pitched notes *and* a working microphone. */
 function isScored(track: Track | null, micFallback: boolean): boolean {
   return !!track && trackCanSing(track) && !micFallback;
+}
+
+/** The singing config for a run. Exported so the server replay uses the same one. */
+export function singConfig(track: Track | null, run: RunSettings): SingConfig {
+  return makeSingConfig(track?.notes ?? [], {
+    offset: run.offset,
+    tolerance: SING_TOLERANCE[run.difficulty],
+    failMode: run.runMode,
+  });
 }
 
 const SCORED_HELP = "Hit the notes as they arrive — your pitch is scored.";
@@ -71,13 +80,7 @@ export const SingGame: GameEngine<SingState> = {
 
   createState: (track) => createSingState(track?.notes?.length ?? 0),
 
-  config(track, run) {
-    return makeSingConfig(track?.notes ?? [], {
-      offset: run.offset,
-      tolerance: SING_TOLERANCE[run.difficulty],
-      failMode: run.runMode,
-    });
-  },
+  config: singConfig,
 
   reduce(state, action, config) {
     const cfg = config as SingConfig;

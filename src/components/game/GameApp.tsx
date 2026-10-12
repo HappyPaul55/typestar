@@ -73,7 +73,7 @@ import LocalLibrary, { type LocalSelection } from "./LocalLibrary";
 import LyricHighway from "./LyricHighway";
 import PitchHighway from "./PitchHighway";
 import PlayerStage from "./PlayerStage";
-import ResultsModal from "./ResultsModal";
+import ResultsModal, { type RecordStatus } from "./ResultsModal";
 import StartScreen from "./StartScreen";
 import TrackPicker from "./TrackPicker";
 import TurnstileChallenge from "./TurnstileChallenge";
@@ -82,6 +82,13 @@ import { useMediaPlayer } from "./hooks/useMediaPlayer";
 import { usePitchInput } from "./hooks/usePitchInput";
 import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
+import { useSession as useAuthSession } from "../../lib/auth/client";
+import {
+  fetchRunNonce,
+  submitRun,
+  type RunSettingsInput,
+} from "../../lib/score/client";
+import { timelineChecksum, type TimelineEvent } from "../../lib/score/timeline";
 
 type Phase = "idle" | "countdown" | "playing" | "paused" | "results";
 
@@ -245,6 +252,17 @@ export default function GameApp({
   /** Throttles scoring dispatches so the island does not re-render every frame. */
   const lastSingSampleRef = useRef(0);
 
+  // Server-side run recording. A scored run asks for a nonce when it starts,
+  // records its inputs as they happen, and submits them when the results appear.
+  // Nothing is recorded while signed out.
+  const { data: accountSession } = useAuthSession();
+  const signedIn = !!accountSession?.user;
+  const timelineRef = useRef<TimelineEvent[]>([]);
+  const nonceRef = useRef<string | null>(null);
+  const nonceSettingsRef = useRef<RunSettingsInput | null>(null);
+  const armedRef = useRef(false);
+  const [record, setRecord] = useState<RecordStatus | null>(null);
+
   const activeTrack = song?.track ?? null;
   const isLocal =
     song?.source === "local-video" || song?.source === "local-audio";
@@ -348,6 +366,9 @@ export default function GameApp({
     time,
     getTime,
     seek: seekTo,
+    onEvent: (event) => {
+      if (armedRef.current) timelineRef.current.push(event);
+    },
   });
 
   // Keep the microphone frame callback in step without re-subscribing.
@@ -469,6 +490,12 @@ export default function GameApp({
     setNeedsTurnstile(false);
     setTurnstileError(null);
     setMicFallback(false);
+    // Discard any half-recorded run for the previous song.
+    armedRef.current = false;
+    timelineRef.current = [];
+    nonceRef.current = null;
+    nonceSettingsRef.current = null;
+    setRecord(null);
   }, [source]);
 
   // Load the track, and restore its saved sync offset.
@@ -696,6 +723,40 @@ export default function GameApp({
     return () => window.removeEventListener("keydown", handler);
   }, [phase, capabilities.keyboard, session]);
 
+  /**
+   * Arm a scored run for recording: clear the buffer, ask for a nonce and start
+   * recording inputs. A run that will not be scored (karaoke), a local song, or
+   * a signed-out player records nothing.
+   */
+  const armRun = useCallback(
+    (willScore: boolean) => {
+      armedRef.current = false;
+      timelineRef.current = [];
+      nonceRef.current = null;
+      nonceSettingsRef.current = null;
+      if (!willScore || !signedIn || !activeTrack || isLocal) return;
+
+      const settings: RunSettingsInput = {
+        trackId: activeTrack.id,
+        style: run.style,
+        difficulty: run.difficulty,
+        runMode: run.runMode,
+        speed: run.speed,
+        offset: run.offset,
+      };
+      armedRef.current = true;
+      nonceSettingsRef.current = settings;
+      void fetchRunNonce(settings)
+        .then((nonce) => {
+          if (armedRef.current) nonceRef.current = nonce;
+        })
+        .catch(() => {
+          // No nonce: the run simply will not be submitted.
+        });
+    },
+    [signedIn, activeTrack, isLocal, run],
+  );
+
   const start = useCallback(async () => {
     if (!ready) return;
     // Scored singing needs the microphone before the run begins; if it is
@@ -706,6 +767,8 @@ export default function GameApp({
       fallback = !ok;
       setMicFallback(!ok);
     }
+    // Start recording (or clear the buffer) for a scored run.
+    armRun(capabilities.scored && !fallback);
     // The countdown runs before playback: park the video at the start and hold
     // it paused, so a stray play (or a higher speed) can't run the opening away.
     pause();
@@ -723,11 +786,56 @@ export default function GameApp({
     ready,
     capabilities.microphone,
     capabilities.keyboard,
+    capabilities.scored,
+    armRun,
     pitchInput,
     pause,
     seekTo,
     session,
   ]);
+
+  // Submit the recorded run when the results appear, and report the outcome.
+  useEffect(() => {
+    if (phase !== "results") return;
+    if (isLocal || !capabilities.scored) {
+      setRecord(null);
+      return;
+    }
+    if (!signedIn) {
+      setRecord({ status: "signed-out" });
+      return;
+    }
+    if (!armedRef.current) return;
+    armedRef.current = false;
+
+    const nonce = nonceRef.current;
+    const settings = nonceSettingsRef.current;
+    const events = timelineRef.current;
+    if (!nonce || !settings || events.length === 0) {
+      setRecord({ status: "error" });
+      return;
+    }
+
+    let cancelled = false;
+    setRecord({ status: "saving" });
+    void (async () => {
+      const checksum = await timelineChecksum(nonce, events);
+      const result = await submitRun({ nonce, checksum, settings, events });
+      if (cancelled) return;
+      if (!result) {
+        setRecord({ status: "error" });
+        return;
+      }
+      setRecord(
+        result.status === "valid"
+          ? { status: "saved", score: result.score, rank: result.rank }
+          : { status: "invalid", reason: result.reason ?? "invalid" },
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, isLocal, capabilities.scored, signedIn]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
@@ -746,6 +854,10 @@ export default function GameApp({
     pause();
     seekTo(0);
     setPhase("idle");
+    armedRef.current = false;
+    timelineRef.current = [];
+    nonceRef.current = null;
+    setRecord(null);
   }, [session, pitchInput, pause, seekTo]);
 
   const replay = useCallback(() => {
@@ -757,6 +869,7 @@ export default function GameApp({
     session.reset();
     pitchInput.stop();
     setPhase("idle");
+    setRecord(null);
   }, [session, pitchInput]);
 
   const selectMode = useCallback(
@@ -1278,6 +1391,7 @@ export default function GameApp({
       {phase === "results" ? (
         <ResultsModal
           summary={resultsSummary}
+          record={record}
           onReplay={replay}
           onChangeSong={changeSong}
           onClose={closeResults}

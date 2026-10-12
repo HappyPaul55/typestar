@@ -13,13 +13,57 @@ import { buildHash } from "../../lib/game/url";
 
 interface Props {
   summary: ResultsSummary;
+  /** How the run's submission to the leaderboard went, if it was scored. */
+  record?: RecordStatus | null;
   onReplay(): void;
   onChangeSong(): void;
   onClose(): void;
 }
 
+/** How a scored run's submission to the leaderboard went. */
+export type RecordStatus =
+  | { status: "saving" }
+  | { status: "saved"; score: number; rank: number | null }
+  | { status: "invalid"; reason: string }
+  | { status: "error" }
+  | { status: "signed-out" };
+
+function RecordLine({ record }: { record: RecordStatus }) {
+  switch (record.status) {
+    case "saving":
+      return <p className="results__record">Saving to the leaderboard…</p>;
+    case "saved":
+      return (
+        <p className="results__record results__record--ok">
+          {record.rank
+            ? `Saved to the leaderboard — #${record.rank}`
+            : "Saved to the leaderboard"}
+        </p>
+      );
+    case "invalid":
+      return (
+        <p className="results__record results__record--warn">
+          Saved as unverified ({record.reason}).
+        </p>
+      );
+    case "signed-out":
+      return (
+        <p className="results__record">
+          Sign in to save your scores to the leaderboard.
+        </p>
+      );
+    default:
+      return (
+        <p className="results__record results__record--warn">
+          Could not save to the leaderboard.
+        </p>
+      );
+  }
+}
+
 export default function ResultsModal({
   summary,
+  record,
   onReplay,
   onChangeSong,
   onClose,
@@ -193,6 +237,8 @@ export default function ResultsModal({
             ) : null}
           </div>
         </div>
+
+        {record ? <RecordLine record={record} /> : null}
 
         <div className="results__grid">
           {summary.metrics.map((metric) => (

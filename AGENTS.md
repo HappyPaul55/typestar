@@ -24,10 +24,11 @@ pretty play routes.
 Routes: `/` (landing), `/play` (track picker), `/play/youtube/<id>` (a YouTube
 game), `/play/ultrastar/<url>` (a chart fetched from a URL), `/play/local` (the
 in-browser local-file picker), `/signin` and `/account` (the optional email
-sign-in islands), `/privacy`, `/404`, and
+sign-in islands), `/boards`, `/recent` and `/challenge` (scores), `/u/<handle>`
+(a public profile), `/privacy`, `/404`, and
 `GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. Accounts
-live behind `/api/auth/*` (Better Auth). The legacy
-`/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
+live behind `/api/auth/*` (Better Auth) and scores behind `/api/scores/*`. The
+legacy `/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
 
 Moving between those play routes is done **in place** (History `pushState` plus
 React state), never a full document navigation, so a **fullscreen** session
@@ -214,6 +215,14 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `types.ts` (the inline D1 / `send_email` binding types).
 - `migrations/0001_auth.sql` — the Better Auth schema, generated from the auth
   config by `bun run auth:schema` (via `scripts/auth-schema.ts`).
+- `src/lib/score/**` — recording and ranking: `api.ts` (the `/api/scores/*`
+  handlers), `replay.ts` (the server re-score through the pure engines),
+  `nonce.ts` (the signed run token), `timeline.ts` (the recorded events and
+  checksum), `challenge.ts` (the period's song and modifier), `store.ts` (D1),
+  `dev-store.ts` (dev SQLite) and `load.ts` (load a track by its id). The
+  `src/components/score/**` islands render the boards, profiles, feed and
+  challenge; `/boards`, `/recent`, `/challenge` and `/u/*` are their pages, and
+  `migrations/0002_scores.sql` is the `score` table.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane),
   `StartScreen`, `Hud`, `ResultsModal` (shared by every style), `Calibration`,
@@ -313,6 +322,18 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   changing the auth config. OAuth is a later addition: Better Auth already
   records a linked `account` row per provider, so it is a config change, not a
   migration.
+- **Scores are verified by server replay.** A scored, signed-in run records its
+  inputs (keystrokes or pitch samples, with timings) and submits them with a
+  signed **nonce**; the server replays them through the same pure reducers the
+  game uses (`makeConfig` / `singConfig` + `gameReducer` / `singReducer`) to
+  derive the score, then **discards the recording**. The nonce is a stateless
+  HMAC over the run's settings, signed with `BETTER_AUTH_SECRET`, and is not
+  single-use. An invalid submission is **stored** (`valid = 0` + reason), never
+  rejected; boards read only valid rows. A board is keyed by song + style +
+  difficulty + run mode + speed, so typing and singing never mix. Dev uses a
+  `node:sqlite` score store in the same `.cache/auth.sqlite` file. The
+  daily/weekly challenge is derived from the date (no cron): one seeded featured
+  track and one modifier per period, and its board is a time-boxed query.
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is

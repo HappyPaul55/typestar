@@ -36,9 +36,10 @@ If you choose to sign in, we create an account for you and store:
   contact you;
 - a **session**, so you stay signed in on that browser until you sign out or it
   expires;
-- your **handle** and display name, if you set them (the handle is the public
-  name shown on a leaderboard);
-- when the account was **created**.
+- your **handle** and display name, if you set them (the handle is your public
+  name on the leaderboards);
+- when the account was **created**;
+- the **results of scored runs** (see below).
 
 Sign-in uses a **one-time link** emailed to you; there is no password. The link
 is single-use, expires after 15 minutes, and is stored only as a hash. The
@@ -47,6 +48,26 @@ sign-in email is the only email we send.
 We set one **session cookie** when you are signed in. It is strictly necessary
 to keep you signed in, so it does not require consent, and it is not used to
 track you across other sites. Signing out, or deleting your account, removes it.
+
+## Scores and leaderboards
+
+Playing without an account keeps your scores in your browser only. When you are
+**signed in**, a scored run is saved so it can appear on the leaderboards:
+
+- We store the **result** of the run — the score, accuracy, combo, and the
+  difficulty, run mode and speed it was played at — against your account and the
+  song.
+- To work out that score fairly, the browser sends a recording of the run's
+  **inputs** (keystrokes or pitch samples, with their timings) and a one-time
+  token. The server replays them against the song's own timings to derive the
+  score, then **discards the recording**: only the result is kept.
+- Your **handle and scores are public** — they appear on the song's
+  leaderboard, the recent-scores feed, and your profile page at `/u/<handle>`.
+  Your email address is never shown.
+- A run whose recording does not check out is still saved, but marked
+  **unverified** and left off the leaderboards.
+
+Deleting your account deletes its scores too.
 
 ## The microphone (singing)
 
@@ -64,8 +85,8 @@ along without scoring.
   and saves the **timing data** — the words and when they occur — so that later
   plays load instantly. This is public information about the song, not about
   you.
-- If you have an account, the account details described above are stored in our
-  database, hosted by Cloudflare (D1).
+- If you have an account, the account details and scored-run results described
+  above are stored in our database, hosted by Cloudflare (D1).
 - The video id you choose is part of the request, so the usual technical
   details of that request are handled by our host, Cloudflare, as described
   below.

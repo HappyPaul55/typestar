@@ -67,8 +67,11 @@ typing / keyboard speed game**.
   title, description and social tags name the song and use its cover art.
 - **Optional accounts**: sign in with a one-time email link (no password) to
   keep an account across devices and claim a public handle. Signing in is
-  optional — the game plays without one — and a leaderboard is a future
-  addition.
+  optional — the game plays without one.
+- **Leaderboards, profiles and challenges**: a signed-in run is verified
+  server-side and ranked per song, style, difficulty, run mode and speed. There
+  are public profiles (`/u/<handle>`), a recent-scores feed (`/recent`), boards
+  for every song (`/boards`) and a daily/weekly challenge (`/challenge`).
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
@@ -272,6 +275,31 @@ The auth module lives in `src/lib/auth/`: `server.ts` (the instance),
 schema is `migrations/0001_auth.sql`, generated from the config by
 `bun run auth:schema`.
 
+## Scores and leaderboards
+
+Playing without an account keeps your scores in your browser. Sign in and a
+scored run is verified and saved, then ranked.
+
+- **Verified server-side.** The browser records the run's inputs (keystrokes or
+  pitch samples, with timings) and submits them with a server-issued **nonce**.
+  The server replays them against the song's own timings, through the same pure
+  engines the game uses, to derive the score — the score is never trusted from
+  the client. The recording is then discarded; only the result is stored.
+- **Invalid runs are kept, not rejected.** A submission that fails its integrity
+  check is stored with `valid = 0` and a reason (`invalid-checksum`, …), and
+  simply left off the boards.
+- **Boards are per mode.** A board is keyed by song + style (typing or singing)
+  + difficulty + run mode + speed, so typing and singing are never compared.
+- **Pages.** `/boards` lists every song's board, `/u/<handle>` is a public
+  profile, `/recent` is the recent-scores feed, and `/challenge` is the daily and
+  weekly challenge (one seeded song and one modifier per period, with its own
+  boards).
+- **Where it lives.** `src/lib/score/`: `api.ts` (the handlers), `replay.ts` (the
+  server re-score), `nonce.ts` (the signed run token), `timeline.ts` (the
+  recorded events), `challenge.ts` (the period's song and modifier), `store.ts`
+  (D1) and `dev-store.ts` (dev SQLite). The `score` table is
+  `migrations/0002_scores.sql`.
+
 ## Singing
 
 The start screen offers two play styles: **Type** (the game above) and **Sing**.
@@ -321,6 +349,7 @@ stays the same in every mode.
 | --- | --- |
 | `GET /api/track/youtube/:id?lang=en` | Get-or-create a YouTube track. `422` when the video has no captions, `502` when YouTube is unreachable. |
 | `/api/auth/*` | Better Auth: email magic-link sign-in, session, sign-out and account management. |
+| `/api/scores/*` | Run nonces, run submission (replayed server-side and stored), leaderboards, recent scores, profiles and the challenge. |
 | `GET /api/track/ultrastar?url=:url&lang=en` | Get-or-create an UltraStar track from a chart URL. `422` when the chart has no lyrics or no audio. |
 | `GET /api/track/:id?lang=en` | Legacy YouTube path, still supported. |
 | `/play?v=<id>` | `301` redirect to `/play/youtube/<id>`. |
@@ -337,9 +366,9 @@ Only `/api/*`, `/play` and `/play/*` run the Worker (`run_worker_first` in
 - **Workers + static assets** — hosting and routing.
 - **R2** (`typestar-tracks`) — the production processed-track cache; branch
   previews use a separate `typestar-tracks-preview` bucket.
-- **D1** (`typestar-auth`) — accounts: users, sessions, accounts and the
-  short-lived magic-link verification records. Branch previews use
-  `typestar-auth-preview`.
+- **D1** (`typestar-auth`) — accounts (users, sessions, accounts and the
+  short-lived magic-link verification records) and the recorded scores. Branch
+  previews use `typestar-auth-preview`.
 - **Email Sending** — delivers sign-in links through the `send_email` binding;
   the sending domain must be onboarded first.
 - `nodejs_compat` is enabled because the captions library needs it (and Better
