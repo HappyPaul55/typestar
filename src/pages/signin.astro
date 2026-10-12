@@ -47,7 +47,7 @@ const crumbs = [{ name: t("signin.comment"), path: localePath(locale, "/signin")
     <div class="grid-paper bg-paper py-[clamp(2.5rem,6vw,4rem)]">
       <Container>
         <div class="auth-shell">
-          <SignInForm client:load />
+          <SignInForm client:load locale={locale} />
         </div>
       </Container>
     </div>

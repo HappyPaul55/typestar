@@ -16,7 +16,8 @@ import {
   normalizeHandle,
   type HandleError,
 } from "../../lib/auth/validate";
-import { useT } from "../../i18n/react";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale, withLocale } from "../../i18n/react";
 import type { MessageKey } from "../../i18n";
 
 /** Map a validation code to its dictionary key. */
@@ -27,8 +28,9 @@ const HANDLE_ERROR_KEY: Record<HandleError, MessageKey> = {
   reserved: "handle.reserved",
 };
 
-export default function AccountPanel() {
+function AccountPanel() {
   const t = useT();
+  const locale = useLocale();
   const { data: session, isPending } = useSession();
 
   if (isPending) {
@@ -51,7 +53,7 @@ export default function AccountPanel() {
         <h2 className="panel__title mt-2">{t("account.signedOutTitle")}</h2>
         <p className="mt-2 text-ink-soft">{t("account.signedOutBody")}</p>
         <p className="mt-5">
-          <a className="btn-game btn-game--primary" href="/signin">
+          <a className="btn-game btn-game--primary" href={localePath(locale, "/signin")}>
             {t("account.signIn")}
           </a>
         </p>
@@ -228,3 +230,5 @@ function SignedIn() {
     </div>
   );
 }
+
+export default withLocale(AccountPanel);

@@ -45,7 +45,7 @@ const crumbs = [{ name: t("recent.title"), path: localePath(locale, "/recent") }
     <div class="grid-paper bg-paper py-[clamp(2.5rem,6vw,4rem)]">
       <Container>
         <div class="score-shell">
-          <RecentFeed client:load />
+          <RecentFeed client:load locale={locale} />
         </div>
       </Container>
     </div>

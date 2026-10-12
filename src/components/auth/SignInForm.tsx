@@ -13,19 +13,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { authClient, AUTH_TURNSTILE_ACTION } from "../../lib/auth/client";
 import { normalizeEmail } from "../../lib/auth/validate";
 import { TURNSTILE_SITE_KEY } from "../../lib/game/turnstile";
-import { useT } from "../../i18n/react";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale, withLocale } from "../../i18n/react";
 import TurnstileChallenge from "../game/TurnstileChallenge";
 
 /** Only same-origin, relative paths are allowed as a post-sign-in destination. */
-function safeNext(raw: string | undefined): string {
-  if (!raw) return "/account";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/account";
+function safeNext(raw: string | undefined, fallback: string): string {
+  if (!raw) return fallback;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return fallback;
   return raw;
 }
 
-export default function SignInForm({ next }: { next?: string }) {
+function SignInForm({ next }: { next?: string }) {
   const t = useT();
-  const [destination, setDestination] = useState(safeNext(next));
+  const locale = useLocale();
+  const [destination, setDestination] = useState(
+    safeNext(next, localePath(locale, "/account")),
+  );
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -44,8 +48,8 @@ export default function SignInForm({ next }: { next?: string }) {
   // only known in the browser (and only then without a hydration mismatch).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setDestination(safeNext(params.get("next") ?? next));
-  }, [next]);
+    setDestination(safeNext(params.get("next") ?? next, localePath(locale, "/account")));
+  }, [locale, next]);
 
   const send = useCallback(async (turnstileToken: string | null) => {
     const value = normalizeEmail(emailRef.current);
@@ -188,3 +192,5 @@ export default function SignInForm({ next }: { next?: string }) {
     </div>
   );
 }
+
+export default withLocale(SignInForm);

@@ -4,7 +4,8 @@
 
 import type { RecentEntry } from "../../lib/score/client";
 import { modeLabel, playHref, timeAgo } from "../../lib/score/format";
-import { useT } from "../../i18n/react";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale } from "../../i18n/react";
 
 export default function ScoreList({
   rows,
@@ -16,6 +17,7 @@ export default function ScoreList({
   empty?: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   if (rows.length === 0) return <p className="score-empty">{empty ?? t("profile.nothing")}</p>;
   return (
     <table className="score-table">
@@ -34,7 +36,7 @@ export default function ScoreList({
             {showPlayer ? (
               <td>
                 {row.handle ? (
-                  <a href={`/u/${encodeURIComponent(row.handle)}`}>
+                  <a href={localePath(locale, `/u/${encodeURIComponent(row.handle)}`)}>
                     {row.displayName || row.handle}
                   </a>
                 ) : (
@@ -43,7 +45,7 @@ export default function ScoreList({
               </td>
             ) : null}
             <td>
-              <a href={playHref(row.trackId, row.trackType)}>{row.title}</a>
+              <a href={playHref(row.trackId, row.trackType, locale)}>{row.title}</a>
             </td>
             <td className="score-card__meta">{modeLabel(row)}</td>
             <td className="score-table__score">{row.score.toLocaleString("en-GB")}</td>

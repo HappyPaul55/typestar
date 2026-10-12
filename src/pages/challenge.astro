@@ -44,7 +44,7 @@ const crumbs = [{ name: t("challenge.title"), path: localePath(locale, "/challen
 
     <div class="grid-paper bg-paper py-[clamp(2.5rem,6vw,4rem)]">
       <Container>
-        <ChallengeView client:load />
+        <ChallengeView client:load locale={locale} />
       </Container>
     </div>
   </main>

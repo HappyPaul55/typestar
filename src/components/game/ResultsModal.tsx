@@ -10,7 +10,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ResultsSummary } from "../../lib/game/game";
 import { readSetting, writeSetting } from "../../lib/game/storage";
 import { buildHash } from "../../lib/game/url";
-import { useT } from "../../i18n/react";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale } from "../../i18n/react";
 
 interface Props {
   summary: ResultsSummary;
@@ -146,6 +147,7 @@ export default function ResultsModal({
   }, [summary.bestKey, summary.scored, summary.score]);
 
   const t = useT();
+  const locale = useLocale();
   const failed = summary.failed;
   const header = summary.scored
     ? failed
@@ -157,7 +159,7 @@ export default function ResultsModal({
   async function share() {
     // Local songs have no shareable URL; the button is hidden for them anyway.
     if (summary.sharePath === "/play") return;
-    const url = `${window.location.origin}${summary.sharePath}${buildHash(summary.share)}`;
+    const url = `${window.location.origin}${localePath(locale, summary.sharePath)}${buildHash(summary.share)}`;
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ title: "TypeStar", url });

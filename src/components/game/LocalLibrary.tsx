@@ -32,6 +32,8 @@ import {
   type LocalUltraStarSong,
 } from "../../lib/local/library";
 import { loadDirectoryHandles, saveDirectoryHandles } from "../../lib/local/idb";
+import { localePath } from "../../i18n/paths";
+import { useLocale } from "../../i18n/react";
 import TrackCard from "./TrackCard";
 
 export interface LocalSelection {
@@ -72,6 +74,7 @@ export default function LocalLibrary({
   /** Switch to the YouTube picker in place, instead of a document navigation. */
   onOpenRemote?(): void;
 }) {
+  const locale = useLocale();
   const [folders, setFolders] = useState<LocalDirectoryHandle[]>([]);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [songs, setSongs] = useState<LocalUltraStarSong[]>([]);
@@ -478,7 +481,7 @@ export default function LocalLibrary({
                 {shownSongs.map((song) => (
                   <TrackCard
                     key={song.id}
-                    href={`/play/local?file=${encodeURIComponent(song.ref)}`}
+                    href={localePath(locale, `/play/local?file=${encodeURIComponent(song.ref)}`)}
                     title={song.title}
                     subtitle={song.artist}
                     busy={busy}
@@ -514,7 +517,7 @@ export default function LocalLibrary({
                   return (
                     <TrackCard
                       key={pair.id}
-                      href={`/play/local?file=${encodeURIComponent(pair.ref)}`}
+                      href={localePath(locale, `/play/local?file=${encodeURIComponent(pair.ref)}`)}
                       title={pair.title}
                       subtitle={album}
                       busy={busy}
@@ -557,7 +560,7 @@ export default function LocalLibrary({
         </div>
       ) : (
         <div className="local-library__actions">
-          <a className="local-choice" href="/play" onClick={openRemote}>
+          <a className="local-choice" href={localePath(locale, "/play")} onClick={openRemote}>
             <span className="local-choice__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
                 <rect

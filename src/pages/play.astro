@@ -76,7 +76,7 @@ const crumbs = [{ name: t("play.crumb"), path: localePath(locale, "/play") }];
               {t("play.subtitle", { tagline: t("site.tagline") })}
             </p>
             <div class="mt-4">
-              <EmbedButton client:load />
+              <EmbedButton client:load locale={locale} />
             </div>
           </div>
         </div>

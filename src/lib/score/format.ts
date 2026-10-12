@@ -2,6 +2,9 @@
  * Small display helpers shared by the score pages.
  */
 
+import { localePath } from "../../i18n/paths";
+import type { Locale } from "../../i18n/locales";
+
 /** A short, human "how long ago" for a timestamp. */
 export function timeAgo(iso: string, now = Date.now()): string {
   const then = new Date(iso).getTime();
@@ -17,12 +20,12 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-/** The `/play/...` link for a namespaced track id, when one exists. */
-export function playHref(trackId: string, trackType: string): string {
+/** The locale-aware `/play/...` link for a namespaced track id, when one exists. */
+export function playHref(trackId: string, trackType: string, locale: Locale): string {
   if (trackType === "youtube" && trackId.startsWith("youtube-")) {
-    return `/play/youtube/${trackId.slice("youtube-".length)}`;
+    return localePath(locale, `/play/youtube/${trackId.slice("youtube-".length)}`);
   }
-  return "/play";
+  return localePath(locale, "/play");
 }
 
 /** A compact label for a run's mode, e.g. `hard · instant · 1.25×`. */

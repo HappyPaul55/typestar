@@ -83,7 +83,8 @@ import { usePitchInput } from "./hooks/usePitchInput";
 import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
 import { useSignedIn } from "../../lib/auth/session";
-import { I18nProvider, useT } from "../../i18n/react";
+import { localePath } from "../../i18n/paths";
+import { I18nProvider, useT, useLocale } from "../../i18n/react";
 import type { Locale } from "../../i18n/locales";
 import {
   fetchRunNonce,
@@ -210,12 +211,7 @@ function StatusPanel({
   );
 }
 
-export default function GameApp({
-  site,
-  ratings = {},
-  embed = false,
-  locale = "en",
-}: {
+interface GameAppProps {
   site: SiteSettings;
   /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
   ratings?: Record<string, TrackRating>;
@@ -223,7 +219,26 @@ export default function GameApp({
   embed?: boolean;
   /** The UI locale for the island. */
   locale?: Locale;
-}) {
+}
+
+/**
+ * The island's entry point: it provides the chosen locale and renders
+ * {@link GameAppInner}. The split matters — a component cannot read a context
+ * it renders itself, so `useT` would otherwise always fall back to English.
+ */
+export default function GameApp({ locale = "en", ...props }: GameAppProps) {
+  return (
+    <I18nProvider locale={locale}>
+      <GameAppInner {...props} />
+    </I18nProvider>
+  );
+}
+
+function GameAppInner({
+  site,
+  ratings = {},
+  embed = false,
+}: Omit<GameAppProps, "locale">) {
   const [source, setSource] = useState<TrackSourceRef | null | undefined>(undefined);
   const [song, setSong] = useState<LoadedSong | null>(null);
   const [localMode, setLocalMode] = useState(false);
@@ -265,6 +280,7 @@ export default function GameApp({
   // Nothing is recorded while signed out.
   const signedIn = useSignedIn();
   const t = useT();
+  const locale = useLocale();
   const timelineRef = useRef<TimelineEvent[]>([]);
   const nonceRef = useRef<string | null>(null);
   const nonceSettingsRef = useRef<RunSettingsInput | null>(null);
@@ -933,10 +949,10 @@ export default function GameApp({
     setLoadError(null);
     setMicFallback(false);
     setPhase("idle");
-    const target = `/play/local?file=${encodeURIComponent(selection.filePath)}`;
+    const target = localePath(locale, `/play/local?file=${encodeURIComponent(selection.filePath)}`);
     const current = `${window.location.pathname}${window.location.search}`;
     if (current !== target) window.history.pushState(null, "", target);
-  }, []);
+  }, [locale]);
 
   /**
    * Route changes are done in place (pushState + state) rather than by a full
@@ -945,38 +961,42 @@ export default function GameApp({
    */
   const openRemotePicker = useCallback(() => {
     pitchInput.stop();
-    window.history.pushState(null, "", "/play");
+    window.history.pushState(null, "", localePath(locale, "/play"));
     setLocalMode(false);
     setSource(null);
     setSong(null);
     setLocalRequest(null);
     setLoadError(null);
     setPhase("idle");
-  }, [pitchInput.stop]);
+  }, [locale, pitchInput.stop]);
 
   const openLocalPicker = useCallback(() => {
     pitchInput.stop();
-    window.history.pushState(null, "", "/play/local");
+    window.history.pushState(null, "", localePath(locale, "/play/local"));
     setLocalMode(true);
     setSource(null);
     setSong(null);
     setLocalRequest(null);
     setLoadError(null);
     setPhase("idle");
-  }, [pitchInput.stop]);
+  }, [locale, pitchInput.stop]);
 
   /** Open a YouTube track from the picker without reloading the document. */
   const openTrack = useCallback(
     (id: string) => {
       pitchInput.stop();
-      window.history.pushState(null, "", `/play/youtube/${id}${window.location.hash}`);
+      window.history.pushState(
+        null,
+        "",
+        `${localePath(locale, `/play/youtube/${id}`)}${window.location.hash}`,
+      );
       setLocalMode(false);
       setSong(null);
       setSource({ kind: "youtube", id });
       setLoadError(null);
       setPhase("idle");
     },
-    [pitchInput.stop],
+    [locale, pitchInput.stop],
   );
 
   /** Open an UltraStar chart from a URL without reloading the document. */
@@ -986,7 +1006,7 @@ export default function GameApp({
       window.history.pushState(
         null,
         "",
-        `/play/ultrastar/${encodeURIComponent(url)}${window.location.hash}`,
+        `${localePath(locale, `/play/ultrastar/${encodeURIComponent(url)}`)}${window.location.hash}`,
       );
       setLocalMode(false);
       setSong(null);
@@ -994,7 +1014,7 @@ export default function GameApp({
       setLoadError(null);
       setPhase("idle");
     },
-    [pitchInput.stop],
+    [locale, pitchInput.stop],
   );
 
   const changeSong = useCallback(() => {
@@ -1201,11 +1221,9 @@ export default function GameApp({
   // has left a loaded track null, so anything past here has one.
   if (source === undefined || !activeTrack) {
     return (
-      <I18nProvider locale={locale}>
-        <div ref={shellRef} className="game-root">
-          {body}
-        </div>
-      </I18nProvider>
+      <div ref={shellRef} className="game-root">
+        {body}
+      </div>
     );
   }
 
@@ -1246,7 +1264,6 @@ export default function GameApp({
   return (
     // Same root element as the non-game screens above (same type, same
     // position), so React reuses the node and the fullscreen session holds.
-    <I18nProvider locale={locale}>
     <div ref={shellRef} className="game-shell game-root">
       {/*
         A visually-hidden input that holds focus during a run. On mobile it
@@ -1408,6 +1425,5 @@ export default function GameApp({
         />
       ) : null}
     </div>
-    </I18nProvider>
   );
 }

@@ -12,18 +12,23 @@ import {
 import { DIFFICULTY_LABEL } from "../../lib/game/modes";
 import { buildHash } from "../../lib/game/url";
 import { playHref } from "../../lib/score/format";
-import { useT } from "../../i18n/react";
+import type { Locale } from "../../i18n/locales";
+import { useT, useLocale, withLocale } from "../../i18n/react";
 import Leaderboard from "./Leaderboard";
 
 /** A challenge run link: the track, with the modifier and style in the hash. */
-function challengeHref(challenge: ChallengeBoard, style: "type" | "sing"): string {
+function challengeHref(
+  challenge: ChallengeBoard,
+  style: "type" | "sing",
+  locale: Locale,
+): string {
   const hash = buildHash({
     mode: challenge.modifier.difficulty,
     failMode: challenge.modifier.runMode,
     speed: challenge.modifier.speed,
     style,
   });
-  return `${playHref(challenge.trackId, "youtube")}${hash}`;
+  return `${playHref(challenge.trackId, "youtube", locale)}${hash}`;
 }
 
 function ChallengeCard({
@@ -34,6 +39,7 @@ function ChallengeCard({
   challenge: ChallengeBoard;
 }) {
   const t = useT();
+  const locale = useLocale();
   return (
     <div className="score-card">
       <p className="comment">
@@ -54,10 +60,10 @@ function ChallengeCard({
         <span className="chip">{challenge.modifier.speed}×</span>
       </div>
       <p className="mt-4 flex flex-wrap gap-2">
-        <a className="btn-game btn-game--primary" href={challengeHref(challenge, "type")}>
+        <a className="btn-game btn-game--primary" href={challengeHref(challenge, "type", locale)}>
           {t("challenge.playTyping")}
         </a>
-        <a className="btn-game" href={challengeHref(challenge, "sing")}>
+        <a className="btn-game" href={challengeHref(challenge, "sing", locale)}>
           {t("challenge.playSinging")}
         </a>
       </p>
@@ -76,7 +82,7 @@ function ChallengeCard({
   );
 }
 
-export default function ChallengeView() {
+function ChallengeView() {
   const t = useT();
   const [data, setData] = useState<ChallengesResponse | null>(null);
   const [failed, setFailed] = useState(false);
@@ -106,3 +112,5 @@ export default function ChallengeView() {
     </div>
   );
 }
+
+export default withLocale(ChallengeView);

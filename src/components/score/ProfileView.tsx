@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchProfile, type ProfileResponse } from "../../lib/score/client";
-import { useT } from "../../i18n/react";
+import { useT, withLocale } from "../../i18n/react";
 import ScoreList from "./ScoreList";
 
 type State = "loading" | "ready" | "missing";
@@ -19,7 +19,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function ProfileView() {
+function ProfileView() {
   const t = useT();
   const [state, setState] = useState<State>("loading");
   const [data, setData] = useState<ProfileResponse | null>(null);
@@ -88,3 +88,5 @@ export default function ProfileView() {
     </div>
   );
 }
+
+export default withLocale(ProfileView);

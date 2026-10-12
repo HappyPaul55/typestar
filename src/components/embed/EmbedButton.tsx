@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { sourceFromLocation } from "../../lib/game/client";
 import { videoIdOf } from "../../lib/track/source";
-import { useT } from "../../i18n/react";
+import { useT, withLocale } from "../../i18n/react";
 
 /** The embed URL for the current page, or `null` when there is none. */
 function embedUrl(): string | null {
@@ -23,7 +23,7 @@ function snippet(url: string): string {
   return `<iframe src="${url}" width="640" height="360" style="border:0;max-width:100%" allow="autoplay; fullscreen; microphone" loading="lazy" title="TypeStar"></iframe>`;
 }
 
-export default function EmbedButton() {
+function EmbedButton() {
   const t = useT();
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -51,3 +51,5 @@ export default function EmbedButton() {
     </button>
   );
 }
+
+export default withLocale(EmbedButton);

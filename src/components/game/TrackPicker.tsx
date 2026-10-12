@@ -7,7 +7,8 @@ import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import { sourceFromInput } from "../../lib/game/client";
 import { supportsLocalLibrary } from "../../lib/local/library";
 import { RATING_LABEL, type TrackRating } from "../../lib/track/rating";
-import { useT } from "../../i18n/react";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale } from "../../i18n/react";
 import TrackCard from "./TrackCard";
 
 export default function TrackPicker({
@@ -26,6 +27,7 @@ export default function TrackPicker({
   onOpenLocal?(): void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   // The File System Access API only exists in some browsers. Checking during
@@ -47,13 +49,15 @@ export default function TrackPicker({
     }
     if (source.kind === "youtube") {
       if (onOpen) onOpen(source.id);
-      else window.location.href = `/play/youtube/${source.id}${window.location.hash}`;
+      else {
+        window.location.href = `${localePath(locale, `/play/youtube/${source.id}`)}${window.location.hash}`;
+      }
       return;
     }
     if (onOpenUltraStar) {
       onOpenUltraStar(source.url);
     } else {
-      window.location.href = `/play/ultrastar/${encodeURIComponent(source.url)}${window.location.hash}`;
+      window.location.href = `${localePath(locale, `/play/ultrastar/${encodeURIComponent(source.url)}`)}${window.location.hash}`;
     }
   }
 
@@ -124,7 +128,7 @@ export default function TrackPicker({
               <div className="track-picker__local-action">
                 <a
                   className="btn-game btn-game--primary"
-                  href="/play/local"
+                  href={localePath(locale, "/play/local")}
                   onClick={openLocal}
                 >
                   {t("picker.openLocal")}
@@ -160,7 +164,7 @@ export default function TrackPicker({
             return (
               <TrackCard
                 key={track.id}
-                href={`/play/youtube/${track.id}`}
+                href={localePath(locale, `/play/youtube/${track.id}`)}
                 title={track.title}
                 subtitle={track.artist}
                 onOpen={onOpen ? () => onOpen(track.id) : undefined}

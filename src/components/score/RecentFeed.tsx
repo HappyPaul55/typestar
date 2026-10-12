@@ -5,10 +5,10 @@
 
 import { useEffect, useState } from "react";
 import { fetchRecent, type RecentEntry } from "../../lib/score/client";
-import { useT } from "../../i18n/react";
+import { useT, withLocale } from "../../i18n/react";
 import ScoreList from "./ScoreList";
 
-export default function RecentFeed() {
+function RecentFeed() {
   const t = useT();
   const [rows, setRows] = useState<RecentEntry[] | null>(null);
 
@@ -26,3 +26,5 @@ export default function RecentFeed() {
 
   return <ScoreList rows={rows} showPlayer empty={t("recent.empty")} />;
 }
+
+export default withLocale(RecentFeed);

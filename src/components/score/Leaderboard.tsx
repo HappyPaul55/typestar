@@ -4,7 +4,8 @@
  */
 
 import type { LeaderboardEntry } from "../../lib/score/types";
-import { useT } from "../../i18n/react";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale } from "../../i18n/react";
 
 export default function Leaderboard({
   entries,
@@ -14,6 +15,7 @@ export default function Leaderboard({
   empty?: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   if (entries.length === 0) {
     return <p className="score-empty">{empty ?? t("leaderboard.empty")}</p>;
   }
@@ -37,7 +39,7 @@ export default function Leaderboard({
             <td className="score-table__rank">{entry.rank}</td>
             <td>
               {entry.handle ? (
-                <a href={`/u/${encodeURIComponent(entry.handle)}`}>
+                <a href={localePath(locale, `/u/${encodeURIComponent(entry.handle)}`)}>
                   {entry.displayName || entry.handle}
                 </a>
               ) : (
