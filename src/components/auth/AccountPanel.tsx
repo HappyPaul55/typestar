@@ -9,8 +9,23 @@
 
 import { useEffect, useState } from "react";
 import { authClient, useSession } from "../../lib/auth/client";
-import { handleError, normalizeHandle } from "../../lib/auth/validate";
+import {
+  handleErrorCode,
+  HANDLE_MAX,
+  HANDLE_MIN,
+  normalizeHandle,
+  type HandleError,
+} from "../../lib/auth/validate";
 import { useT } from "../../i18n/react";
+import type { MessageKey } from "../../i18n";
+
+/** Map a validation code to its dictionary key. */
+const HANDLE_ERROR_KEY: Record<HandleError, MessageKey> = {
+  empty: "handle.empty",
+  length: "handle.length",
+  charset: "handle.charset",
+  reserved: "handle.reserved",
+};
 
 export default function AccountPanel() {
   const t = useT();
@@ -66,14 +81,14 @@ function SignedIn() {
 
   async function saveHandle() {
     setSaved(false);
-    const message = handleError(handle);
-    if (message) {
-      setError(message);
+    const code = handleErrorCode(handle);
+    if (code) {
+      setError(t(HANDLE_ERROR_KEY[code], { min: HANDLE_MIN, max: HANDLE_MAX }));
       return;
     }
     const normalized = normalizeHandle(handle);
     if (!normalized) {
-      setError("That handle can’t be used.");
+      setError(t("account.handleInvalid"));
       return;
     }
     setBusy(true);
@@ -83,10 +98,7 @@ function SignedIn() {
     });
     setBusy(false);
     if (apiError) {
-      setError(
-        apiError.message ??
-          "That handle is taken or invalid. Please try another.",
-      );
+      setError(apiError.message ?? t("account.handleTaken"));
       return;
     }
     setHandle(normalized);
@@ -99,7 +111,7 @@ function SignedIn() {
     const { error: apiError } = await authClient.deleteUser();
     setBusy(false);
     if (apiError) {
-      setError(apiError.message ?? "Could not delete the account.");
+      setError(apiError.message ?? t("account.deleteFailed"));
       return;
     }
     window.location.assign("/");

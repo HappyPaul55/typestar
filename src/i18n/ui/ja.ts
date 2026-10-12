@@ -239,6 +239,14 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "account.deleteConfirm": "アカウントとすべてのデータを削除しますか？",
   "account.deleteYes": "はい、削除する",
   "account.cancel": "キャンセル",
+  "account.handleInvalid": "そのハンドルは使用できません。",
+  "account.handleTaken": "そのハンドルは使用済みか無効です。もう一度お試しください。",
+  "account.deleteFailed": "アカウントを削除できませんでした。",
+  "handle.empty": "ハンドルを入力してください。",
+  "handle.length": "ハンドルは{min}–{max}文字です。",
+  "handle.charset":
+    "小文字、数字、アンダースコアのみを使用し、先頭と末尾は文字または数字にしてください。",
+  "handle.reserved": "そのハンドルは予約されています。",
 
   // Embed
   "embed.button": "埋め込み",

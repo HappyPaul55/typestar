@@ -237,6 +237,14 @@ export const es: Partial<Record<MessageKey, string>> = {
   "account.deleteConfirm": "¿Eliminar tu cuenta y todos sus datos?",
   "account.deleteYes": "Sí, eliminar",
   "account.cancel": "Cancelar",
+  "account.handleInvalid": "Ese nombre no se puede usar.",
+  "account.handleTaken": "Ese nombre ya está en uso o no es válido. Inténtalo de nuevo.",
+  "account.deleteFailed": "No se pudo eliminar la cuenta.",
+  "handle.empty": "Elige un nombre de usuario.",
+  "handle.length": "El nombre debe tener entre {min} y {max} caracteres.",
+  "handle.charset":
+    "Usa solo letras minúsculas, números y guiones bajos, empezando y terminando por una letra o un número.",
+  "handle.reserved": "Ese nombre está reservado.",
 
   // Embed
   "embed.button": "Insertar",

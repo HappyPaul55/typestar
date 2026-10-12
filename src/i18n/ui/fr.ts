@@ -239,6 +239,14 @@ export const fr: Partial<Record<MessageKey, string>> = {
   "account.deleteConfirm": "Supprimer votre compte et toutes ses données ?",
   "account.deleteYes": "Oui, supprimer",
   "account.cancel": "Annuler",
+  "account.handleInvalid": "Ce pseudo ne peut pas être utilisé.",
+  "account.handleTaken": "Ce pseudo est déjà pris ou invalide. Veuillez réessayer.",
+  "account.deleteFailed": "Impossible de supprimer le compte.",
+  "handle.empty": "Choisissez un pseudo.",
+  "handle.length": "Un pseudo fait {min}–{max} caractères.",
+  "handle.charset":
+    "Utilisez uniquement des lettres minuscules, des chiffres et des traits de soulignement, en commençant et en terminant par une lettre ou un chiffre.",
+  "handle.reserved": "Ce pseudo est réservé.",
 
   // Embed
   "embed.button": "Intégrer",

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  handleError,
+  handleErrorCode,
   normalizeEmail,
   normalizeHandle,
   RESERVED_HANDLES,
@@ -37,16 +37,18 @@ describe("normalizeHandle", () => {
   });
 });
 
-describe("handleError", () => {
+describe("handleErrorCode", () => {
   test("returns null for a good handle", () => {
-    expect(handleError("player_one")).toBeNull();
+    expect(handleErrorCode("player_one")).toBeNull();
   });
 
-  test("explains each rejection", () => {
-    expect(handleError("")).toMatch(/choose/i);
-    expect(handleError("ab")).toMatch(/3–20/);
-    expect(handleError("bad handle")).toMatch(/lowercase/i);
-    expect(handleError("admin")).toMatch(/reserved/i);
+  test("names each rejection", () => {
+    expect(handleErrorCode("")).toBe("empty");
+    expect(handleErrorCode("ab")).toBe("length");
+    expect(handleErrorCode("a".repeat(21))).toBe("length");
+    expect(handleErrorCode("bad handle")).toBe("charset");
+    expect(handleErrorCode("has-dash")).toBe("charset");
+    expect(handleErrorCode("admin")).toBe("reserved");
   });
 });
 

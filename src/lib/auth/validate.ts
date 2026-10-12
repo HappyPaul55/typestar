@@ -32,8 +32,8 @@ export const RESERVED_HANDLES: ReadonlySet<string> = new Set([
   "you",
 ]);
 
-const HANDLE_MIN = 3;
-const HANDLE_MAX = 20;
+export const HANDLE_MIN = 3;
+export const HANDLE_MAX = 20;
 
 /** Lowercase and trim a handle, returning `null` when it is not valid. */
 export function normalizeHandle(raw: string): string | null {
@@ -43,17 +43,16 @@ export function normalizeHandle(raw: string): string | null {
   return handle;
 }
 
-/** A friendly reason a handle was rejected, for inline form feedback. */
-export function handleError(raw: string): string | null {
+/** Why a handle was rejected, so the UI can localise the message. */
+export type HandleError = "empty" | "length" | "charset" | "reserved";
+
+/** The reason a handle is unusable, or `null` when it is fine. */
+export function handleErrorCode(raw: string): HandleError | null {
   const handle = raw.trim().toLowerCase();
-  if (!handle) return "Choose a handle.";
-  if (handle.length < HANDLE_MIN || handle.length > HANDLE_MAX) {
-    return `A handle is ${HANDLE_MIN}–${HANDLE_MAX} characters.`;
-  }
-  if (!HANDLE_RE.test(handle)) {
-    return "Use lowercase letters, numbers and underscores only, starting and ending with a letter or number.";
-  }
-  if (RESERVED_HANDLES.has(handle)) return "That handle is reserved.";
+  if (!handle) return "empty";
+  if (handle.length < HANDLE_MIN || handle.length > HANDLE_MAX) return "length";
+  if (!HANDLE_RE.test(handle)) return "charset";
+  if (RESERVED_HANDLES.has(handle)) return "reserved";
   return null;
 }
 

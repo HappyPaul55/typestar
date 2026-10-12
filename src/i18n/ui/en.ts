@@ -244,6 +244,14 @@ export const en = {
   "account.deleteConfirm": "Delete your account and all its data?",
   "account.deleteYes": "Yes, delete",
   "account.cancel": "Cancel",
+  "account.handleInvalid": "That handle can’t be used.",
+  "account.handleTaken": "That handle is taken or invalid. Please try again.",
+  "account.deleteFailed": "Could not delete the account.",
+  "handle.empty": "Choose a handle.",
+  "handle.length": "A handle is {min}–{max} characters.",
+  "handle.charset":
+    "Use lowercase letters, numbers and underscores only, starting and ending with a letter or number.",
+  "handle.reserved": "That handle is reserved.",
 
   // Embed
   "embed.button": "Embed",

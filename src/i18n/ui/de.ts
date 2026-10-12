@@ -216,6 +216,13 @@ export const de: Partial<Record<MessageKey, string>> = {
   "account.deleteConfirm": "Dein Konto und alle zugehörigen Daten löschen?",
   "account.deleteYes": "Ja, löschen",
   "account.cancel": "Abbrechen",
+  "account.handleInvalid": "Dieser Benutzername kann nicht verwendet werden.",
+  "account.handleTaken": "Dieser Benutzername ist vergeben oder ungültig. Bitte versuche es erneut.",
+  "account.deleteFailed": "Das Konto konnte nicht gelöscht werden.",
+  "handle.empty": "Wähle einen Benutzernamen.",
+  "handle.length": "Ein Benutzername hat {min}–{max} Zeichen.",
+  "handle.charset": "Verwende nur Kleinbuchstaben, Zahlen und Unterstriche, beginnend und endend mit einem Buchstaben oder einer Zahl.",
+  "handle.reserved": "Dieser Benutzername ist reserviert.",
 
   // Embed
   "embed.button": "Einbetten",
