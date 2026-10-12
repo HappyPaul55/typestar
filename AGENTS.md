@@ -473,6 +473,10 @@ page have all been deleted. `@astrojs/react` is kept for the game island.
   `bunx wrangler preview base-config secret put BETTER_AUTH_SECRET`). Onboard the
   sending domain to Email Sending (`bunx wrangler email sending enable
   typestar.happypaul55.com`) so the `EMAIL` binding can deliver sign-in links.
+  The preview database is listed **twice** in `wrangler.jsonc`: as `DB_PREVIEW`
+  at the top level, so `wrangler d1 migrations apply DB_PREVIEW --remote` can
+  target it (the CLI does not read the `previews` block), and inside `previews`,
+  which is the binding a preview build actually uses.
 - **Branch previews** build with `bunx wrangler preview` (Worker Previews) for
   every non-`main` branch, served at `<branch>.typestar.happypaul55.com` — the
   apex custom domain enabled for **Production and Preview** in the dashboard.

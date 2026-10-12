@@ -446,6 +446,10 @@ Accounts need three things set up once:
 1. **Create the D1 databases** and paste the printed ids into `wrangler.jsonc`:
    `bun run db:create` (production) and `bun run db:create:preview`. Then apply
    the schema with `bun run db:migrate` / `bun run db:migrate:preview`.
+   (The preview database appears twice in `wrangler.jsonc`: as `DB_PREVIEW` at
+   the top level, so `wrangler d1 migrations` can target it — it does not read
+   the `previews` block — and in `previews`, which is what a preview build
+   binds.)
 2. **Set the Better Auth secret** (≥32 characters) as a Worker secret:
    `bunx wrangler secret put BETTER_AUTH_SECRET`.
 3. **Onboard the sending domain** to Email Sending so the `EMAIL` binding can
