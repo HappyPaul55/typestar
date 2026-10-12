@@ -1,0 +1,10 @@
+---
+import Page from "../challenge.astro";
+import { nonDefaultLocales } from "../../i18n/locales";
+
+export function getStaticPaths() {
+  return nonDefaultLocales().map((locale) => ({ params: { locale } }));
+}
+---
+
+<Page />

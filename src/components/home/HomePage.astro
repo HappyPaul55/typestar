@@ -5,13 +5,15 @@ import Button from "../ui/Button.astro";
 import HeroArt from "./HeroArt.astro";
 import LocaleSwitcher from "./LocaleSwitcher.astro";
 import { localeFromPath, tFor } from "../../i18n/astro";
+import { localePath } from "../../i18n/paths";
 
 interface Props {
   site: SiteSettings;
 }
 
 const { site } = Astro.props;
-const t = tFor(localeFromPath(Astro.url.pathname));
+const locale = localeFromPath(Astro.url.pathname);
+const t = tFor(locale);
 
 const steps = [
   { n: "01", title: t("home.step1Title"), body: t("home.step1Body") },
@@ -42,10 +44,12 @@ const steps = [
             {site.description}
           </p>
           <div class="mt-9 flex flex-wrap gap-3.5">
-            <Button href="/play" variant="primary">
-              {t("nav.play")} {site.name} <span aria-hidden="true">→</span>
+            <Button href={localePath(locale, "/play")} variant="primary">
+              {t("nav.play")} <span aria-hidden="true">→</span>
             </Button>
-            <Button href="/privacy" variant="outlineInk">{t("nav.privacy")}</Button>
+            <Button href={localePath(locale, "/privacy")} variant="outlineInk"
+              >{t("nav.privacy")}</Button
+            >
           </div>
           <LocaleSwitcher />
         </div>

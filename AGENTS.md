@@ -31,8 +31,9 @@ iframe-able widget), `/privacy`, `/404`, and
 live behind `/api/auth/*` (Better Auth) and scores behind `/api/scores/*`. The
 legacy `/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
 The interface is localized: `en` is at the root and the other locales live under
-a `/<locale>` prefix (`/de`, `/fr`, `/es`, `/pt-BR`, `/ja`) — currently the
-landing page.
+a `/<locale>` prefix (`/de`, `/fr`, `/es`, `/pt-BR`, `/ja`) for every page.
+Internal links are built with `localePath`, and only the dynamic pretty routes
+run the Worker.
 
 Moving between those play routes is done **in place** (History `pushState` plus
 React state), never a full document navigation, so a **fullscreen** session
@@ -281,9 +282,13 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `/api/track/ultrastar?url=`, `/play?v=` and legacy `/play/<id>` → 301,
   `/play/youtube/<id>` and `/play/ultrastar/<url>` → the play page, with
   per-track SEO when the song is known.
-- `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding,
-  `run_worker_first: ["/api/*", "/play", "/play/*"]`, and the `previews` block
-  (the bindings and vars a branch Worker Preview uses).
+- `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding, and the
+  `previews` block (the bindings and vars a branch Worker Preview uses).
+  `run_worker_first` lists only the **dynamic** routes: `/api/*`, the play page
+  and its pretty sub-routes, `/u/*`, `/embed/*`, and the same sub-routes under
+  each locale (`/de/play/*`, `/de/u/*`, `/de/embed/*`, …). Plain localized pages
+  (`/de`, `/de/privacy`, `/de/play`, …) are static assets served straight from
+  the edge cache and never run the Worker.
 - `astro.config.mjs` — the `devServer` Vite plugin reproduces the Worker routing
   and runs the real API handler locally.
 - `public/tracks/*.json` — pre-warmed seed tracks (generated, committed).

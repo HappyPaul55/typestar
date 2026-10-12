@@ -10,6 +10,7 @@ import {
   playSourceFromPathname,
   type TrackSourceRef,
 } from "../track/source";
+import { stripLocale } from "../../i18n/paths";
 import { isTrack } from "../track/validate";
 
 export class TrackApiError extends Error {
@@ -97,9 +98,10 @@ export async function loadTrack(
  */
 export function sourceFromLocation(): TrackSourceRef | null {
   if (typeof window === "undefined") return null;
-  const fromPath =
-    playSourceFromPathname(window.location.pathname) ??
-    embedSourceFromPathname(window.location.pathname);
+  // The app routes are locale-prefixed (`/de/play/youtube/<id>`), so peel the
+  // locale off before reading the route.
+  const path = stripLocale(window.location.pathname);
+  const fromPath = playSourceFromPathname(path) ?? embedSourceFromPathname(path);
   if (fromPath) return fromPath;
 
   const params = new URLSearchParams(window.location.search);
@@ -118,7 +120,7 @@ export function sourceFromInput(value: string): TrackSourceRef | null {
 /** Whether the current URL is the local-file route (`/play/local`). */
 export function isLocalRoute(): boolean {
   if (typeof window === "undefined") return false;
-  return /^\/play\/local\/?$/.test(window.location.pathname);
+  return /^\/play\/local\/?$/.test(stripLocale(window.location.pathname));
 }
 
 /**

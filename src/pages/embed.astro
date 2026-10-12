@@ -3,13 +3,15 @@ import "../styles/global.css";
 import { getEntry } from "astro:content";
 import GameApp from "../components/game/GameApp.tsx";
 import { localeFromPath } from "../i18n/astro";
+import { localePath } from "../i18n/paths";
+import { HTML_LANG } from "../i18n/locales";
 
 const site = (await getEntry("site", "main"))!.data;
 const locale = localeFromPath(Astro.url.pathname);
 ---
 
 <!doctype html>
-<html lang={locale}>
+<html lang={HTML_LANG[locale]}>
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -32,7 +34,7 @@ const locale = localeFromPath(Astro.url.pathname);
     <GameApp client:load site={site} embed locale={locale} />
     <a
       class="embed-badge"
-      href="/"
+      href={localePath(locale, "/")}
       target="_blank"
       rel="noopener noreferrer"
       title={`Play more on ${site.name}`}

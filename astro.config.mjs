@@ -18,6 +18,22 @@ const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 // session survives a hot reload.
 const DEV_AUTH_SECRET = "typestar-dev-only-insecure-secret-change-me";
 
+// The UI locales other than the default (`en`), for the dev route rewrites.
+const DEV_LOCALES = ["de", "fr", "es", "pt-BR", "ja"];
+
+/**
+ * Split a dev pathname into its leading locale (if any) and the rest, mirroring
+ * `splitLocale` in `src/i18n/paths.ts`.
+ * @param {string} path
+ */
+function splitLocale(path) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length > 0 && DEV_LOCALES.includes(parts[0])) {
+    return { locale: parts[0], path: `/${parts.slice(1).join("/")}` };
+  }
+  return { locale: null, path };
+}
+
 // Env for the dev-only Turnstile gate. `.env*` is git-ignored; the values are
 // ignored entirely in a production build (the plugin only runs in `serve`).
 const env = loadEnv(
@@ -148,13 +164,15 @@ function devServer(env) {
         : undefined;
 
       server.middlewares.use((req, res, next) => {
-        const [path, query = ""] = (req.url ?? "").split("?");
+        const [rawPath, query = ""] = (req.url ?? "").split("?");
+        const { locale, path } = splitLocale(rawPath);
+        const prefix = locale ? `/${locale}` : "";
 
         if (path === "/play") {
           const video = new URLSearchParams(query).get("v");
           if (video && VIDEO_ID_RE.test(video)) {
             res.statusCode = 301;
-            res.setHeader("location", `/play/youtube/${video}`);
+            res.setHeader("location", `${prefix}/play/youtube/${video}`);
             res.end();
             return;
           }
@@ -164,7 +182,7 @@ function devServer(env) {
         const legacy = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(path);
         if (legacy) {
           res.statusCode = 301;
-          res.setHeader("location", `/play/youtube/${legacy[1]}`);
+          res.setHeader("location", `${prefix}/play/youtube/${legacy[1]}`);
           res.end();
           return;
         }
@@ -175,21 +193,21 @@ function devServer(env) {
           /^\/play\/youtube\/[^/]+\/?$/.test(path) ||
           /^\/play\/ultrastar\/.+\/?$/.test(path)
         ) {
-          req.url = "/play";
+          req.url = `${prefix}/play`;
           next();
           return;
         }
 
         // A public profile at `/u/<handle>` renders the `/u` page.
         if (path === "/u" || /^\/u\/[^/]+\/?$/.test(path)) {
-          req.url = "/u";
+          req.url = `${prefix}/u`;
           next();
           return;
         }
 
         // The embed widget at `/embed/...` renders the `/embed` page.
         if (path === "/embed" || /^\/embed\//.test(path)) {
-          req.url = "/embed";
+          req.url = `${prefix}/embed`;
           next();
           return;
         }
