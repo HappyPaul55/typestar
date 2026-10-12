@@ -27,11 +27,12 @@ create table if not exists "score" (
   "progress" real not null,
   "valid" integer not null default 1,
   "invalidReason" text,
+  "scoreVersion" integer not null,
   "createdAt" text not null
 );
 
 create index if not exists "score_board_idx"
-  on "score" ("trackId", "style", "difficulty", "runMode", "speed", "valid", "score");
+  on "score" ("trackId", "style", "difficulty", "runMode", "speed", "scoreVersion", "valid", "score");
 
 create index if not exists "score_user_idx"
   on "score" ("userId", "createdAt");

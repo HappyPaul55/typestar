@@ -27,8 +27,13 @@ typing / keyboard speed game**.
   setting above.
 - A **Skip** tab appears under the intro cue when a song opens with more than
   two seconds of music, jumping to just before the first lyric.
-- Scoring rewards chains: a combo multiplier up to ×3 and a bonus for every
-  clean line. Wrong keys cost more than a missed word.
+- Scoring is **per keystroke**: each correct character is graded **Perfect /
+  Great / Good** by how late it is (early is free), scaled by a combo multiplier
+  up to ×3, with a bonus for every clean line. Wrong keys cost more than a
+  missed word. Singing grades each note by how long it is held in tune, with a
+  sustain bonus for long notes and an escalating golden-note chain. A
+  `SCORE_VERSION` is stored with every score, so a board never mixes scoring
+  eras.
 - Typing is forgiving: if you start a later word (say “stra to love” for
   “strangers to love”), the game skips the words you passed over, counts them
   missed and carries on instead of holding you on the old word. A key that isn't

@@ -38,6 +38,9 @@ export function singConfig(track: Track | null, run: RunSettings): SingConfig {
   return makeSingConfig(track?.notes ?? [], {
     offset: run.offset,
     tolerance: SING_TOLERANCE[run.difficulty],
+    // Hard is octave-strict; easy and normal forgive an octave (the format's
+    // convention that singers are not penalised for it).
+    octaveInsensitive: run.difficulty !== "hard",
     failMode: run.runMode,
   });
 }
@@ -173,6 +176,7 @@ export const SingGame: GameEngine<SingState> = {
     const metrics: Metric[] = [
       { label: "pitch accuracy", value: `${accuracy}%` },
       { label: "notes", value: `${state.hits}/${notes}` },
+      { label: "perfect notes", value: `${state.perfectNotes}` },
       { label: "best combo", value: `×${state.maxCombo}` },
       { label: "time", value: formatTime(ctx.time) },
       ...runMetrics(run, run.runMode === "practise" ? state.replays : undefined),

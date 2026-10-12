@@ -55,7 +55,7 @@ describe("createEngine", () => {
 
 describe("bestKey", () => {
   test("is one scheme, keyed by style and every setting", () => {
-    expect(bestKey("type", "abc", RUN)).toBe("best:type:abc:normal:fun:1");
+    expect(bestKey("type", "abc", RUN)).toBe("best:v2:type:abc:normal:fun:1");
     expect(bestKey("sing", "abc", RUN)).not.toBe(bestKey("type", "abc", RUN));
     expect(bestKey("type", "abc", { ...RUN, speed: 1.25 })).not.toBe(
       bestKey("type", "abc", RUN),

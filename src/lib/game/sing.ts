@@ -27,9 +27,10 @@ import {
   type Rank,
 } from "./engine";
 import type { TrackNote } from "../track/types";
+import { holdGradeOf, HOLD_GOOD, type Grade } from "./tiers";
 
-/** Fraction of a note's span that must be in tune for it to count as a hit. */
-const HIT_FRACTION = 0.4;
+/** Extra points per second a long note is held past the "good" threshold. */
+const SUSTAIN_RATE = 30;
 
 /** How far before a note may be sung. */
 const DEFAULT_SING_LEAD = 0.2;
@@ -78,6 +79,11 @@ export interface SingState {
   misses: number;
   /** Consecutive missed notes without a hit (reset by a hit). */
   missStreak: number;
+  /** Consecutive golden notes hit; escalates the golden bonus. */
+  goldenChain: number;
+  /** Notes graded perfect, and golden notes hit (stats). */
+  perfectNotes: number;
+  goldenNotes: number;
   /** Pitched frames heard while a note was active. */
   pitchedSamples: number;
   /** Of those, how many were within tolerance. */
@@ -115,6 +121,9 @@ export function createSingState(noteCount: number): SingState {
     hits: 0,
     misses: 0,
     missStreak: 0,
+    goldenChain: 0,
+    perfectNotes: 0,
+    goldenNotes: 0,
     pitchedSamples: 0,
     inTuneSamples: 0,
     noteInTune: Array.from({ length: noteCount }, () => 0),
@@ -189,6 +198,32 @@ function frameInTune(
   return pitchDistance(midi, expected, config.octaveInsensitive) <= config.tolerance;
 }
 
+/**
+ * Score one resolved note: a graded hit (perfect / great / good by how much of
+ * its span was held in tune), a sustain bonus for long notes, and an escalating
+ * bonus for consecutive golden notes. Returns the new golden chain.
+ */
+function notePoints(
+  note: TrackNote,
+  fraction: number,
+  combo: number,
+  goldenChain: number,
+): { points: number; chain: number; grade: Grade } {
+  const { grade, multiplier } = holdGradeOf(fraction);
+  const golden = note.kind === "golden" || note.kind === "goldenRap";
+  const duration = Math.max(note.end - note.start, 0.05);
+  const held = fraction * duration;
+  const sustain = Math.round(SUSTAIN_RATE * Math.max(0, held - HOLD_GOOD * duration));
+  const chain = golden ? goldenChain + 1 : 0;
+  const chainMultiplier = golden ? 1 + 0.1 * Math.min(chain - 1, 5) : 1;
+  const base = HIT_BASE * multiplier + sustain;
+  return {
+    points: Math.round(base * (golden ? 2 : 1) * chainMultiplier * comboTier(combo)),
+    chain,
+    grade,
+  };
+}
+
 /** Send the singer back to replay the last few seconds (Practise mode). */
 function practiseRewind(state: SingState, time: number, config: SingConfig): SingState {
   const target = Math.max(0, time - PRACTISE_REWIND);
@@ -207,6 +242,7 @@ function practiseRewind(state: SingState, time: number, config: SingConfig): Sin
     noteInTune: state.noteInTune.map((seconds, index) => (index < pointer ? seconds : 0)),
     combo: 0,
     missStreak: 0,
+    goldenChain: 0,
     replays: state.replays + 1,
     rewindTo: target,
     ignoreUntil: time,
@@ -234,6 +270,9 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
   let hits = state.hits;
   let misses = state.misses;
   let missStreak = state.missStreak;
+  let goldenChain = state.goldenChain;
+  let perfectNotes = state.perfectNotes;
+  let goldenNotes = state.goldenNotes;
   let changed = false;
 
   while (pointer < config.notes.length) {
@@ -243,8 +282,9 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
     const duration = Math.max(note.end - note.start, 0.05);
     const fraction = Math.min(1, state.noteInTune[pointer] / duration);
     const golden = note.kind === "golden" || note.kind === "goldenRap";
+    const { grade } = holdGradeOf(fraction);
 
-    if (fraction >= HIT_FRACTION) {
+    if (grade !== "miss") {
       if (!changed) {
         results = [...results];
         changed = true;
@@ -253,12 +293,13 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
       hits += 1;
       missStreak = 0;
       if (!ignoring) {
-        const points = Math.round(
-          HIT_BASE * fraction * (golden ? 2 : 1) * comboTier(combo),
-        );
-        score += points;
+        const scored = notePoints(note, fraction, combo, goldenChain);
+        score += scored.points;
+        goldenChain = scored.chain;
         combo += 1;
         maxCombo = Math.max(maxCombo, combo);
+        if (grade === "perfect") perfectNotes += 1;
+        if (golden) goldenNotes += 1;
       }
       pointer += 1;
       continue;
@@ -276,6 +317,9 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
           maxCombo,
           hits,
           misses,
+          goldenChain,
+          perfectNotes,
+          goldenNotes,
         },
         time,
         config,
@@ -291,6 +335,7 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
     missStreak += 1;
     if (!ignoring) {
       combo = 0;
+      goldenChain = 0;
       score -= MISS_PENALTY;
     }
     pointer += 1;
@@ -306,6 +351,9 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
         hits,
         misses,
         missStreak,
+        goldenChain,
+        perfectNotes,
+        goldenNotes,
         finished: pointer >= config.notes.length,
         failed: true,
         failReason: "mistake",
@@ -324,6 +372,9 @@ function resolveDue(state: SingState, time: number, config: SingConfig): SingSta
     hits,
     misses,
     missStreak,
+    goldenChain,
+    perfectNotes,
+    goldenNotes,
     finished: pointer >= config.notes.length,
   };
   if (missStreakEndsRun(config.failMode) && missStreak >= MISS_STREAK_LIMIT) {
@@ -385,6 +436,9 @@ function finish(state: SingState, config: SingConfig): SingState {
   let maxCombo = state.maxCombo;
   let hits = state.hits;
   let misses = state.misses;
+  let goldenChain = state.goldenChain;
+  let perfectNotes = state.perfectNotes;
+  let goldenNotes = state.goldenNotes;
   let changed = false;
 
   while (pointer < config.notes.length) {
@@ -396,16 +450,22 @@ function finish(state: SingState, config: SingConfig): SingState {
       results = [...results];
       changed = true;
     }
-    if (fraction >= HIT_FRACTION) {
+    const { grade } = holdGradeOf(fraction);
+    if (grade !== "miss") {
+      const scored = notePoints(note, fraction, combo, goldenChain);
       results[pointer] = "hit";
-      score += Math.round(HIT_BASE * fraction * (golden ? 2 : 1) * comboTier(combo));
+      score += scored.points;
+      goldenChain = scored.chain;
       hits += 1;
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
+      if (grade === "perfect") perfectNotes += 1;
+      if (golden) goldenNotes += 1;
     } else {
       results[pointer] = "miss";
       misses += 1;
       combo = 0;
+      goldenChain = 0;
     }
     pointer += 1;
   }
@@ -422,6 +482,9 @@ function finish(state: SingState, config: SingConfig): SingState {
     maxCombo,
     hits,
     misses,
+    goldenChain,
+    perfectNotes,
+    goldenNotes,
     finished: true,
   };
 }

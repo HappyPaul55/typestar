@@ -10,6 +10,7 @@
 
 import type { TrackLine, TrackWord } from "../track/types";
 import { normaliseHard } from "../track/parse";
+import { gradeOf } from "./tiers";
 
 export type GameMode = "easy" | "normal" | "hard";
 
@@ -60,6 +61,16 @@ export const PRACTISE_REWIND = 5;
 
 /** Base points for a perfectly-timed hit. */
 export const HIT_BASE = 100;
+/**
+ * Base points for one correctly-timed character. Typing is scored per key (see
+ * `press`), so a typical five-letter word is worth about {@link HIT_BASE}.
+ */
+const HIT_BASE_PER_CHAR = 20;
+/**
+ * Bumped whenever the scoring maths changes. Stored with every score, so a
+ * leaderboard only ever compares runs scored the same way.
+ */
+export const SCORE_VERSION = 2;
 /** Points lost for a wrong keystroke (and the chain breaks). */
 export const WRONG_PENALTY = 20;
 /** Points lost for letting a word pass (smaller than a wrong key). */
@@ -138,6 +149,10 @@ export interface GameState {
   errorKeys: number;
   /** Whole lines cleared without a miss or a wrong key. */
   perfectLines: number;
+  /** Correct characters graded perfect / great / good (typing). */
+  perfectChars: number;
+  greatChars: number;
+  goodChars: number;
   /** Wrong keys made while typing the current line. */
   lineWrong: number;
   finished: boolean;
@@ -211,6 +226,9 @@ export function createGameState(wordCount: number): GameState {
     correctKeys: 0,
     errorKeys: 0,
     perfectLines: 0,
+    perfectChars: 0,
+    greatChars: 0,
+    goodChars: 0,
     lineWrong: 0,
     finished: wordCount === 0,
     failed: false,
@@ -616,43 +634,61 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
 
   const input = state.input + key;
   const correctKeys = state.correctKeys + 1;
+  const requiredLen = required.length;
 
-  if (input.length < required.length) {
-    return { ...state, input, correctKeys };
-  }
+  // Per-character timing: each character has its own expected moment, spread
+  // across the word's span (the first at the start, the last at the end). Early
+  // is free; only lateness degrades through the grades.
+  const duration = Math.max(word.end - word.start, 0.15);
+  const charIndex = state.input.length;
+  const expectedTime =
+    word.start +
+    config.offset +
+    (requiredLen > 1 ? (charIndex / (requiredLen - 1)) * duration : 0);
+  const { grade, multiplier } = gradeOf(time - expectedTime);
+
+  // During a Practise replay the section is score-neutral.
+  const points = ignoring
+    ? 0
+    : Math.round(HIT_BASE_PER_CHAR * multiplier * comboTier(state.combo));
+
+  const graded: GameState = {
+    ...state,
+    input,
+    correctKeys,
+    score: state.score + points,
+    perfectChars: state.perfectChars + (grade === "perfect" ? 1 : 0),
+    greatChars: state.greatChars + (grade === "great" ? 1 : 0),
+    goodChars: state.goodChars + (grade === "good" ? 1 : 0),
+  };
+
+  if (input.length < requiredLen) return graded;
 
   if (ignoring) {
     // Clear the word but change no score, combo or bonus.
-    const results = [...state.results];
+    const results = [...graded.results];
     results[state.pointer] = "hit";
     const pointer = state.pointer + 1;
     let lineWrong = state.lineWrong;
     if (lineEnds(state.pointer, config)) lineWrong = 0;
     return {
-      ...state,
+      ...graded,
       pointer,
       input: "",
       results,
       hits: state.hits + 1,
       missStreak: 0,
-      correctKeys,
       lineWrong,
       finished: pointer >= config.words.length,
     };
   }
 
-  const start = word.start + config.offset;
-  const duration = Math.max(word.end - word.start, 0.15);
-  const delta = time - start;
-  const timing = delta <= 0 ? 1 : Math.max(0, 1 - delta / (duration + config.grace));
-  const points = Math.round(HIT_BASE * timing * comboTier(state.combo));
-
-  const results = [...state.results];
+  const results = [...graded.results];
   results[state.pointer] = "hit";
   const combo = state.combo + 1;
   const pointer = state.pointer + 1;
 
-  let score = state.score + points;
+  let score = graded.score;
   let perfectLines = state.perfectLines;
   let lineWrong = state.lineWrong;
   if (lineEnds(state.pointer, config)) {
@@ -664,7 +700,7 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
   }
 
   return {
-    ...state,
+    ...graded,
     pointer,
     input: "",
     results,
@@ -673,7 +709,6 @@ function press(state: GameState, rawKey: string, time: number, config: GameConfi
     maxCombo: Math.max(state.maxCombo, combo),
     hits: state.hits + 1,
     missStreak: 0,
-    correctKeys,
     perfectLines,
     lineWrong,
     finished: pointer >= config.words.length,

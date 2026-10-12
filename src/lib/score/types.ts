@@ -48,6 +48,8 @@ export interface ScoreRecord {
   progress: number;
   valid: boolean;
   invalidReason: InvalidReason | null;
+  /** The scoring algorithm version this score was computed with. */
+  scoreVersion: number;
   createdAt: string;
 }
 

@@ -116,6 +116,7 @@ export const TypeGame: GameEngine<GameState> = {
       elapsed > 0 ? Math.round(state.correctKeys / 5 / (elapsed / 60)) : 0;
     const metrics: Metric[] = [
       { label: "accuracy", value: `${Math.round(accuracy * 100)}%` },
+      { label: "perfect hits", value: `${state.perfectChars}` },
       { label: "best combo", value: `×${state.maxCombo}` },
       { label: "perfect lines", value: `${state.perfectLines}` },
       { label: "words", value: `${state.hits}/${state.hits + state.misses}` },

@@ -19,7 +19,7 @@ import type {
   Rank,
   WordResult,
 } from "./engine";
-import { DEFAULT_SPEED, SPEED_LABEL } from "./engine";
+import { DEFAULT_SPEED, SCORE_VERSION, SPEED_LABEL } from "./engine";
 import type { PlayStyle } from "./modes";
 import type { NoteResult } from "./sing";
 import type { Track } from "../track/types";
@@ -168,9 +168,10 @@ export interface GameEngine<S = unknown> {
 export type AnyGameEngine = GameEngine<any>;
 
 /** The personal-best key. One scheme for every style, so results stay
- * consistent: style + track + difficulty + run mode + speed. */
+ * consistent: style + track + difficulty + run mode + speed. The scoring
+ * version is included, so a change to the maths starts a fresh set of bests. */
 export function bestKey(style: PlayStyle, trackId: string, run: RunSettings): string {
-  return `best:${style}:${trackId}:${run.difficulty}:${run.runMode}:${run.speed}`;
+  return `best:v${SCORE_VERSION}:${style}:${trackId}:${run.difficulty}:${run.runMode}:${run.speed}`;
 }
 
 /**
