@@ -178,6 +178,10 @@ export const fr: Partial<Record<MessageKey, string>> = {
   "seo.ogAlt":
     "{name} — une tuile « TS » jaune à côté du titre sur un fond de carnet sombre",
   "seo.requiresJs": "JavaScript requis",
+  "privacy.updated": "Dernière mise à jour le {date}",
+  "privacy.banner":
+    "Cette politique a été traduite pour votre commodité. La version anglaise fait foi — en cas de divergence, c'est le texte anglais qui s'applique.",
+  "privacy.bannerLink": "Lire la politique en anglais",
 
   // Game status (island)
   "game.loadingTrack": "Chargement du morceau…",

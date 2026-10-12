@@ -19,7 +19,13 @@ const site = defineCollection({
 });
 
 const legal = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/legal" }),
+  loader: glob({
+    pattern: "**/*.md",
+    base: "./src/content/legal",
+    // Keep the dot-separated locale suffix as the id (`privacy.de`), which the
+    // default slugifier would strip.
+    generateId: ({ entry }) => entry.replace(/\.md$/, ""),
+  }),
   schema: z.object({
     title: z.string(),
     description: z.string(),

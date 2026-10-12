@@ -177,6 +177,10 @@ export const ptBR: Partial<Record<MessageKey, string>> = {
   "seo.ogAlt":
     "{name} — um bloco “TS” amarelo ao lado do título num fundo de caderno escuro",
   "seo.requiresJs": "Requer JavaScript",
+  "privacy.updated": "Última atualização em {date}",
+  "privacy.banner":
+    "Esta política foi traduzida para sua conveniência. A versão em inglês é a fonte de referência — se houver qualquer divergência, o texto em inglês prevalece.",
+  "privacy.bannerLink": "Ler a política em inglês",
 
   // Game status (island)
   "game.loadingTrack": "Carregando música…",

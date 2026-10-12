@@ -183,6 +183,10 @@ export const en = {
   "common.skipToContent": "Skip to content",
   "seo.ogAlt": "{name} — a yellow “TS” tile beside the title on a dark notebook background",
   "seo.requiresJs": "Requires JavaScript",
+  "privacy.updated": "Last updated {date}",
+  "privacy.banner":
+    "This policy has been translated for your convenience. The English version is the source of truth — if anything differs, the English text applies.",
+  "privacy.bannerLink": "Read the English policy",
 
   // Game status (island)
   "game.loadingTrack": "Loading track…",

@@ -178,6 +178,10 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "seo.ogAlt":
     "{name} — 暗いノート背景に、タイトルの横に並ぶ黄色い「TS」タイル",
   "seo.requiresJs": "JavaScriptが必要です",
+  "privacy.updated": "最終更新 {date}",
+  "privacy.banner":
+    "このポリシーは便宜のために翻訳されています。英語版が正式な原本であり、相違がある場合は英語の文面が適用されます。",
+  "privacy.bannerLink": "英語のポリシーを読む",
 
   // Game status (island)
   "game.loadingTrack": "曲を読み込み中…",

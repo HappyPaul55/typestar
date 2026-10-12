@@ -163,6 +163,9 @@ export const de: Partial<Record<MessageKey, string>> = {
   "common.skipToContent": "Zum Inhalt springen",
   "seo.ogAlt": "{name} — eine gelbe „TS“-Kachel neben dem Titel auf dunklem Notizbuch-Hintergrund",
   "seo.requiresJs": "Erfordert JavaScript",
+  "privacy.updated": "Zuletzt aktualisiert am {date}",
+  "privacy.banner": "Diese Richtlinie wurde zu deiner Bequemlichkeit übersetzt. Die englische Version ist maßgeblich — bei Abweichungen gilt der englische Text.",
+  "privacy.bannerLink": "Die englische Richtlinie lesen",
 
   // Game status (island)
   "game.loadingTrack": "Song wird geladen…",

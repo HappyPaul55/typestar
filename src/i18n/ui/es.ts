@@ -176,6 +176,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "common.skipToContent": "Ir al contenido",
   "seo.ogAlt": "{name} — una teja «TS» amarilla junto al título sobre un fondo oscuro de cuaderno",
   "seo.requiresJs": "Requiere JavaScript",
+  "privacy.updated": "Última actualización: {date}",
+  "privacy.banner":
+    "Esta política se ha traducido para tu comodidad. La versión en inglés es la fuente de referencia: si algo difiere, se aplica el texto en inglés.",
+  "privacy.bannerLink": "Leer la política en inglés",
 
   // Game status (island)
   "game.loadingTrack": "Cargando canción…",

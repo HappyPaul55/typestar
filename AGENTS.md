@@ -371,6 +371,13 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   in `.html`**, so `localeFromPath` strips it before reading the first segment.
   The current translations are machine-made and pending human review. The
   lyrics/caption `?lang=` is a separate concern.
+- **The privacy notice is per-locale, with English as the source of truth.**
+  `src/content/legal/privacy.md` is English; `privacy.<locale>.md` are
+  translations. `privacy.astro` picks the entry for the locale and falls back to
+  English if one is missing, and a translated notice shows a banner linking to
+  `/privacy`. The `legal` collection's glob loader sets
+  `generateId: ({ entry }) => entry.replace(/\.md$/, "")`, because the default
+  slugifier strips the dot and turns `privacy.de` into `privacyde`.
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is

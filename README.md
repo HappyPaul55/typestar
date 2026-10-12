@@ -354,6 +354,9 @@ the other locales live under a path prefix (`/de`, `/fr`, `/es`, `/pt-BR`,
   `inLanguage` follow the locale.
 - The **lyrics/caption language** (`?lang=` on the track API) is a separate
   concern from the UI locale and is not wired to it.
+- The **privacy notice** is translated too
+  (`src/content/legal/privacy.<locale>.md`). The English notice is the source of
+  truth, so a translated notice shows a banner linking back to it.
 - The current translations are **machine-made** and pending human review.
 
 ## Singing

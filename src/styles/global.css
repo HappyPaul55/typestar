@@ -2585,3 +2585,20 @@
 .locale-switcher a[aria-current="true"] {
   color: var(--color-yellow);
 }
+
+/* A "this is a translation" note above the legal text */
+.legal-note {
+  margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--color-line-strong);
+  border-left: 4px solid var(--color-yellow);
+  border-radius: var(--radius-brand);
+  background: var(--color-cream);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-ink-soft);
+}
+.legal-note a {
+  color: var(--color-ink);
+  font-weight: 700;
+}
