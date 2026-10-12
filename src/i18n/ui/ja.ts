@@ -220,7 +220,7 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "recent.loading": "最近のスコアを読み込み中…",
   "challenge.title": "デイリー＆ウィークリーチャレンジ",
   "challenge.lede":
-    "期間ごとに1曲と1つの修飾子、それぞれにタイピングと歌唱のボードがあります。全員共通で、自動的に切り替わります。",
+    "期間ごとに1曲、タイピングと歌唱それぞれのボードがあります。全員共通で、自動的に切り替わります。",
   "challenge.daily": "デイリー",
   "challenge.weekly": "ウィークリー",
   "challenge.playTyping": "タイピングでプレイ",

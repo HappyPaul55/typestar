@@ -1,23 +1,16 @@
 /**
  * The daily and weekly challenge.
  *
- * A challenge is derived purely from the date: one seeded (pre-warmed) track and
- * one modifier — a difficulty, a run mode and a playback speed — for the period.
- * There is no schedule to maintain and no cron: every server computes the same
- * challenge for the same moment, so its board is just a time-boxed query over
- * scores for that track and modifier.
+ * A challenge is derived purely from the date: one seeded (pre-warmed) track for
+ * the period, and nothing else — there is no difficulty, run mode or speed to
+ * play it under, so every run of the song counts. There is no schedule to
+ * maintain and no cron: every server computes the same challenge for the same
+ * moment, so its board is just a time-boxed query over scores for that track.
  */
 
 import { FEATURED_TRACKS, type FeaturedTrack } from "../../content/tracks/featured";
-import type { FailMode, GameMode, PlaybackSpeed } from "../game/engine";
 
 export type ChallengePeriod = "daily" | "weekly";
-
-export interface ChallengeModifier {
-  difficulty: GameMode;
-  runMode: FailMode;
-  speed: PlaybackSpeed;
-}
 
 export interface Challenge {
   period: ChallengePeriod;
@@ -28,14 +21,9 @@ export interface Challenge {
   track: FeaturedTrack;
   /** The namespaced track id (`youtube-<id>`). */
   trackId: string;
-  modifier: ChallengeModifier;
   startsAt: string;
   endsAt: string;
 }
-
-const DIFFICULTIES: GameMode[] = ["easy", "normal", "hard"];
-const RUN_MODES: FailMode[] = ["fun", "normal", "instant"];
-const SPEEDS: PlaybackSpeed[] = [0.75, 1, 1.25];
 
 /** A small deterministic hash of a string (FNV-1a). */
 function hash(value: string): number {
@@ -104,11 +92,6 @@ function build(
     key,
     track,
     trackId: `youtube-${track.id}`,
-    modifier: {
-      difficulty: pick(DIFFICULTIES, seed, 2),
-      runMode: pick(RUN_MODES, seed, 3),
-      speed: pick(SPEEDS, seed, 4),
-    },
     startsAt: start.toISOString(),
     endsAt: end.toISOString(),
   };

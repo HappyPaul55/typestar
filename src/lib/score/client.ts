@@ -61,7 +61,6 @@ export interface ChallengeBoard {
   period: "daily" | "weekly";
   track: { id: string; title: string; artist: string };
   trackId: string;
-  modifier: { difficulty: GameMode; runMode: FailMode; speed: PlaybackSpeed };
   startsAt: string;
   endsAt: string;
   boards: { type: LeaderboardEntry[]; sing: LeaderboardEntry[] };

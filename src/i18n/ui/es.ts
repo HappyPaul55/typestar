@@ -219,7 +219,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "recent.loading": "Cargando puntuaciones recientes…",
   "challenge.title": "Desafío diario y semanal",
   "challenge.lede":
-    "Una canción y un modificador por período, con sus propias tablas de escritura y canto. Igual para todos, y cambia solo.",
+    "Una canción por período, con sus propias tablas de escritura y canto. Igual para todos, y cambia solo.",
   "challenge.daily": "Diario",
   "challenge.weekly": "Semanal",
   "challenge.playTyping": "Jugar escribiendo",

@@ -226,7 +226,7 @@ export const en = {
   "recent.loading": "Loading recent scores…",
   "challenge.title": "Daily & weekly challenge",
   "challenge.lede":
-    "One song and one modifier per period, with its own typing and singing boards. The same for everyone, and it changes on its own.",
+    "One song per period, with its own typing and singing boards. The same for everyone, and it changes on its own.",
   "challenge.daily": "Daily",
   "challenge.weekly": "Weekly",
   "challenge.playTyping": "Play typing",

@@ -218,7 +218,7 @@ export const ptBR: Partial<Record<MessageKey, string>> = {
   "recent.loading": "Carregando pontuações recentes…",
   "challenge.title": "Desafio diário e semanal",
   "challenge.lede":
-    "Uma música e um modificador por período, com placares próprios de digitação e de canto. Igual para todos, e muda sozinho.",
+    "Uma música por período, com placares próprios de digitação e de canto. Igual para todos, e muda sozinho.",
   "challenge.daily": "Diário",
   "challenge.weekly": "Semanal",
   "challenge.playTyping": "Jogar digitando",

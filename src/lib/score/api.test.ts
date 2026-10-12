@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Track } from "../track/types";
 import { handleScoreRequest, type ScoreEnv } from "./api";
+import { currentChallenges } from "./challenge";
 import { createDevScoreStore } from "./dev-store";
 import { timelineChecksum, type TimelineEvent } from "./timeline";
 import type { SqlStore } from "./store";
@@ -155,7 +156,7 @@ describe("score API", () => {
     expect(body.reason).toBe("invalid-nonce");
   });
 
-  test("the challenge carries a seeded track, a modifier and boards", async () => {
+  test("the challenge carries a seeded track and boards", async () => {
     const env = await makeEnv();
     const response = await handleScoreRequest(get("/api/scores/challenge"), env);
     const body = (await response.json()) as {
@@ -165,5 +166,43 @@ describe("score API", () => {
     expect(body.daily.trackId.startsWith("youtube-")).toBe(true);
     expect(body.daily.boards.type).toHaveLength(0);
     expect(body.weekly.trackId.startsWith("youtube-")).toBe(true);
+  });
+
+  test("the challenge board counts a run at any settings", async () => {
+    const env = await makeEnv();
+    const { daily } = currentChallenges(new Date(Date.UTC(2026, 9, 12)));
+    const inside = "2026-10-12T06:00:00.000Z";
+    const before = "2026-10-11T06:00:00.000Z";
+    await env.store.run(
+      `insert into "user" ("id", "handle", "displayName") values ('u2', 'player_two', 'Player Two')`,
+    );
+
+    // Two players on the challenge song at different difficulties, plus an
+    // earlier run of the same song that falls outside the period.
+    const insert =
+      `insert into "score" ("id", "userId", "trackId", "trackType", "title", "artist",
+         "style", "difficulty", "runMode", "speed", "score", "accuracy", "maxCombo",
+         "hits", "misses", "progress", "valid", "invalidReason", "createdAt")
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const insertRun = (
+      id: string,
+      userId: string,
+      difficulty: string,
+      score: number,
+      createdAt: string,
+    ) =>
+      env.store.run(insert, [
+        id, userId, daily.trackId, "youtube", "Test song", null,
+        "type", difficulty, "fun", 1, score, 0.9, 10, 10, 0, 1, 1, null, createdAt,
+      ]);
+    await insertRun("s-easy", "u1", "easy", 100, inside);
+    await insertRun("s-hard", "u2", "hard", 500, inside);
+    await insertRun("s-old", "u1", "hard", 900, before);
+
+    const response = await handleScoreRequest(get("/api/scores/challenge"), env);
+    const body = (await response.json()) as {
+      daily: { boards: { type: Array<{ score: number }> } };
+    };
+    expect(body.daily.boards.type.map((entry) => entry.score)).toEqual([500, 100]);
   });
 });

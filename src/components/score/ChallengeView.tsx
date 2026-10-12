@@ -1,6 +1,7 @@
 /**
- * The daily and weekly challenge: one seeded track and one modifier per period,
- * each with its own typing and singing boards.
+ * The daily and weekly challenge: one seeded track per period, with its own
+ * typing and singing boards. The song carries no modifier, so any run of it
+ * counts.
  */
 
 import { useEffect, useState } from "react";
@@ -11,24 +12,17 @@ import {
 } from "../../lib/score/client";
 import { buildHash } from "../../lib/game/url";
 import { playHref } from "../../lib/score/format";
-import { difficultyLabel, runModeLabel, speedLabel } from "../../i18n/labels";
 import type { Locale } from "../../i18n/locales";
 import { useT, useLocale, withLocale } from "../../i18n/react";
 import Leaderboard from "./Leaderboard";
 
-/** A challenge run link: the track, with the modifier and style in the hash. */
+/** A challenge run link: the track, with the play style in the hash. */
 function challengeHref(
   challenge: ChallengeBoard,
   style: "type" | "sing",
   locale: Locale,
 ): string {
-  const hash = buildHash({
-    mode: challenge.modifier.difficulty,
-    failMode: challenge.modifier.runMode,
-    speed: challenge.modifier.speed,
-    style,
-  });
-  return `${playHref(challenge.trackId, "youtube", locale)}${hash}`;
+  return `${playHref(challenge.trackId, "youtube", locale)}${buildHash({ style })}`;
 }
 
 function ChallengeCard({
@@ -51,13 +45,6 @@ function ChallengeCard({
       <div className="score-card__head mt-2">
         <span className="score-card__title">{challenge.track.title}</span>
         <span className="score-card__meta">{challenge.track.artist}</span>
-      </div>
-      <div className="challenge-mods">
-        <span className="chip chip--yellow">
-          {difficultyLabel(challenge.modifier.difficulty, t)}
-        </span>
-        <span className="chip">{runModeLabel(challenge.modifier.runMode, t)}</span>
-        <span className="chip">{speedLabel(challenge.modifier.speed, t)}</span>
       </div>
       <p className="mt-4 flex flex-wrap gap-2">
         <a className="btn-game btn-game--primary" href={challengeHref(challenge, "type", locale)}>

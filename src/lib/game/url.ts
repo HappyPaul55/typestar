@@ -1,12 +1,12 @@
 /**
- * Run settings in the URL hash, so a run can be shared with the exact same
- * difficulty, run mode and playback speed (the video id is already in the
+ * Run settings in the URL hash, so a run can be shared with the exact same play
+ * style, difficulty, run mode and playback speed (the video id is already in the
  * path):
  *
- *   /play/<id>#difficulty=hard&run=practise&speed=1.25
+ *   /play/<id>#difficulty=hard&run=practise&speed=1.25&style=sing
  *
- * Anything left at its default is omitted, so the common case has no hash at
- * all and shared links stay short.
+ * Anything left out or at its default is omitted, so the common case has no hash
+ * at all and shared links stay short.
  */
 
 import {
@@ -29,16 +29,20 @@ export interface ParsedHash {
   style?: PlayStyle;
 }
 
-/** Build the hash for a set of settings; defaults are left out. */
+/** Build the hash for a set of settings; anything left out or at its default is omitted. */
 export function buildHash(state: {
-  mode: GameMode;
-  failMode: FailMode;
+  mode?: GameMode;
+  failMode?: FailMode;
   speed?: PlaybackSpeed;
   style?: PlayStyle;
 }): string {
   const parts: string[] = [];
-  if (state.mode !== DEFAULT_MODE) parts.push(`difficulty=${state.mode}`);
-  if (state.failMode !== DEFAULT_FAIL_MODE) parts.push(`run=${state.failMode}`);
+  if (state.mode !== undefined && state.mode !== DEFAULT_MODE) {
+    parts.push(`difficulty=${state.mode}`);
+  }
+  if (state.failMode !== undefined && state.failMode !== DEFAULT_FAIL_MODE) {
+    parts.push(`run=${state.failMode}`);
+  }
   if (state.speed !== undefined && state.speed !== DEFAULT_SPEED) {
     parts.push(`speed=${state.speed}`);
   }

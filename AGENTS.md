@@ -223,7 +223,7 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
 - `src/lib/score/**` — recording and ranking: `api.ts` (the `/api/scores/*`
   handlers), `replay.ts` (the server re-score through the pure engines),
   `nonce.ts` (the signed run token), `timeline.ts` (the recorded events and
-  checksum), `challenge.ts` (the period's song and modifier), `store.ts` (D1),
+  checksum), `challenge.ts` (the period's song), `store.ts` (D1),
   `dev-store.ts` (dev SQLite) and `load.ts` (load a track by its id). The
   `src/components/score/**` islands render the profiles, feed, boards and
   challenge; `/recent`, `/challenge` and `/u/*` are their pages, and
@@ -356,7 +356,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   difficulty + run mode + speed, so typing and singing never mix. Dev uses a
   `node:sqlite` score store in the same `.cache/auth.sqlite` file. The
   daily/weekly challenge is derived from the date (no cron): one seeded featured
-  track and one modifier per period, and its board is a time-boxed query.
+  track per period, with no modifier, and its board is a time-boxed query over
+  that track at any settings.
 - **Embeds are a compact `GameApp`, and only `/embed/*` is frameable.** The
   embed route serves the same island with `embed` set: no picker, no local
   files, no accounts and no score recording, and the HUD hides "change song"

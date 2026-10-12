@@ -26,16 +26,18 @@ describe("challenge", () => {
     const first = dailyChallenge(date);
     const second = dailyChallenge(date);
     expect(first.id).toBe("daily:2026-10-12");
-    expect(second.track.id).toBe(first.track.id);
-    expect(second.modifier).toEqual(first.modifier);
+    expect(second).toEqual(first);
   });
 
-  test("picks a seeded track and a valid modifier", () => {
+  test("picks a seeded track", () => {
     const daily = dailyChallenge(new Date(Date.UTC(2026, 9, 12)));
-    expect(daily.trackId.startsWith("youtube-")).toBe(true);
-    expect(["easy", "normal", "hard"]).toContain(daily.modifier.difficulty);
-    expect(["fun", "normal", "instant"]).toContain(daily.modifier.runMode);
-    expect([0.75, 1, 1.25]).toContain(daily.modifier.speed);
+    expect(daily.trackId).toBe(`youtube-${daily.track.id}`);
+  });
+
+  test("carries no modifier", () => {
+    const { daily, weekly } = currentChallenges(new Date(Date.UTC(2026, 9, 12)));
+    expect("modifier" in daily).toBe(false);
+    expect("modifier" in weekly).toBe(false);
   });
 
   test("daily spans a day and weekly a week", () => {

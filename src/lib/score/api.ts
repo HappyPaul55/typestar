@@ -55,9 +55,10 @@ const MAX_BODY_BYTES = 1_000_000;
 interface BoardQuery {
   trackId: string;
   style: PlayStyle;
-  difficulty: GameMode;
-  runMode: FailMode;
-  speed: number;
+  /** Omitted by the challenge board, which accepts any settings. */
+  difficulty?: GameMode;
+  runMode?: FailMode;
+  speed?: number;
   since?: string;
   until?: string;
 }
@@ -131,21 +132,20 @@ function parseBoardQuery(params: URLSearchParams): BoardQuery | null {
 
 /** The shared WHERE clause for a board, plus its bound parameters. */
 function boardFilter(query: BoardQuery): { where: string; params: unknown[] } {
-  const clauses = [
-    "trackId = ?",
-    "style = ?",
-    "difficulty = ?",
-    "runMode = ?",
-    "speed = ?",
-    "valid = 1",
-  ];
-  const params: unknown[] = [
-    query.trackId,
-    query.style,
-    query.difficulty,
-    query.runMode,
-    query.speed,
-  ];
+  const clauses = ["trackId = ?", "style = ?", "valid = 1"];
+  const params: unknown[] = [query.trackId, query.style];
+  if (query.difficulty !== undefined) {
+    clauses.push("difficulty = ?");
+    params.push(query.difficulty);
+  }
+  if (query.runMode !== undefined) {
+    clauses.push("runMode = ?");
+    params.push(query.runMode);
+  }
+  if (query.speed !== undefined) {
+    clauses.push("speed = ?");
+    params.push(query.speed);
+  }
   if (query.since) {
     clauses.push("createdAt >= ?");
     params.push(query.since);
@@ -510,11 +510,10 @@ async function profileHandler(url: URL, env: ScoreEnv): Promise<Response> {
 }
 
 async function challengeBoards(env: ScoreEnv, challenge: Challenge) {
+  // No modifier: the board takes any difficulty, run mode or speed, so it is
+  // simply every valid run of the song inside the period.
   const base = {
     trackId: challenge.trackId,
-    difficulty: challenge.modifier.difficulty,
-    runMode: challenge.modifier.runMode,
-    speed: challenge.modifier.speed,
     since: challenge.startsAt,
     until: challenge.endsAt,
   };

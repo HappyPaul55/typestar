@@ -204,7 +204,7 @@ export const de: Partial<Record<MessageKey, string>> = {
   "recent.empty": "Noch keine Punkte — spiele einen Song und sei der Erste in der Rangliste.",
   "recent.loading": "Neueste Punkte werden geladen…",
   "challenge.title": "Tages- und Wochenherausforderung",
-  "challenge.lede": "Ein Song und ein Modifikator pro Zeitraum, mit eigenen Ranglisten für Tippen und Singen. Für alle gleich, und es ändert sich von selbst.",
+  "challenge.lede": "Ein Song pro Zeitraum, mit eigenen Ranglisten für Tippen und Singen. Für alle gleich, und es ändert sich von selbst.",
   "challenge.daily": "Täglich",
   "challenge.weekly": "Wöchentlich",
   "challenge.playTyping": "Tippen spielen",
