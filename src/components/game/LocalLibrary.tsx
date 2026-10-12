@@ -32,8 +32,9 @@ import {
   type LocalUltraStarSong,
 } from "../../lib/local/library";
 import { loadDirectoryHandles, saveDirectoryHandles } from "../../lib/local/idb";
+import type { Translate } from "../../i18n";
 import { localePath } from "../../i18n/paths";
-import { useLocale } from "../../i18n/react";
+import { useLocale, useT } from "../../i18n/react";
 import TrackCard from "./TrackCard";
 
 export interface LocalSelection {
@@ -74,6 +75,7 @@ export default function LocalLibrary({
   /** Switch to the YouTube picker in place, instead of a document navigation. */
   onOpenRemote?(): void;
 }) {
+  const t = useT();
   const locale = useLocale();
   const [folders, setFolders] = useState<LocalDirectoryHandle[]>([]);
   const [blocked, setBlocked] = useState<string[]>([]);
@@ -154,7 +156,7 @@ export default function LocalLibrary({
       setSongs(pairUltraStarSongs(charts, available));
       setBlocked(denied);
     } catch {
-      setError("Those folders could not be read.");
+      setError(t("local.readFailed"));
     } finally {
       setStatus("idle");
     }
@@ -178,7 +180,7 @@ export default function LocalLibrary({
     try {
       const directory = await pickDirectory();
       if (!directory) {
-        setError("This browser cannot open folders.");
+        setError(t("local.unsupported"));
         return;
       }
       const next = [...folders, directory];
@@ -187,7 +189,7 @@ export default function LocalLibrary({
       await scan(next);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
-      setError("The folder could not be opened.");
+      setError(t("local.openFailed"));
     }
   }, [folders, scan]);
 
@@ -202,7 +204,7 @@ export default function LocalLibrary({
       }
       await scan(folders);
     } catch {
-      setError("The folders could not be reopened.");
+      setError(t("local.reopenFailed"));
     }
   }, [folders, scan]);
 
@@ -242,16 +244,16 @@ export default function LocalLibrary({
           id: pair.id,
           lang: "en",
           title: pair.title,
-          description: `Local video — ${pair.base}`,
+          description: t("local.videoDescription", { name: pair.base }),
           vtt: await captions.text(),
         });
         if (!track.words.length) {
-          setError(`No timed lyrics were found in ${pair.captionPath}.`);
+          setError(t("local.noTimedLyrics", { file: pair.captionPath }));
           return;
         }
         onSelect({ track, kind: "video", media: video, filePath: pair.ref });
       } catch {
-        setError("That video and caption pair could not be loaded.");
+        setError(t("local.videoLoadFailed"));
       } finally {
         setStatus("idle");
       }
@@ -275,10 +277,10 @@ export default function LocalLibrary({
         const track = ultraStarTrack(parsed, {
           id: song.id,
           lang: "en",
-          description: `UltraStar — ${parsed.artist || song.artist}`,
+          description: t("local.ultrastarDescription", { artist: parsed.artist || song.artist }),
         });
         if (!track.words.length) {
-          setError(`No lyrics were found in ${song.songPath}.`);
+          setError(t("local.noLyrics", { file: song.songPath }));
           return;
         }
         let backgroundVideo: File | undefined;
@@ -303,7 +305,7 @@ export default function LocalLibrary({
           artist: parsed.artist || song.artist,
         });
       } catch {
-        setError("That UltraStar song could not be loaded.");
+        setError(t("local.songLoadFailed"));
       } finally {
         setStatus("idle");
       }
@@ -366,7 +368,9 @@ export default function LocalLibrary({
   const folderNames = folders.map((folder) => folder.name);
   const singleFolder = folders.length === 1;
   // One folder shows its name; two or more show the count (with the tooltip).
-  const folderLabel = singleFolder ? folders[0].name : `${folders.length} folders`;
+  const folderLabel = singleFolder
+    ? folders[0].name
+    : t("local.folderCount", { count: folders.length });
   // How many songs each folder contributes, by its id (its index in the list).
   const countByFolder = new Map<string, number>();
   for (const song of songs) {
@@ -396,9 +400,14 @@ export default function LocalLibrary({
                   (singleFolder ? " local-library__folders--single" : "")
                 }
                 tabIndex={singleFolder ? undefined : 0}
-                aria-label={singleFolder ? undefined : `Folders: ${folderNames.join(", ")}`}
+                aria-label={
+                  singleFolder
+                    ? undefined
+                    : t("local.foldersAria", { names: folderNames.join(", ") })
+                }
               >
-                {folderLabel} — {total} {total === 1 ? "song" : "songs"}
+                {folderLabel} —{" "}
+                {total === 1 ? t("local.oneSong") : t("local.songCount", { count: total })}
                 {singleFolder ? null : (
                   <span className="local-library__folders-tip" role="tooltip">
                     {folderNames.map((name) => (
@@ -415,8 +424,8 @@ export default function LocalLibrary({
                 <input
                   className="local-library__search"
                   type="search"
-                  placeholder="Search songs…"
-                  aria-label="Search local songs"
+                  placeholder={t("local.searchPlaceholder")}
+                  aria-label={t("local.searchAria")}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   autoComplete="off"
@@ -429,7 +438,7 @@ export default function LocalLibrary({
                 onClick={addFolder}
                 disabled={busy}
               >
-                Add another folder
+                {t("local.addFolder")}
               </button>
               {blocked.length ? (
                 <button
@@ -438,39 +447,33 @@ export default function LocalLibrary({
                   onClick={reopenFolders}
                   disabled={busy}
                 >
-                  Reopen {blocked.length === 1 ? blocked[0] : "folders"}
+                  {blocked.length === 1
+                    ? t("local.reopenOne", { name: blocked[0] })
+                    : t("local.reopenMany")}
                 </button>
               ) : null}
             </div>
           </div>
 
           {missing ? (
-            <p className="track-picker__error">
-              Could not find <code>{missing}</code> in these folders. It may have
-              moved, or a folder needs to be reopened.
-            </p>
+            <p className="track-picker__error">{t("local.missing", { file: missing })}</p>
           ) : null}
 
           {blocked.length ? (
             <p className="track-picker__note">
               {blocked.length === 1
-                ? `“${blocked[0]}” needs permission before its songs can be shown.`
-                : `${blocked.length} folders need permission before their songs can be shown.`}
+                ? t("local.blockedOne", { name: blocked[0] })
+                : t("local.blockedMany", { count: blocked.length })}
             </p>
           ) : null}
 
           {total === 0 && !blocked.length ? (
-            <p className="track-picker__note">
-              Nothing playable was found. TypeStar reads UltraStar charts
-              (<code>#MP3</code> plus timed lyrics) and videos with a same-named{" "}
-              <code>.vtt</code> caption — for example <code>song.mp4</code> and{" "}
-              <code>song.vtt</code>.
-            </p>
+            <p className="track-picker__note">{t("local.nothingFound")}</p>
           ) : null}
 
           {total > 0 && shownTotal === 0 ? (
             <p className="track-picker__note">
-              No songs match &ldquo;{query.trim()}&rdquo;.
+              {t("local.noMatch", { query: query.trim() })}
             </p>
           ) : null}
 
@@ -499,7 +502,7 @@ export default function LocalLibrary({
                     }
                     badge={
                       <span className="track-card__badge">
-                        {song.videoPath ? "Video" : "Lyrics"}
+                        {song.videoPath ? t("local.badgeVideo") : t("local.badgeLyrics")}
                       </span>
                     }
                   />
@@ -510,7 +513,7 @@ export default function LocalLibrary({
 
           {shownVideos.length ? (
             <div className="local-library__group">
-              <p className="local-library__group-label">Video + captions</p>
+              <p className="local-library__group-label">{t("local.groupVideo")}</p>
               <div className="local-library__grid">
                 {shownVideos.map((pair) => {
                   const album = parentPath(pair.base);
@@ -531,14 +534,14 @@ export default function LocalLibrary({
           ) : null}
 
           <p className="local-library__foot">
-            This page is made up of{" "}
+            {t("local.footIntro")}{" "}
             {folders.map((folder, index) => {
               const count = countByFolder.get(String(index)) ?? 0;
               const separator =
                 index === folders.length - 1
                   ? ""
                   : index === folders.length - 2
-                    ? " and "
+                    ? t("local.listAnd")
                     : ", ";
               return (
                 <span key={`${folder.name}-${index}`}>
@@ -547,15 +550,15 @@ export default function LocalLibrary({
                     className="local-library__remove"
                     onClick={() => removeFolder(folder)}
                     disabled={busy}
-                    title={`Remove ${folder.name}`}
+                    title={t("local.removeFolder", { name: folder.name })}
                   >
                     {folder.name}
                   </button>{" "}
-                  ({songCountLabel(count)}){separator}
+                  ({songCountLabel(count, t)}){separator}
                 </span>
               );
             })}
-            . To remove a folder, click its name.
+            {t("local.footOutro")}
           </p>
         </div>
       ) : (
@@ -577,9 +580,7 @@ export default function LocalLibrary({
             </span>
             <span className="local-choice__body">
               <span className="local-choice__title">YouTube</span>
-              <span className="local-choice__desc">
-                Pick a featured track, or paste a YouTube link.
-              </span>
+              <span className="local-choice__desc">{t("local.youtubeDesc")}</span>
             </span>
           </a>
 
@@ -604,21 +605,18 @@ export default function LocalLibrary({
               </svg>
             </span>
             <span className="local-choice__body">
-              <span className="local-choice__title">Choose a folder</span>
-              <span className="local-choice__desc">
-                Play UltraStar songs, or videos with matching .vtt captions,
-                from this device. Nothing is uploaded.
-              </span>
+              <span className="local-choice__title">{t("local.chooseFolder")}</span>
+              <span className="local-choice__desc">{t("local.chooseFolderDesc")}</span>
             </span>
           </button>
         </div>
       )}
 
       {status === "scanning" ? (
-        <p className="local-library__status">Scanning folders…</p>
+        <p className="local-library__status">{t("local.scanning")}</p>
       ) : null}
       {status === "loading" ? (
-        <p className="local-library__status">Reading song…</p>
+        <p className="local-library__status">{t("local.reading")}</p>
       ) : null}
       {error ? <p className="track-picker__error">{error}</p> : null}
     </div>
@@ -631,9 +629,9 @@ function key(folderId: string, path: string): string {
 }
 
 /** `2 songs`, `1 song`, or `no songs` for the folder summary. */
-function songCountLabel(count: number): string {
-  if (count === 0) return "no songs";
-  return `${count} ${count === 1 ? "song" : "songs"}`;
+function songCountLabel(count: number, t: Translate): string {
+  if (count === 0) return t("local.noSongs");
+  return count === 1 ? t("local.oneSong") : t("local.songCount", { count });
 }
 
 /** The directory part of a relative path, or `""` when it sits at the root. */

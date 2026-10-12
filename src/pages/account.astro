@@ -12,7 +12,7 @@ const locale = localeFromPath(Astro.url.pathname);
 const t = tFor(locale);
 // SEO JSON-LD keeps Home → Account; the visible crumb is `// account`.
 const breadcrumbs = [
-  { name: "Home", path: localePath(locale, "/") },
+  { name: t("nav.home"), path: localePath(locale, "/") },
   { name: t("account.title"), path: localePath(locale, "/account") },
 ];
 const crumbs = [{ name: t("account.comment"), path: localePath(locale, "/account") }];

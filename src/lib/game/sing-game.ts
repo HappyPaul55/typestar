@@ -45,10 +45,6 @@ export function singConfig(track: Track | null, run: RunSettings): SingConfig {
   });
 }
 
-const SCORED_HELP = "Hit the notes as they arrive — your pitch is scored.";
-const KARAOKE_HELP =
-  "The words light up as they arrive — sing along. No score is kept.";
-
 /** Stable empty result list: the shell derives karaoke results from the pointer,
  * so returning a new array each call would needlessly rebuild the highway. */
 const NO_RESULTS: WordResult[] = [];
@@ -61,7 +57,7 @@ const FAIL_MESSAGE: Record<"score" | "mistake" | "streak", string> = {
 
 export const SingGame: GameEngine<SingState> = {
   id: "sing",
-  label: "Sing",
+  labelKey: "style.sing",
 
   capabilities(track, micFallback): Capabilities {
     const scored = isScored(track, micFallback);
@@ -78,8 +74,8 @@ export const SingGame: GameEngine<SingState> = {
     };
   },
 
-  help: (track, micFallback) =>
-    isScored(track, micFallback) ? SCORED_HELP : KARAOKE_HELP,
+  helpKey: (track, micFallback) =>
+    isScored(track, micFallback) ? "style.helpSingScored" : "style.helpSingKaraoke",
 
   createState: (track) => createSingState(track?.notes?.length ?? 0),
 

@@ -26,7 +26,7 @@ const { Content } = await render(entry);
 const isTranslation = locale !== DEFAULT_LOCALE;
 // SEO JSON-LD keeps Home → Privacy; the visible crumb is `// privacy`.
 const breadcrumbs = [
-  { name: "Home", path: localePath(locale, "/") },
+  { name: t("nav.home"), path: localePath(locale, "/") },
   { name: t("nav.privacy"), path: localePath(locale, "/privacy") },
 ];
 const crumbs = [{ name: t("nav.privacy"), path: localePath(locale, "/privacy") }];

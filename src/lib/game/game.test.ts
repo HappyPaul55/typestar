@@ -132,7 +132,7 @@ describe("SingGame", () => {
     expect(caps.scoreBar).toBe(true);
     expect(caps.difficulty).toBe(true);
     expect(caps.runMode).toBe(true);
-    expect(SingGame.help(track(), false)).toContain("No score");
+    expect(SingGame.helpKey(track(), false)).toBe("style.helpSingKaraoke");
   });
 
   test("is scored with pitched notes", () => {
@@ -141,7 +141,7 @@ describe("SingGame", () => {
     expect(caps.scored).toBe(true);
     expect(caps.microphone).toBe(true);
     expect(caps.lane).toBe("pitch");
-    expect(SingGame.help(t, false)).toContain("pitch");
+    expect(SingGame.helpKey(t, false)).toBe("style.helpSingScored");
   });
 
   test("falls back to karaoke when the microphone is refused", () => {

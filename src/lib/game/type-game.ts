@@ -18,7 +18,6 @@ import {
   type GameState,
 } from "./engine";
 import { bestKey, runMetrics, type GameEngine, type Metric, type RunSettings } from "./game";
-import { PLAY_STYLE_HELP } from "./modes";
 import { formatTime } from "./storage";
 import { trackPath } from "../track/source";
 import type { Track } from "../track/types";
@@ -53,11 +52,11 @@ const FAIL_MESSAGE: Record<"score" | "mistake" | "streak", string> = {
 
 export const TypeGame: GameEngine<GameState> = {
   id: "type",
-  label: "Type",
+  labelKey: "style.type",
 
   capabilities: () => ({ ...CAPABILITIES }),
 
-  help: () => PLAY_STYLE_HELP.type,
+  helpKey: () => "style.helpType",
 
   createState: (track) => createGameState(track?.words.length ?? 0),
 

@@ -126,11 +126,6 @@ function localToSong(selection: LocalSelection): LoadedSong {
   };
 }
 
-/** The hero copy shown on `/play/local` while no song is open. */
-const LOCAL_PICKER_TITLE = "Play from this device";
-const LOCAL_PICKER_SUBTITLE =
-  "Point TypeStar at a folder of songs. It reads UltraStar charts (.txt) and videos paired with a same-named .vtt caption. Nothing is uploaded, and the folder stays on your machine.";
-
 interface GameFlash {
   id: number;
   text: string;
@@ -167,11 +162,16 @@ function CountdownOverlay({ value }: { value: number }) {
 }
 
 function PausedOverlay({ onResume }: { onResume(): void }) {
+  const t = useT();
   return (
-    <div className="game-overlay game-overlay--paused" role="dialog" aria-label="Paused">
-      <p className="game-overlay__title">Paused</p>
+    <div
+      className="game-overlay game-overlay--paused"
+      role="dialog"
+      aria-label={t("game.paused")}
+    >
+      <p className="game-overlay__title">{t("game.paused")}</p>
       <button type="button" className="btn-game btn-game--primary" onClick={onResume}>
-        Resume
+        {t("hud.resume")}
       </button>
     </div>
   );
@@ -188,6 +188,7 @@ function StatusPanel({
   action?: string;
   onAction?: () => void;
 }) {
+  const t = useT();
   return (
     <div className="game-status">
       <div className="panel game-status__panel">
@@ -195,7 +196,7 @@ function StatusPanel({
           <span className="slash" aria-hidden="true">
             //
           </span>{" "}
-          play
+          {t("play.crumb")}
         </p>
         <h2 className="panel__title mt-2">{title}</h2>
         <p className="mt-2 text-ink-soft">{message}</p>
@@ -565,7 +566,7 @@ function GameAppInner({
         }
         setLoadError(
           error instanceof TrackApiError
-            ? error.message
+            ? t(error.messageKey)
             : t("game.loadError"),
         );
       });
@@ -607,8 +608,8 @@ function GameAppInner({
         }
       }
     } else if (localMode) {
-      if (titleEl) titleEl.textContent = LOCAL_PICKER_TITLE;
-      if (subtitleEl) subtitleEl.textContent = LOCAL_PICKER_SUBTITLE;
+      if (titleEl) titleEl.textContent = t("game.localTitle");
+      if (subtitleEl) subtitleEl.textContent = t("game.localSubtitle");
     } else {
       if (titleEl) titleEl.textContent = site.name;
       if (subtitleEl) subtitleEl.textContent = defaultSubtitle;
@@ -1118,12 +1119,12 @@ function GameAppInner({
     let next: { text: string; tier: ComboFlash } | null = null;
 
     if (perfectLines > previousPerfect.current) {
-      next = { text: "Perfect line!", tier: "medium" };
+      next = { text: t("game.perfectLine"), tier: "medium" };
     }
     if (combo > previousCombo.current) {
       const tier = comboMilestone(combo);
       if (tier && (!next || TIER_RANK[tier] >= TIER_RANK[next.tier])) {
-        next = { text: `${combo} combo!`, tier };
+        next = { text: t("game.combo", { count: combo }), tier };
       }
     }
 
@@ -1134,7 +1135,7 @@ function GameAppInner({
       flashId.current += 1;
       setFlash({ id: flashId.current, ...next });
     }
-  }, [summary.combo, summary.perfectLines]);
+  }, [summary.combo, summary.perfectLines, t]);
 
   // A blip on every wrong key.
   const previousErrors = useRef(0);
@@ -1250,7 +1251,7 @@ function GameAppInner({
         <StartScreen
           style={style}
           onSelectStyle={selectStyle}
-          help={engine.help(activeTrack, micFallback)}
+          help={t(engine.helpKey(activeTrack, micFallback))}
           onStart={start}
         />
       ) : null}
@@ -1281,7 +1282,7 @@ function GameAppInner({
           autoCapitalize="off"
           spellCheck={false}
           enterKeyHint="go"
-          aria-label="Type the lyrics"
+          aria-label={t("game.typeLyricsAria")}
           onKeyDown={(event) => {
             if (event.key === "Backspace") {
               event.preventDefault();
@@ -1317,9 +1318,9 @@ function GameAppInner({
               playerError === null
                 ? undefined
                 : isLocal
-                  ? "This file could not be played. The browser may not support its format."
+                  ? t("game.localMediaError")
                   : isRemoteUltra
-                    ? "This song’s media could not be loaded from its source."
+                    ? t("game.remoteMediaError")
                     : undefined
             }
           />
@@ -1359,15 +1360,14 @@ function GameAppInner({
           />
           {capabilities.microphone ? (
             <p className="pitch-mic" data-state={pitchInput.status}>
-              {pitchInput.error ??
-                (pitchInput.status === "listening"
-                  ? "microphone live"
-                  : "preparing microphone…")}
+              {pitchInput.error
+                ? t(pitchInput.error)
+                : t(pitchInput.status === "listening" ? "mic.live" : "mic.preparing")}
             </p>
           ) : null}
           {style === "sing" && micFallback ? (
             <p className="pitch-mic" data-state="denied">
-              Microphone unavailable — singing along without scoring.
+              {t("mic.unavailable")}
             </p>
           ) : null}
           </div>

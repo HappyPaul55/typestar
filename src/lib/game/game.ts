@@ -23,6 +23,7 @@ import { DEFAULT_SPEED, SPEED_LABEL } from "./engine";
 import type { PlayStyle } from "./modes";
 import type { NoteResult } from "./sing";
 import type { Track } from "../track/types";
+import type { MessageKey } from "../../i18n";
 
 export type { PlayStyle };
 
@@ -149,10 +150,11 @@ export interface ResultsSummary {
  */
 export interface GameEngine<S = unknown> {
   readonly id: PlayStyle;
-  readonly label: string;
+  /** The style's name on the start screen, as a dictionary key. */
+  readonly labelKey: MessageKey;
   capabilities(track: Track | null, micFallback: boolean): Capabilities;
-  /** The help line the start screen shows for this style. */
-  help(track: Track | null, micFallback: boolean): string;
+  /** The help line the start screen shows, as a dictionary key. */
+  helpKey(track: Track | null, micFallback: boolean): MessageKey;
   createState(track: Track | null): S;
   config(track: Track | null, run: RunSettings): unknown;
   reduce(state: S, action: GameAction, config: unknown): S;

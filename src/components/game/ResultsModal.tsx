@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ResultsSummary } from "../../lib/game/game";
 import { readSetting, writeSetting } from "../../lib/game/storage";
 import { buildHash } from "../../lib/game/url";
+import { metricLabel, metricValue } from "../../i18n/labels";
 import { localePath } from "../../i18n/paths";
 import { useT, useLocale } from "../../i18n/react";
 
@@ -184,7 +185,7 @@ export default function ResultsModal({
         className={"results" + (failed ? " results--failed" : "")}
         role="dialog"
         aria-modal="true"
-        aria-label={failed ? "Run over" : "Results"}
+        aria-label={failed ? t("results.ariaRunOver") : t("results.ariaResults")}
       >
         <div className="results__head">
           <p className="comment">
@@ -254,8 +255,10 @@ export default function ResultsModal({
         <div className="results__grid">
           {summary.metrics.map((metric) => (
             <div className="results__metric" key={metric.label}>
-              <span className="results__metric-label">{metric.label}</span>
-              <span className="results__metric-value">{metric.value}</span>
+              <span className="results__metric-label">{metricLabel(metric.label, t)}</span>
+              <span className="results__metric-value">
+                {metricValue(metric.label, metric.value, t)}
+              </span>
             </div>
           ))}
         </div>

@@ -51,7 +51,7 @@ function ProfileView() {
     return <p className="text-ink-soft">{t("profile.missing")}</p>;
   }
 
-  const name = data.profile.displayName || data.profile.handle || "Player";
+  const name = data.profile.displayName || data.profile.handle || t("profile.player");
   const since = data.profile.createdAt
     ? new Date(data.profile.createdAt).toLocaleDateString("en-GB", {
         day: "numeric",
@@ -70,8 +70,8 @@ function ProfileView() {
       </p>
       <h2 className="panel__title mt-2">{name}</h2>
       <p className="score-card__meta mt-1">
-        {data.profile.handle ? `@${data.profile.handle}` : "player"}
-        {since ? ` · joined ${since}` : ""}
+        {data.profile.handle ? `@${data.profile.handle}` : t("profile.anonymous")}
+        {since ? t("profile.joined", { date: since }) : ""}
       </p>
 
       <div className="score-stats">

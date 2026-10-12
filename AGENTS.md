@@ -230,10 +230,12 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `migrations/0002_scores.sql` is the `score` table.
 - `src/i18n/**` — the interface translations: `locales.ts` (the six locales,
   default `en`), `ui/<locale>.ts` (the dictionaries; `en` is the source of truth
-  and the rest are partial overlays with English fallback), `index.ts` (`t`),
-  `astro.ts` (`tFor`, `localeFromPath`) and `react.tsx` (`I18nProvider`,
-  `useT`). The `[locale]/` routes and `LocaleSwitcher` render the non-default
-  locales.
+  and the rest are complete translations, each still a partial overlay so a
+  missing key reads English), `index.ts` (`t`), `astro.ts` (`tFor`,
+  `localeFromPath`), `react.tsx` (`I18nProvider`, `useT`, `useLocale`,
+  `withLocale`) and `labels.ts` (the dictionary keys for the small vocabularies:
+  play style, difficulty, run mode, playback speed and the results metrics). The
+  `[locale]/` routes and `LocaleSwitcher` render the non-default locales.
 - `src/components/embed/**` + `src/pages/embed.astro` — the iframe-able widget: a
   compact `GameApp` (`embed`), no accounts or scores, plus the `EmbedButton` that
   copies the snippet.
@@ -365,12 +367,16 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `X-Frame-Options` is intentionally not set.
 - **i18n is path-prefixed, with English fallback.** Six locales; `en` at the
   root and the rest under `/<locale>`. `en.ts` is the source of truth and every
-  other dictionary is a partial overlay, so a missing key reads English. Astro
-  uses `tFor(localeFromPath(Astro.url.pathname))`; the island uses `useT()` in
-  an `I18nProvider`. **`build.format: "file"` means the build-time pathname ends
-  in `.html`**, so `localeFromPath` strips it before reading the first segment.
-  The current translations are machine-made and pending human review. The
-  lyrics/caption `?lang=` is a separate concern.
+  other dictionary is a partial overlay, so a missing key reads English (all six
+  are currently complete). Astro uses
+  `tFor(localeFromPath(Astro.url.pathname))`; an island uses `useT()`, and every
+  `client:*` root installs the provider with `withLocale` — Astro hydrates each
+  island as its own React root, so a provider rendered by the page cannot reach
+  inside one. **`build.format: "file"` means the build-time pathname ends in
+  `.html`**, so `localeFromPath` strips it before reading the first segment. The
+  current translations are machine-made and pending human review. The
+  lyrics/caption `?lang=` is a separate concern. The magic-link email is rendered
+  in the locale carried by the link's `callbackURL`.
 - **The privacy notice is per-locale, with English as the source of truth.**
   `src/content/legal/privacy.md` is English; `privacy.<locale>.md` are
   translations. `privacy.astro` picks the entry for the locale and falls back to

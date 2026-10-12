@@ -19,8 +19,8 @@ const ratings = loadSeedRatings(FEATURED_TRACKS.map((track) => track.id));
 // `breadcrumbs` feeds the SEO JSON-LD (Home → Play); the visible crumb is just
 // `// play`, so it keeps the old lowercase comment style.
 const breadcrumbs = [
-  { name: "Home", path: localePath(locale, "/") },
-  { name: "Play", path: localePath(locale, "/play") },
+  { name: t("nav.home"), path: localePath(locale, "/") },
+  { name: t("nav.play"), path: localePath(locale, "/play") },
 ];
 const crumbs = [{ name: t("play.crumb"), path: localePath(locale, "/play") }];
 ---

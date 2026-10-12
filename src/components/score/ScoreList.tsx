@@ -47,9 +47,9 @@ export default function ScoreList({
             <td>
               <a href={playHref(row.trackId, row.trackType, locale)}>{row.title}</a>
             </td>
-            <td className="score-card__meta">{modeLabel(row)}</td>
+            <td className="score-card__meta">{modeLabel(row, t)}</td>
             <td className="score-table__score">{row.score.toLocaleString("en-GB")}</td>
-            <td>{timeAgo(row.createdAt)}</td>
+            <td>{timeAgo(row.createdAt, t, locale)}</td>
           </tr>
         ))}
       </tbody>

@@ -50,7 +50,7 @@ export default function StartScreen({ style, onSelectStyle, help, onStart }: Pro
             aria-pressed={engine.id === style}
             onClick={() => onSelectStyle(engine.id)}
           >
-            {engine.label}
+            {t(engine.labelKey)}
           </button>
         ))}
       </div>

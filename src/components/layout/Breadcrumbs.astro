@@ -1,4 +1,6 @@
 ---
+import { localeFromPath, tFor } from "../../i18n/astro";
+
 /**
  * The hero breadcrumb, kept in the old `//` comment style: lowercase, and just
  * the section — `// play`, or `// play / local` on the local route.
@@ -23,9 +25,10 @@ interface Props {
 }
 
 const { items, tailId, tailLabel = "", tailHref = "" } = Astro.props;
+const t = tFor(localeFromPath(Astro.url.pathname));
 ---
 
-<nav class="comment breadcrumbs" aria-label="Breadcrumb">
+<nav class="comment breadcrumbs" aria-label={t("nav.breadcrumb")}>
   <span class="slash" aria-hidden="true">//</span>
   <ol class="breadcrumbs__list">
     {

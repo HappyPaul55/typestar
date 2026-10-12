@@ -76,7 +76,7 @@ function SignInForm({ next }: { next?: string }) {
       setChallengeId((id) => id + 1);
       return;
     }
-    setError(apiError.message ?? t("signin.sendFailed"));
+    setError(t("signin.sendFailed"));
   }, [t]);
 
   const onToken = useCallback(

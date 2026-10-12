@@ -35,7 +35,8 @@ const normalise = (value: string) =>
 
 const canonical = new URL(normalise(path), settings.url).href;
 const ogImage = new URL("/og-image.png", settings.url).href;
-const ogAlt = tFor(locale)("seo.ogAlt", { name: settings.name });
+const t = tFor(locale);
+const ogAlt = t("seo.ogAlt", { name: settings.name });
 
 const author = {
   "@type": "Person",
@@ -100,7 +101,7 @@ const jsonLd = { "@context": "https://schema.org", "@graph": graph };
 <link
   rel="sitemap"
   type="application/xml"
-  title="Sitemap"
+  title={t("seo.sitemap")}
   href="/sitemap-index.xml"
 />
 

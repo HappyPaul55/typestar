@@ -18,17 +18,20 @@ export const en = {
   // Navigation and footer
   "nav.primary": "Primary",
   "nav.menu": "Menu",
+  "nav.home": "Home",
   "nav.play": "Play",
   "nav.privacy": "Privacy",
   "nav.challenge": "Challenge",
   "nav.recent": "Recent",
   "nav.account": "Account",
   "nav.language": "Language",
+  "nav.breadcrumb": "Breadcrumb",
   "footer.pages": "Pages",
   "footer.elsewhere": "Elsewhere",
   "footer.source": "Source",
   "footer.licence": "{licence} licence",
   "footer.private": "// no accounts, no cookies, no trackers",
+  "footer.nav": "Footer",
 
   // Landing
   "home.comment": "rhythm typing",
@@ -45,6 +48,8 @@ export const en = {
   "home.step3Title": "Chase the score",
   "home.step3Body":
     "Chains build a multiplier and clean lines pay a bonus. Three difficulties, four run modes, endless replays.",
+  "home.heroAlt":
+    "A screenshot of TypeStar: a YouTube video beside the lyric highway, with a word highlighted and a score, combo and accuracy in the HUD.",
 
   // 404
   "notFound.comment": "404 · not found",
@@ -73,6 +78,12 @@ export const en = {
   "start.titleSing": "Sing along.",
   "start.start": "Start",
   "start.styleGroup": "Play style",
+  "style.type": "Type",
+  "style.sing": "Sing",
+  "style.helpType": "Type each word before its moment passes.",
+  "style.helpSingScored": "Hit the notes as they arrive — your pitch is scored.",
+  "style.helpSingKaraoke":
+    "The words light up as they arrive — sing along. No score is kept.",
 
   // HUD
   "hud.score": "score",
@@ -88,6 +99,18 @@ export const en = {
   "hud.fullscreen": "Fullscreen",
   "hud.goFullscreen": "Go fullscreen",
   "hud.changeSong": "Change song",
+  "hud.syncShort": "sync",
+  "hud.songShort": "song",
+
+  // Difficulty and run mode, shared by the game bar and the score pages
+  "difficulty.easy": "Easy",
+  "difficulty.normal": "Normal",
+  "difficulty.hard": "Hard",
+  "run.normal": "Normal",
+  "run.instant": "Instant",
+  "run.fun": "Fun",
+  "run.practise": "Practise",
+  "speed.normal": "Normal",
 
   // Calibration
   "calibration.comment": "sync",
@@ -117,11 +140,38 @@ export const en = {
   "results.saved": "Saved to the leaderboard",
   "results.savedRank": "Saved to the leaderboard — #{rank}",
   "results.invalid": "Saved as unverified ({reason}).",
+  "invalid.nonce": "bad run token",
+  "invalid.checksum": "mismatched recording",
+  "invalid.timeline": "malformed recording",
+  "invalid.track": "unknown song",
+  "invalid.unscorable": "unscorable run",
   "results.signedOut": "Sign in to save your scores to the leaderboard.",
   "results.saveError": "Could not save to the leaderboard.",
   "results.failScore": "Your score went negative.",
   "results.failMistake": "You made a mistake.",
   "results.failStreak": "You missed 20 in a row.",
+  "results.ariaResults": "Results",
+  "results.ariaRunOver": "Run over",
+
+  // The results metric grid. The engines emit these English labels and values;
+  // `src/i18n/labels.ts` maps them back to keys.
+  "metric.difficulty": "difficulty",
+  "metric.runMode": "run mode",
+  "metric.speed": "speed",
+  "metric.replays": "replays",
+  "metric.song": "song",
+  "metric.artist": "artist",
+  "metric.time": "time",
+  "metric.pitchAccuracy": "pitch accuracy",
+  "metric.notes": "notes",
+  "metric.perfectNotes": "perfect notes",
+  "metric.bestCombo": "best combo",
+  "metric.accuracy": "accuracy",
+  "metric.perfectHits": "perfect hits",
+  "metric.perfectLines": "perfect lines",
+  "metric.words": "words",
+  "metric.wrongKeys": "wrong keys",
+  "metric.wpm": "wpm",
 
   // Track picker
   "picker.pasteLabel": "Paste a YouTube link or an UltraStar URL",
@@ -129,7 +179,10 @@ export const en = {
   "picker.play": "Play",
   "picker.note":
     "A YouTube link is played from its captions; a link to an UltraStar .txt chart is fetched and its audio streamed from its own host. GitHub blob links are converted to raw automatically.",
+  "picker.invalidInput":
+    "That does not look like a YouTube link or an UltraStar .txt URL.",
   "picker.localHeading": "On this device",
+  "picker.localAria": "Local files",
   "picker.localNote":
     "Play songs you already have. Pick a folder of UltraStar charts or videos with matching .vtt captions — nothing is uploaded.",
   "picker.openLocal": "Open local files",
@@ -149,10 +202,17 @@ export const en = {
   "score.song": "Song",
   "score.mode": "Mode",
   "score.when": "When",
+  "time.justNow": "just now",
+  "time.minutesAgo": "{count}m ago",
+  "time.hoursAgo": "{count}h ago",
+  "time.daysAgo": "{count}d ago",
   "profile.comment": "profile",
   "profile.title": "Player profile",
   "profile.lede": "Scores, bests and recent runs.",
   "profile.missing": "No player with that handle.",
+  "profile.player": "Player",
+  "profile.anonymous": "player",
+  "profile.joined": " · joined {date}",
   "profile.plays": "plays",
   "profile.songs": "songs",
   "profile.best": "best",
@@ -176,6 +236,50 @@ export const en = {
   "challenge.loading": "Loading challenges…",
   "challenge.error": "The challenge could not be loaded.",
 
+  // Local library
+  "local.readFailed": "Those folders could not be read.",
+  "local.unsupported": "This browser cannot open folders.",
+  "local.openFailed": "The folder could not be opened.",
+  "local.reopenFailed": "The folders could not be reopened.",
+  "local.videoDescription": "Local video — {name}",
+  "local.ultrastarDescription": "UltraStar — {artist}",
+  "local.noTimedLyrics": "No timed lyrics were found in {file}.",
+  "local.noLyrics": "No lyrics were found in {file}.",
+  "local.videoLoadFailed": "That video and caption pair could not be loaded.",
+  "local.songLoadFailed": "That UltraStar song could not be loaded.",
+  "local.folderCount": "{count} folders",
+  "local.foldersAria": "Folders: {names}",
+  "local.noSongs": "no songs",
+  "local.oneSong": "1 song",
+  "local.songCount": "{count} songs",
+  "local.searchPlaceholder": "Search songs…",
+  "local.searchAria": "Search local songs",
+  "local.addFolder": "Add another folder",
+  "local.reopenOne": "Reopen {name}",
+  "local.reopenMany": "Reopen folders",
+  "local.missing":
+    "Could not find {file} in these folders. It may have moved, or a folder needs to be reopened.",
+  "local.blockedOne":
+    "“{name}” needs permission before its songs can be shown.",
+  "local.blockedMany":
+    "{count} folders need permission before their songs can be shown.",
+  "local.nothingFound":
+    "Nothing playable was found. TypeStar reads UltraStar charts (#MP3 plus timed lyrics) and videos with a same-named .vtt caption — for example song.mp4 and song.vtt.",
+  "local.noMatch": "No songs match “{query}”.",
+  "local.badgeVideo": "Video",
+  "local.badgeLyrics": "Lyrics",
+  "local.groupVideo": "Video + captions",
+  "local.footIntro": "This page is made up of",
+  "local.footOutro": ". To remove a folder, click its name.",
+  "local.listAnd": " and ",
+  "local.removeFolder": "Remove {name}",
+  "local.youtubeDesc": "Pick a featured track, or paste a YouTube link.",
+  "local.chooseFolder": "Choose a folder",
+  "local.chooseFolderDesc":
+    "Play UltraStar songs, or videos with matching .vtt captions, from this device. Nothing is uploaded.",
+  "local.scanning": "Scanning folders…",
+  "local.reading": "Reading song…",
+
   // Site copy
   "site.tagline": "A music game you play with your keyboard, your voice, and more",
   "site.description":
@@ -183,6 +287,7 @@ export const en = {
   "common.skipToContent": "Skip to content",
   "seo.ogAlt": "{name} — a yellow “TS” tile beside the title on a dark notebook background",
   "seo.requiresJs": "Requires JavaScript",
+  "seo.sitemap": "Sitemap",
   "privacy.updated": "Last updated {date}",
   "privacy.banner":
     "This policy has been translated for your convenience. The English version is the source of truth — if anything differs, the English text applies.",
@@ -200,7 +305,53 @@ export const en = {
   "game.humanCheckFailed":
     "The human check could not be completed. Please try again later.",
   "game.loadError": "Something went wrong loading this track.",
+  "trackError.network": "Could not reach the track service.",
+  "trackError.noCaptions":
+    "This video has no captions, so there is nothing to type.",
+  "trackError.badVideoId": "That video id looks wrong.",
+  "trackError.badUrl": "That song URL can’t be used.",
+  "trackError.noLyrics": "That UltraStar chart has no lyrics to play.",
+  "trackError.noAudio": "That UltraStar chart does not name an audio file.",
+  "trackError.notFound": "That song file could not be found.",
+  "trackError.tooLarge": "That song file is too large.",
+  "trackError.humanCheck":
+    "Please complete the quick human check to load this new song.",
+  "trackError.generic": "Could not load this track.",
+  "trackError.unreadable": "The track data was unreadable.",
   "game.embedNoSong": "This embed needs a song in its URL.",
+  "game.paused": "Paused",
+  "game.typeLyricsAria": "Type the lyrics",
+  "game.perfectLine": "Perfect line!",
+  "game.combo": "{count} combo!",
+  "game.localTitle": "Play from this device",
+  "game.localSubtitle":
+    "Point TypeStar at a folder of songs. It reads UltraStar charts (.txt) and videos paired with a same-named .vtt caption. Nothing is uploaded, and the folder stays on your machine.",
+  "game.localMediaError":
+    "This file could not be played. The browser may not support its format.",
+  "game.remoteMediaError":
+    "This song’s media could not be loaded from its source.",
+
+  // The media layer
+  "player.loading": "loading player",
+  "player.unavailable": "Video unavailable",
+  "player.startFailed": "The player could not start this video.",
+  "player.errInvalidId": "That video id is not valid.",
+  "player.errEmbedded": "This video cannot play in the embedded player.",
+  "player.errPrivate": "This video is private or has been removed.",
+  "player.errNotEmbeddable": "The owner does not allow this video to be embedded.",
+
+  // The intro cue
+  "cue.firstWord": "first word in {seconds}s",
+  "cue.nextWord": "next word in {seconds}s",
+  "cue.skip": "Skip",
+
+  // Microphone
+  "mic.declined":
+    "Microphone access was declined, so pitching cannot be scored.",
+  "mic.failed": "The microphone could not be started.",
+  "mic.live": "microphone live",
+  "mic.preparing": "preparing microphone…",
+  "mic.unavailable": "Microphone unavailable — singing along without scoring.",
 
   // Sign-in and account
   "signin.comment": "sign in",
@@ -236,6 +387,7 @@ export const en = {
   "account.handleLabel": "Handle",
   "account.handleHint":
     "Your public name on leaderboards. Lowercase letters, numbers and underscores, 3–20 characters.",
+  "account.handlePlaceholder": "e.g. type_star",
   "account.save": "Save",
   "account.saving": "Saving…",
   "account.saved": "Handle saved.",
@@ -252,6 +404,19 @@ export const en = {
   "handle.charset":
     "Use lowercase letters, numbers and underscores only, starting and ending with a letter or number.",
   "handle.reserved": "That handle is reserved.",
+
+  // The magic-link sign-in email
+  "email.subject": "Your TypeStar sign-in link",
+  "email.comment": "sign in",
+  "email.heading": "Sign in to TypeStar",
+  "email.body":
+    "Open the link below to finish signing in. It works once and expires in {minutes} minutes.",
+  "email.button": "Sign in",
+  "email.paste": "Or paste this into your browser:",
+  "email.ignore": "If you did not ask to sign in, you can safely ignore this email.",
+  "email.textBody": "Open this link to finish signing in:",
+  "email.textExpiry": "The link works once and expires in {minutes} minutes.",
+  "email.signoff": "— TypeStar",
 
   // Embed
   "embed.button": "Embed",

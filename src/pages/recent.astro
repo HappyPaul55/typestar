@@ -11,7 +11,7 @@ const site = (await getEntry("site", "main"))!.data;
 const locale = localeFromPath(Astro.url.pathname);
 const t = tFor(locale);
 const breadcrumbs = [
-  { name: "Home", path: localePath(locale, "/") },
+  { name: t("nav.home"), path: localePath(locale, "/") },
   { name: t("recent.title"), path: localePath(locale, "/recent") },
 ];
 const crumbs = [{ name: t("recent.title"), path: localePath(locale, "/recent") }];

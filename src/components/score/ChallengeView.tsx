@@ -9,9 +9,9 @@ import {
   type ChallengeBoard,
   type ChallengesResponse,
 } from "../../lib/score/client";
-import { DIFFICULTY_LABEL } from "../../lib/game/modes";
 import { buildHash } from "../../lib/game/url";
 import { playHref } from "../../lib/score/format";
+import { difficultyLabel, runModeLabel, speedLabel } from "../../i18n/labels";
 import type { Locale } from "../../i18n/locales";
 import { useT, useLocale, withLocale } from "../../i18n/react";
 import Leaderboard from "./Leaderboard";
@@ -54,10 +54,10 @@ function ChallengeCard({
       </div>
       <div className="challenge-mods">
         <span className="chip chip--yellow">
-          {DIFFICULTY_LABEL[challenge.modifier.difficulty]}
+          {difficultyLabel(challenge.modifier.difficulty, t)}
         </span>
-        <span className="chip">{challenge.modifier.runMode}</span>
-        <span className="chip">{challenge.modifier.speed}×</span>
+        <span className="chip">{runModeLabel(challenge.modifier.runMode, t)}</span>
+        <span className="chip">{speedLabel(challenge.modifier.speed, t)}</span>
       </div>
       <p className="mt-4 flex flex-wrap gap-2">
         <a className="btn-game btn-game--primary" href={challengeHref(challenge, "type", locale)}>

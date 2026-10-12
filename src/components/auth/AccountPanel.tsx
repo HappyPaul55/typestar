@@ -100,7 +100,8 @@ function SignedIn() {
     });
     setBusy(false);
     if (apiError) {
-      setError(apiError.message ?? t("account.handleTaken"));
+      // Better Auth's own message is English; prefer the localised one.
+      setError(t("account.handleTaken"));
       return;
     }
     setHandle(normalized);
@@ -113,7 +114,7 @@ function SignedIn() {
     const { error: apiError } = await authClient.deleteUser();
     setBusy(false);
     if (apiError) {
-      setError(apiError.message ?? t("account.deleteFailed"));
+      setError(t("account.deleteFailed"));
       return;
     }
     window.location.assign("/");
@@ -170,7 +171,7 @@ function SignedIn() {
             autoComplete="off"
             spellCheck={false}
             value={handle}
-            placeholder="e.g. type_star"
+            placeholder={t("account.handlePlaceholder")}
             onChange={(event) => {
               setHandle(event.target.value);
               setError(null);

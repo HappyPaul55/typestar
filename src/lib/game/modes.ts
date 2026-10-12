@@ -10,7 +10,6 @@
  * offered; what `sing` actually does is decided by {@link singBehavior}.
  */
 
-import type { GameMode } from "./engine";
 import type { Track, TrackNote } from "../track/types";
 
 export type PlayStyle = "type" | "sing";
@@ -22,18 +21,6 @@ export const DEFAULT_PLAY_STYLE: PlayStyle = "type";
 export function isPlayStyle(value: unknown): value is PlayStyle {
   return value === "type" || value === "sing";
 }
-
-export const PLAY_STYLE_HELP: Record<PlayStyle, string> = {
-  type: "Type each word before its moment passes.",
-  sing: "Follow the words and sing along — karaoke style.",
-};
-
-/** The difficulty label shown in the game bar (the HUD). */
-export const DIFFICULTY_LABEL: Record<GameMode, string> = {
-  easy: "Easy",
-  normal: "Normal",
-  hard: "Hard",
-};
 
 /** How a track is sung: scored against pitch data, or an unscored sing-along. */
 export type SingBehavior = "scored" | "karaoke";

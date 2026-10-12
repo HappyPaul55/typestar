@@ -14,14 +14,13 @@ import {
   FAIL_MODES,
   GAME_MODES,
   PLAYBACK_SPEEDS,
-  SPEED_LABEL,
   type FailMode,
   type GameMode,
   type PlaybackSpeed,
 } from "../../lib/game/engine";
 import type { Capabilities, RunSummary } from "../../lib/game/game";
-import { DIFFICULTY_LABEL } from "../../lib/game/modes";
 import { formatTime } from "../../lib/game/storage";
+import { difficultyLabel, runModeLabel, speedLabel } from "../../i18n/labels";
 import { useT } from "../../i18n/react";
 import Calibration from "./Calibration";
 
@@ -176,7 +175,7 @@ export default function Hud({
             >
               {GAME_MODES.map((value) => (
                 <option key={value} value={value}>
-                  {DIFFICULTY_LABEL[value]}
+                  {difficultyLabel(value, t)}
                 </option>
               ))}
             </select>
@@ -193,7 +192,7 @@ export default function Hud({
             >
               {FAIL_MODES.map((value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {runModeLabel(value, t)}
                 </option>
               ))}
             </select>
@@ -211,14 +210,14 @@ export default function Hud({
           >
             {PLAYBACK_SPEEDS.map((value) => (
               <option key={value} value={value}>
-                {SPEED_LABEL[value]}
+                {speedLabel(value, t)}
               </option>
             ))}
           </select>
         </label>
         <div className="hud__sync">
           <Control onClick={onCalibrate} title={t("hud.sync")}>
-            sync
+            {t("hud.syncShort")}
           </Control>
           {calibrationOpen ? (
             <Calibration
@@ -237,7 +236,7 @@ export default function Hud({
         </Control>
         {compact ? null : (
           <Control onClick={onChangeSong} title={t("hud.changeSong")}>
-            song
+            {t("hud.songShort")}
           </Control>
         )}
       </div>

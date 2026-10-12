@@ -44,7 +44,7 @@ export default function TrackPicker({
   function go(raw: string) {
     const source = sourceFromInput(raw);
     if (!source) {
-      setError("That does not look like a YouTube link or an UltraStar .txt URL.");
+      setError(t("picker.invalidInput"));
       return;
     }
     if (source.kind === "youtube") {
@@ -119,7 +119,7 @@ export default function TrackPicker({
             "track-picker__local" +
             (localSupport === "no" ? " track-picker__local--unsupported" : "")
           }
-          aria-label="Local files"
+          aria-label={t("picker.localAria")}
         >
           <p className="group-label">{t("picker.localHeading")}</p>
           {localSupport === "yes" ? (

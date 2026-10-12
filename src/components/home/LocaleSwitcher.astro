@@ -6,9 +6,10 @@ import {
   LOCALE_LABEL,
   type Locale,
 } from "../../i18n/locales";
-import { localeFromPath } from "../../i18n/astro";
+import { localeFromPath, tFor } from "../../i18n/astro";
 
 const current = localeFromPath(Astro.url.pathname);
+const t = tFor(current);
 
 /** Only the landing page is localized so far, so every link points there. */
 function href(locale: Locale): string {
@@ -16,7 +17,7 @@ function href(locale: Locale): string {
 }
 ---
 
-<nav class="locale-switcher" aria-label="Language">
+<nav class="locale-switcher" aria-label={t("nav.language")}>
   {
     LOCALES.map((locale) => (
       <a
