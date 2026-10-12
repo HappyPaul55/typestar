@@ -24,7 +24,7 @@ pretty play routes.
 Routes: `/` (landing), `/play` (track picker), `/play/youtube/<id>` (a YouTube
 game), `/play/ultrastar/<url>` (a chart fetched from a URL), `/play/local` (the
 in-browser local-file picker), `/signin` and `/account` (the optional email
-sign-in islands), `/boards`, `/recent` and `/challenge` (scores), `/u/<handle>`
+sign-in islands), `/recent` and `/challenge` (scores), `/u/<handle>`
 (a public profile), `/privacy`, `/404`, and
 `GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. Accounts
 live behind `/api/auth/*` (Better Auth) and scores behind `/api/scores/*`. The
@@ -220,8 +220,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `nonce.ts` (the signed run token), `timeline.ts` (the recorded events and
   checksum), `challenge.ts` (the period's song and modifier), `store.ts` (D1),
   `dev-store.ts` (dev SQLite) and `load.ts` (load a track by its id). The
-  `src/components/score/**` islands render the boards, profiles, feed and
-  challenge; `/boards`, `/recent`, `/challenge` and `/u/*` are their pages, and
+  `src/components/score/**` islands render the profiles, feed, boards and
+  challenge; `/recent`, `/challenge` and `/u/*` are their pages, and
   `migrations/0002_scores.sql` is the `score` table.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane),

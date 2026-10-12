@@ -10,21 +10,6 @@ import type { PlayStyle } from "../game/modes";
 import type { InvalidReason, LeaderboardEntry } from "./types";
 import type { TimelineEvent } from "./timeline";
 
-export interface ModeQuery {
-  style: PlayStyle;
-  difficulty: GameMode;
-  runMode: FailMode;
-  speed: PlaybackSpeed;
-}
-
-/** The default board filters: typing, normal, fun, at 1×. */
-export const DEFAULT_MODE_QUERY: ModeQuery = {
-  style: "type",
-  difficulty: "normal",
-  runMode: "fun",
-  speed: 1,
-};
-
 export interface RunSettingsInput {
   trackId: string;
   style: PlayStyle;
@@ -87,16 +72,6 @@ export interface ChallengesResponse {
   weekly: ChallengeBoard;
 }
 
-export interface BoardsResponse {
-  tracks: Array<{
-    trackId: string;
-    title: string;
-    artist: string | null;
-    scorable: boolean;
-    board: LeaderboardEntry[];
-  }>;
-}
-
 async function getJson<T>(url: string): Promise<T | null> {
   try {
     const response = await fetch(url, { headers: { accept: "application/json" } });
@@ -119,15 +94,6 @@ async function postJson<T>(url: string, body: unknown): Promise<T | null> {
   } catch {
     return null;
   }
-}
-
-function modeParams(query: ModeQuery): string {
-  return new URLSearchParams({
-    style: query.style,
-    difficulty: query.difficulty,
-    runMode: query.runMode,
-    speed: String(query.speed),
-  }).toString();
 }
 
 /** Ask for a run nonce. `null` when the player is not signed in or it fails. */
@@ -159,8 +125,4 @@ export async function fetchProfile(handle: string): Promise<ProfileResponse | nu
 
 export async function fetchChallenges(): Promise<ChallengesResponse | null> {
   return getJson<ChallengesResponse>("/api/scores/challenge");
-}
-
-export async function fetchBoards(query: ModeQuery): Promise<BoardsResponse | null> {
-  return getJson<BoardsResponse>(`/api/scores/boards?${modeParams(query)}`);
 }

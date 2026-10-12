@@ -19,7 +19,6 @@ import {
 } from "../game/engine";
 import type { RunSettings } from "../game/game";
 import { isPlayStyle, trackCanSing, type PlayStyle } from "../game/modes";
-import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import type { Track } from "../track/types";
 import { currentChallenges, type Challenge } from "./challenge";
 import { issueNonce, MAX_OFFSET, verifyNonce } from "./nonce";
@@ -27,7 +26,6 @@ import { replayRun } from "./replay";
 import type { SqlStore } from "./store";
 import { timelineChecksum, TIMELINE_VERSION, parseTimeline } from "./timeline";
 import type {
-  BoardTrack,
   InvalidReason,
   LeaderboardEntry,
   RunSettingsPayload,
@@ -538,25 +536,6 @@ async function challengeHandler(env: ScoreEnv, now: Date): Promise<Response> {
   });
 }
 
-async function boardsHandler(url: URL, env: ScoreEnv): Promise<Response> {
-  const mode = parseModeQuery(url.searchParams);
-  if (!mode) return json({ error: "bad-query" }, 400);
-  const tracks: BoardTrack[] = FEATURED_TRACKS.map((track) => ({
-    trackId: `youtube-${track.id}`,
-    title: track.title,
-    artist: track.artist,
-    scorable: false,
-  }));
-  const boards = await Promise.all(
-    tracks.map((track) =>
-      fetchLeaderboard(env.store, { ...mode, trackId: track.trackId }, 3),
-    ),
-  );
-  return json({
-    tracks: tracks.map((track, index) => ({ ...track, board: boards[index] })),
-  });
-}
-
 /** Dispatch a `/api/scores/*` request. */
 export async function handleScoreRequest(
   request: Request,
@@ -572,6 +551,5 @@ export async function handleScoreRequest(
   if (path === "/recent" && request.method === "GET") return recentHandler(url, env);
   if (path === "/profile" && request.method === "GET") return profileHandler(url, env);
   if (path === "/challenge" && request.method === "GET") return challengeHandler(env, now);
-  if (path === "/boards" && request.method === "GET") return boardsHandler(url, env);
   return json({ error: "not-found" }, 404);
 }

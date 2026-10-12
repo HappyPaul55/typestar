@@ -64,12 +64,3 @@ export interface LeaderboardEntry {
   /** True for the requesting player's own row. */
   you?: boolean;
 }
-
-/** A track a board can be built for. */
-export interface BoardTrack {
-  trackId: string;
-  title: string;
-  artist: string | null;
-  /** Whether the track can be sung and scored (carries pitch). */
-  scorable: boolean;
-}
