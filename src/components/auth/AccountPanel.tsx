@@ -10,14 +10,16 @@
 import { useEffect, useState } from "react";
 import { authClient, useSession } from "../../lib/auth/client";
 import { handleError, normalizeHandle } from "../../lib/auth/validate";
+import { useT } from "../../i18n/react";
 
 export default function AccountPanel() {
+  const t = useT();
   const { data: session, isPending } = useSession();
 
   if (isPending) {
     return (
       <div className="auth-card">
-        <p className="text-ink-soft">Loading your account…</p>
+        <p className="text-ink-soft">{t("account.loading")}</p>
       </div>
     );
   }
@@ -29,16 +31,13 @@ export default function AccountPanel() {
           <span className="slash" aria-hidden="true">
             //
           </span>{" "}
-          account
+          {t("account.comment")}
         </p>
-        <h2 className="panel__title mt-2">You&rsquo;re not signed in</h2>
-        <p className="mt-2 text-ink-soft">
-          Sign in with a one-time email link to keep your scores and settings
-          across devices.
-        </p>
+        <h2 className="panel__title mt-2">{t("account.signedOutTitle")}</h2>
+        <p className="mt-2 text-ink-soft">{t("account.signedOutBody")}</p>
         <p className="mt-5">
           <a className="btn-game btn-game--primary" href="/signin">
-            Sign in
+            {t("account.signIn")}
           </a>
         </p>
       </div>
@@ -49,6 +48,7 @@ export default function AccountPanel() {
 }
 
 function SignedIn() {
+  const t = useT();
   const { data: session } = useSession();
   const user = session?.user;
   const [handle, setHandle] = useState(user?.handle ?? "");
@@ -119,17 +119,17 @@ function SignedIn() {
         <span className="slash" aria-hidden="true">
           //
         </span>{" "}
-        account
+        {t("account.comment")}
       </p>
-      <h2 className="panel__title mt-2">Signed in</h2>
+      <h2 className="panel__title mt-2">{t("account.signedInTitle")}</h2>
       <dl className="auth-details mt-3">
         <div>
-          <dt>Email</dt>
+          <dt>{t("account.email")}</dt>
           <dd>{user.email}</dd>
         </div>
         {memberSince ? (
           <div>
-            <dt>Member since</dt>
+            <dt>{t("account.memberSince")}</dt>
             <dd>{memberSince}</dd>
           </div>
         ) : null}
@@ -144,12 +144,9 @@ function SignedIn() {
         noValidate
       >
         <label className="auth-label" htmlFor="auth-handle">
-          Handle
+          {t("account.handleLabel")}
         </label>
-        <p className="auth-hint">
-          Your public name on leaderboards. Lowercase letters, numbers and
-          underscores, 3–20 characters.
-        </p>
+        <p className="auth-hint">{t("account.handleHint")}</p>
         <div className="track-picker__row">
           <input
             id="auth-handle"
@@ -171,11 +168,11 @@ function SignedIn() {
             className="btn-game btn-game--primary"
             disabled={busy}
           >
-            {busy ? "Saving…" : "Save"}
+            {busy ? t("account.saving") : t("account.save")}
           </button>
         </div>
         {error ? <p className="track-picker__error">{error}</p> : null}
-        {saved ? <p className="auth-saved">Handle saved.</p> : null}
+        {saved ? <p className="auth-saved">{t("account.saved")}</p> : null}
       </form>
 
       <div className="auth-actions mt-8">
@@ -184,26 +181,26 @@ function SignedIn() {
           className="btn-game"
           onClick={() => void authClient.signOut()}
         >
-          Sign out
+          {t("account.signOut")}
         </button>
 
         {confirmDelete ? (
           <span className="auth-confirm">
-            <span>Delete your account and all its data?</span>
+            <span>{t("account.deleteConfirm")}</span>
             <button
               type="button"
               className="btn-game auth-danger"
               disabled={busy}
               onClick={() => void removeAccount()}
             >
-              Yes, delete
+              {t("account.deleteYes")}
             </button>
             <button
               type="button"
               className="btn-game"
               onClick={() => setConfirmDelete(false)}
             >
-              Cancel
+              {t("account.cancel")}
             </button>
           </span>
         ) : (
@@ -212,7 +209,7 @@ function SignedIn() {
             className="btn-game auth-danger"
             onClick={() => setConfirmDelete(true)}
           >
-            Delete account
+            {t("account.deleteAccount")}
           </button>
         )}
       </div>

@@ -1,6 +1,7 @@
 ---
 import type { SiteSettings } from "../../lib/site";
 import { DEFAULT_LOCALE, HTML_LANG, OG_LOCALE, type Locale } from "../../i18n/locales";
+import { tFor } from "../../i18n/astro";
 
 interface Crumb {
   name: string;
@@ -34,7 +35,7 @@ const normalise = (value: string) =>
 
 const canonical = new URL(normalise(path), settings.url).href;
 const ogImage = new URL("/og-image.png", settings.url).href;
-const ogAlt = `${settings.name} — a yellow “TS” tile beside the title on a dark notebook background`;
+const ogAlt = tFor(locale)("seo.ogAlt", { name: settings.name });
 
 const author = {
   "@type": "Person",
@@ -49,10 +50,10 @@ const application = {
   "@id": `${settings.url}/#game`,
   name: settings.name,
   url: `${settings.url}/`,
-  description: settings.description,
+  description,
   applicationCategory: "GameApplication",
   operatingSystem: "Any",
-  browserRequirements: "Requires JavaScript",
+  browserRequirements: tFor(locale)("seo.requiresJs"),
   inLanguage: HTML_LANG[locale],
   isAccessibleForFree: true,
   offers: { "@type": "Offer", price: "0", priceCurrency: "GBP" },
@@ -65,7 +66,7 @@ const website = {
   "@id": `${settings.url}/#website`,
   url: `${settings.url}/`,
   name: settings.name,
-  description: settings.description,
+  description,
   inLanguage: HTML_LANG[locale],
   publisher: { "@id": `${settings.authorUrl}/#person` },
 };

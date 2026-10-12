@@ -22,6 +22,7 @@ import {
 import type { Capabilities, RunSummary } from "../../lib/game/game";
 import { DIFFICULTY_LABEL } from "../../lib/game/modes";
 import { formatTime } from "../../lib/game/storage";
+import { useT } from "../../i18n/react";
 import Calibration from "./Calibration";
 
 interface Props {
@@ -124,17 +125,18 @@ export default function Hud({
   rootRef,
 }: Props) {
   const percent = Math.round(summary.accuracy * 100);
+  const t = useT();
 
   return (
     <div className="hud" ref={rootRef}>
       {capabilities.scoreBar ? (
         <div className="hud__stats">
-          <Stat label="score" value={summary.score.toLocaleString("en-GB")} />
+          <Stat label={t("hud.score")} value={summary.score.toLocaleString("en-GB")} />
           <Stat
-            label="combo"
+            label={t("hud.combo")}
             value={summary.combo > 0 ? `×${summary.multiplier}` : "—"}
           />
-          <Stat label="accuracy" value={summary.attempted ? `${percent}%` : "—"} />
+          <Stat label={t("hud.accuracy")} value={summary.attempted ? `${percent}%` : "—"} />
         </div>
       ) : null}
 
@@ -157,15 +159,15 @@ export default function Hud({
       </div>
 
       <div className="hud__controls">
-        <Control onClick={onTogglePause} title={paused ? "Resume" : "Pause"}>
+        <Control onClick={onTogglePause} title={paused ? t("hud.resume") : t("hud.pause")}>
           {playing && !paused ? "❚❚" : "▶"}
         </Control>
-        <Control onClick={onReset} title="Reset">
+        <Control onClick={onReset} title={t("hud.reset")}>
           ↺
         </Control>
         {capabilities.difficulty ? (
-          <label className="hud__mode" data-tooltip="Difficulty">
-            <span className="sr-only">Difficulty</span>
+          <label className="hud__mode" data-tooltip={t("hud.difficulty")}>
+            <span className="sr-only">{t("hud.difficulty")}</span>
             <select
               className="hud__select"
               value={mode}
@@ -181,8 +183,8 @@ export default function Hud({
           </label>
         ) : null}
         {capabilities.runMode ? (
-          <label className="hud__mode" data-tooltip="Run mode">
-            <span className="sr-only">Run mode</span>
+          <label className="hud__mode" data-tooltip={t("hud.runMode")}>
+            <span className="sr-only">{t("hud.runMode")}</span>
             <select
               className="hud__select"
               value={failMode}
@@ -197,8 +199,8 @@ export default function Hud({
             </select>
           </label>
         ) : null}
-        <label className="hud__mode" data-tooltip="Playback speed">
-          <span className="sr-only">Playback speed</span>
+        <label className="hud__mode" data-tooltip={t("hud.speed")}>
+          <span className="sr-only">{t("hud.speed")}</span>
           <select
             className="hud__select"
             value={speed}
@@ -215,7 +217,7 @@ export default function Hud({
           </select>
         </label>
         <div className="hud__sync">
-          <Control onClick={onCalibrate} title="Sync offset">
+          <Control onClick={onCalibrate} title={t("hud.sync")}>
             sync
           </Control>
           {calibrationOpen ? (
@@ -228,13 +230,13 @@ export default function Hud({
         </div>
         <Control
           onClick={onFullscreen}
-          title={highlightFullscreen ? "Go fullscreen" : "Fullscreen"}
+          title={highlightFullscreen ? t("hud.goFullscreen") : t("hud.fullscreen")}
           hint={highlightFullscreen}
         >
           ⛶
         </Control>
         {compact ? null : (
-          <Control onClick={onChangeSong} title="Change song">
+          <Control onClick={onChangeSong} title={t("hud.changeSong")}>
             song
           </Control>
         )}

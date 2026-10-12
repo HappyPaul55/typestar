@@ -5,9 +5,11 @@
 
 import { useEffect, useState } from "react";
 import { fetchRecent, type RecentEntry } from "../../lib/score/client";
+import { useT } from "../../i18n/react";
 import ScoreList from "./ScoreList";
 
 export default function RecentFeed() {
+  const t = useT();
   const [rows, setRows] = useState<RecentEntry[] | null>(null);
 
   useEffect(() => {
@@ -20,13 +22,7 @@ export default function RecentFeed() {
     };
   }, []);
 
-  if (rows === null) return <p className="text-ink-soft">Loading recent scores…</p>;
+  if (rows === null) return <p className="text-ink-soft">{t("recent.loading")}</p>;
 
-  return (
-    <ScoreList
-      rows={rows}
-      showPlayer
-      empty="No scores yet — play a song and be the first on the board."
-    />
-  );
+  return <ScoreList rows={rows} showPlayer empty={t("recent.empty")} />;
 }

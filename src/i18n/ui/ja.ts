@@ -98,6 +98,7 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "results.newBest": "自己ベスト！",
   "results.thanks": "プレイありがとう！",
   "results.failed": "失敗",
+  "results.rank": "順位 {rank}",
   "results.through": "{percent}% 進行",
   "results.tryAgain": "もう一度",
   "results.share": "共有",
@@ -111,6 +112,9 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "results.signedOut":
     "スコアをリーダーボードに保存するにはサインインしてください。",
   "results.saveError": "リーダーボードに保存できませんでした。",
+  "results.failScore": "スコアがマイナスになりました。",
+  "results.failMistake": "ミスをしました。",
+  "results.failStreak": "20回連続でミスしました。",
 
   // Track picker
   "picker.pasteLabel": "YouTubeのリンクまたはUltraStarのURLを貼り付け",
@@ -165,4 +169,79 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "challenge.singingBoard": "歌唱ボード",
   "challenge.loading": "チャレンジを読み込み中…",
   "challenge.error": "チャレンジを読み込めませんでした。",
+
+  // Site copy
+  "site.tagline": "歌詞を時間どおりにタイプ",
+  "site.description":
+    "リズムタッチタイピングゲーム。YouTubeが音楽と映像を提供し、単語が届くたびに歌詞をタイプします — キーボード版のGuitar Heroのようなものです。",
+  "common.skipToContent": "コンテンツへスキップ",
+  "seo.ogAlt":
+    "{name} — 暗いノート背景に、タイトルの横に並ぶ黄色い「TS」タイル",
+  "seo.requiresJs": "JavaScriptが必要です",
+
+  // Game status (island)
+  "game.loadingTrack": "曲を読み込み中…",
+  "game.fetchingCaptions": "字幕を取得し、単語にタイミングを合わせています。",
+  "game.noTrack": "再生する曲がありません",
+  "game.tryAnother": "別の曲を試す",
+  "game.humanCheckComment": "新しい曲",
+  "game.humanCheckTitle": "簡単な人間確認",
+  "game.humanCheckBody":
+    "この曲はまだライブラリにないため、取得する前に人間であることを確認します。確認は曲ごとに一度だけです。",
+  "game.humanCheckFailed":
+    "人間確認を完了できませんでした。後でもう一度お試しください。",
+  "game.loadError": "この曲の読み込み中に問題が発生しました。",
+  "game.embedNoSong": "この埋め込みにはURLに曲が必要です。",
+
+  // Sign-in and account
+  "signin.comment": "サインイン",
+  "signin.title": "サインイン",
+  "signin.lede":
+    "TypeStarはパスワードの代わりにワンタイムリンクを使います。メールアドレスを入力し、送信されたリンクを開くだけです。",
+  "signin.formTitle": "リンクでサインイン",
+  "signin.formBody":
+    "メールアドレスを入力すると、ワンタイムのサインインリンクをお送りします。覚えるパスワードはなく、リンクを使うまでアカウントは作成されません。",
+  "signin.emailLabel": "メールアドレス",
+  "signin.submit": "サインインリンクをメールで送る",
+  "signin.sending": "送信中…",
+  "signin.invalidEmail": "有効なメールアドレスを入力してください。",
+  "signin.needCheck": "人間確認を完了してください。",
+  "signin.sendFailed": "リンクを送信できませんでした。もう一度お試しください。",
+  "signin.sentComment": "受信箱をご確認ください",
+  "signin.sentTitle": "リンクを送信しました",
+  "signin.sentBody":
+    "{email} にワンタイムのサインインリンクを送信しました。このブラウザで開いてサインインを完了してください。リンクは15分で失効し、一度しか使えません。",
+  "signin.nothing": "届きませんでしたか？迷惑メールフォルダを確認するか、",
+  "signin.tryAgain": "もう一度試す",
+  "account.comment": "アカウント",
+  "account.title": "アカウント",
+  "account.lede": "メールアドレス、公開ハンドル、セッション。",
+  "account.loading": "アカウントを読み込み中…",
+  "account.signedOutTitle": "サインインしていません",
+  "account.signedOutBody":
+    "ワンタイムのメールリンクでサインインすると、スコアと設定をデバイス間で保持できます。",
+  "account.signIn": "サインイン",
+  "account.signedInTitle": "サインイン済み",
+  "account.email": "メールアドレス",
+  "account.memberSince": "登録日",
+  "account.handleLabel": "ハンドル",
+  "account.handleHint":
+    "リーダーボードでの公開名です。小文字、数字、アンダースコアで3〜20文字。",
+  "account.save": "保存",
+  "account.saving": "保存中…",
+  "account.saved": "ハンドルを保存しました。",
+  "account.signOut": "サインアウト",
+  "account.deleteAccount": "アカウントを削除",
+  "account.deleteConfirm": "アカウントとすべてのデータを削除しますか？",
+  "account.deleteYes": "はい、削除する",
+  "account.cancel": "キャンセル",
+
+  // Embed
+  "embed.button": "埋め込み",
+  "embed.copied": "コピーしました！",
+
+  // Turnstile
+  "turnstile.failed": "人間確認に失敗しました。もう一度お試しください。",
+  "turnstile.expired": "人間確認の有効期限が切れました。もう一度お試しください。",
+  "turnstile.loadError": "人間確認を読み込めませんでした。",
 };

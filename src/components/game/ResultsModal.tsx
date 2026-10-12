@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ResultsSummary } from "../../lib/game/game";
 import { readSetting, writeSetting } from "../../lib/game/storage";
 import { buildHash } from "../../lib/game/url";
+import { useT } from "../../i18n/react";
 
 interface Props {
   summary: ResultsSummary;
@@ -29,33 +30,30 @@ export type RecordStatus =
   | { status: "signed-out" };
 
 function RecordLine({ record }: { record: RecordStatus }) {
+  const t = useT();
   switch (record.status) {
     case "saving":
-      return <p className="results__record">Saving to the leaderboard…</p>;
+      return <p className="results__record">{t("results.saving")}</p>;
     case "saved":
       return (
         <p className="results__record results__record--ok">
           {record.rank
-            ? `Saved to the leaderboard — #${record.rank}`
-            : "Saved to the leaderboard"}
+            ? t("results.savedRank", { rank: record.rank })
+            : t("results.saved")}
         </p>
       );
     case "invalid":
       return (
         <p className="results__record results__record--warn">
-          Saved as unverified ({record.reason}).
+          {t("results.invalid", { reason: record.reason })}
         </p>
       );
     case "signed-out":
-      return (
-        <p className="results__record">
-          Sign in to save your scores to the leaderboard.
-        </p>
-      );
+      return <p className="results__record">{t("results.signedOut")}</p>;
     default:
       return (
         <p className="results__record results__record--warn">
-          Could not save to the leaderboard.
+          {t("results.saveError")}
         </p>
       );
   }
@@ -147,12 +145,13 @@ export default function ResultsModal({
     }
   }, [summary.bestKey, summary.scored, summary.score]);
 
+  const t = useT();
   const failed = summary.failed;
   const header = summary.scored
     ? failed
-      ? "run over"
-      : "results"
-    : "karaoke";
+      ? t("results.runOver")
+      : t("results.results")
+    : t("results.karaoke");
 
   /** Share the same track and settings so someone else can take the same run. */
   async function share() {
@@ -196,7 +195,7 @@ export default function ResultsModal({
             type="button"
             className="results__close"
             onClick={onClose}
-            aria-label="Close results"
+            aria-label={t("results.close")}
           >
             ×
           </button>
@@ -205,7 +204,7 @@ export default function ResultsModal({
         <div className="results__headline">
           {summary.scored ? (
             <div className="results__score">
-              <span className="results__score-label">score</span>
+              <span className="results__score-label">{t("results.score")}</span>
               <span className="results__score-value">
                 {summary.score.toLocaleString("en-GB")}
               </span>
@@ -213,26 +212,36 @@ export default function ResultsModal({
               <p className="results__best">
                 {summary.scored
                   ? newBest
-                    ? "New best!"
-                    : `Best ${best?.toLocaleString("en-GB") ?? "—"}`
-                  : "Thanks for playing!"}
+                    ? t("results.newBest")
+                    : t("results.best", {
+                        score: best?.toLocaleString("en-GB") ?? "—",
+                      })
+                  : t("results.thanks")}
               </p>
             </div>
           ) : null}
           <div className="results__grade">
             {failed ? (
               <>
-                <span className="results__verdict">Failed</span>
-                <span className="results__reason">{summary.failMessage ?? ""}</span>
+                <span className="results__verdict">{t("results.failed")}</span>
+                <span className="results__reason">
+                  {summary.failReason === "score"
+                    ? t("results.failScore")
+                    : summary.failReason === "mistake"
+                      ? t("results.failMistake")
+                      : summary.failReason === "streak"
+                        ? t("results.failStreak")
+                        : (summary.failMessage ?? "")}
+                </span>
               </>
             ) : summary.rank ? (
-              <span className="results__rank" aria-label={`Rank ${summary.rank}`}>
+              <span className="results__rank" aria-label={t("results.rank", { rank: summary.rank })}>
                 {summary.rank}
               </span>
             ) : null}
             {summary.scored ? (
               <span className="results__progress">
-                {Math.round(summary.progress * 100)}% through
+                {t("results.through", { percent: Math.round(summary.progress * 100) })}
               </span>
             ) : null}
           </div>
@@ -251,15 +260,15 @@ export default function ResultsModal({
 
         <div className="results__actions">
           <button type="button" className="btn-game btn-game--primary" onClick={onReplay}>
-            Try Again
+            {t("results.tryAgain")}
           </button>
           {summary.sharePath !== "/play" ? (
             <button type="button" className="btn-game" onClick={share}>
-              {copied ? "Copied!" : "Share"}
+              {copied ? t("results.copied") : t("results.share")}
             </button>
           ) : null}
           <button type="button" className="btn-game" onClick={onChangeSong}>
-            Change song
+            {t("results.changeSong")}
           </button>
         </div>
       </div>

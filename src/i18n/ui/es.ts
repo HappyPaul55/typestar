@@ -2,9 +2,12 @@ import type { MessageKey } from "./en";
 
 /** Spanish — machine-translated; pending human review. */
 export const es: Partial<Record<MessageKey, string>> = {
+  // Shared
   "common.loading": "Cargando…",
   "common.retry": "Reintentar",
   "common.close": "Cerrar",
+
+  // Navigation and footer
   "nav.primary": "Principal",
   "nav.menu": "Menú",
   "nav.play": "Jugar",
@@ -18,6 +21,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "footer.source": "Código fuente",
   "footer.licence": "Licencia {licence}",
   "footer.private": "// sin cuentas, sin cookies, sin rastreadores",
+
+  // Landing
   "home.comment": "ritmo y mecanografía",
   "home.titleBefore": "Escribe la letra",
   "home.titleMark": "a tiempo",
@@ -32,6 +37,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "home.step3Title": "Persigue la puntuación",
   "home.step3Body":
     "Las cadenas suben el multiplicador y las líneas perfectas dan bonus. Tres dificultades, cuatro modos de partida, partidas sin fin.",
+
+  // 404
   "notFound.comment": "404 · no encontrado",
   "notFound.titleBefore": "Esta canción no",
   "notFound.titleMark": "cargó",
@@ -40,6 +47,8 @@ export const es: Partial<Record<MessageKey, string>> = {
     "El enlace puede estar roto o la página se ha movido. Vuelve al inicio o entra directamente al juego.",
   "notFound.home": "Volver al inicio",
   "notFound.play": "Jugar una partida",
+
+  // Play page
   "play.crumb": "jugar",
   "play.localCrumb": "local",
   "play.subtitle":
@@ -49,11 +58,15 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Lo difícil que es escribir la letra, valorado según las palabras por segundo de la canción",
   "play.embed": "Insertar",
   "play.embedCopied": "¡Copiado!",
+
+  // Start screen
   "start.ready": "listo",
   "start.titleType": "Escribe las palabras a tiempo.",
   "start.titleSing": "Canta encima.",
   "start.start": "Empezar",
   "start.styleGroup": "Estilo de juego",
+
+  // HUD
   "hud.score": "puntos",
   "hud.combo": "combo",
   "hud.accuracy": "precisión",
@@ -67,12 +80,16 @@ export const es: Partial<Record<MessageKey, string>> = {
   "hud.fullscreen": "Pantalla completa",
   "hud.goFullscreen": "Ir a pantalla completa",
   "hud.changeSong": "Cambiar canción",
+
+  // Calibration
   "calibration.comment": "sincronía",
   "calibration.help":
     "Si las palabras se adelantan a la música, retrásalas. Si van con retraso, adelántalas.",
   "calibration.offset": "desfase",
   "calibration.reset": "Reiniciar",
   "calibration.done": "Listo",
+
+  // Results
   "results.results": "resultados",
   "results.runOver": "partida terminada",
   "results.karaoke": "karaoke",
@@ -81,6 +98,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "results.newBest": "¡Nuevo récord!",
   "results.thanks": "¡Gracias por jugar!",
   "results.failed": "Fallaste",
+  "results.rank": "Puesto {rank}",
   "results.through": "{percent}% completado",
   "results.tryAgain": "Reintentar",
   "results.share": "Compartir",
@@ -93,6 +111,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "results.invalid": "Guardado como no verificado ({reason}).",
   "results.signedOut": "Inicia sesión para guardar tus puntuaciones en la clasificación.",
   "results.saveError": "No se pudo guardar en la clasificación.",
+  "results.failScore": "Tu puntuación se volvió negativa.",
+  "results.failMistake": "Cometiste un error.",
+  "results.failStreak": "Fallaste 20 seguidas.",
+
+  // Track picker
   "picker.pasteLabel": "Pega un enlace de YouTube o una URL de UltraStar",
   "picker.placeholder": "https://www.youtube.com/watch?v=…  o  …/song.txt",
   "picker.play": "Jugar",
@@ -106,6 +129,8 @@ export const es: Partial<Record<MessageKey, string>> = {
     "La reproducción local no está disponible en este navegador: necesita la File System Access API. Prueba Chrome, Edge o Brave para reproducir archivos locales.",
   "picker.checking": "Comprobando este navegador…",
   "picker.featured": "Destacadas",
+
+  // Score pages
   "leaderboard.rank": "#",
   "leaderboard.player": "Jugador",
   "leaderboard.score": "Puntos",
@@ -143,4 +168,78 @@ export const es: Partial<Record<MessageKey, string>> = {
   "challenge.singingBoard": "Tabla de canto",
   "challenge.loading": "Cargando desafíos…",
   "challenge.error": "No se pudo cargar el desafío.",
+
+  // Site copy
+  "site.tagline": "Escribe la letra a tiempo",
+  "site.description":
+    "Un juego de mecanografía rítmica. YouTube pone la música y las imágenes, y tú escribes la letra según llegan las palabras: algo así como Guitar Hero para tu teclado.",
+  "common.skipToContent": "Ir al contenido",
+  "seo.ogAlt": "{name} — una teja «TS» amarilla junto al título sobre un fondo oscuro de cuaderno",
+  "seo.requiresJs": "Requiere JavaScript",
+
+  // Game status (island)
+  "game.loadingTrack": "Cargando canción…",
+  "game.fetchingCaptions": "Obteniendo los subtítulos y sincronizando las palabras.",
+  "game.noTrack": "No hay canción que reproducir",
+  "game.tryAnother": "Probar otra canción",
+  "game.humanCheckComment": "canción nueva",
+  "game.humanCheckTitle": "Comprobación humana rápida",
+  "game.humanCheckBody":
+    "Esta canción aún no está en la biblioteca, así que solo necesitamos comprobar que eres humano antes de descargarla. Solo ocurre una vez por canción.",
+  "game.humanCheckFailed":
+    "No se pudo completar la comprobación humana. Vuelve a intentarlo más tarde.",
+  "game.loadError": "Algo salió mal al cargar esta canción.",
+  "game.embedNoSong": "Este inserto necesita una canción en su URL.",
+
+  // Sign-in and account
+  "signin.comment": "iniciar sesión",
+  "signin.title": "Iniciar sesión",
+  "signin.lede":
+    "TypeStar usa un enlace de un solo uso en lugar de una contraseña. Escribe tu correo, abre el enlace que te enviamos y ya estás dentro.",
+  "signin.formTitle": "Inicia sesión con un enlace",
+  "signin.formBody":
+    "Escribe tu correo y te enviaremos un enlace de inicio de sesión de un solo uso. Sin contraseñas que recordar, y no existe ninguna cuenta hasta que uses el enlace.",
+  "signin.emailLabel": "Correo electrónico",
+  "signin.submit": "Envíame un enlace de inicio de sesión",
+  "signin.sending": "Enviando…",
+  "signin.invalidEmail": "Escribe un correo electrónico válido.",
+  "signin.needCheck": "Completa la comprobación humana.",
+  "signin.sendFailed": "No se pudo enviar el enlace. Inténtalo de nuevo.",
+  "signin.sentComment": "revisa tu bandeja de entrada",
+  "signin.sentTitle": "Enlace enviado",
+  "signin.sentBody":
+    "Enviamos un enlace de inicio de sesión de un solo uso a {email}. Ábrelo en este navegador para terminar de iniciar sesión. El enlace caduca en 15 minutos y solo se puede usar una vez.",
+  "signin.nothing": "¿No llegó nada? Revisa tu carpeta de spam o",
+  "signin.tryAgain": "inténtalo de nuevo",
+  "account.comment": "cuenta",
+  "account.title": "Cuenta",
+  "account.lede": "Tu correo, tu nombre público y tu sesión.",
+  "account.loading": "Cargando tu cuenta…",
+  "account.signedOutTitle": "No has iniciado sesión",
+  "account.signedOutBody":
+    "Inicia sesión con un enlace de correo de un solo uso para conservar tus puntuaciones y ajustes entre dispositivos.",
+  "account.signIn": "Iniciar sesión",
+  "account.signedInTitle": "Sesión iniciada",
+  "account.email": "Correo electrónico",
+  "account.memberSince": "Miembro desde",
+  "account.handleLabel": "Nombre de usuario",
+  "account.handleHint":
+    "Tu nombre público en las clasificaciones. Letras minúsculas, números y guiones bajos, de 3 a 20 caracteres.",
+  "account.save": "Guardar",
+  "account.saving": "Guardando…",
+  "account.saved": "Nombre guardado.",
+  "account.signOut": "Cerrar sesión",
+  "account.deleteAccount": "Eliminar cuenta",
+  "account.deleteConfirm": "¿Eliminar tu cuenta y todos sus datos?",
+  "account.deleteYes": "Sí, eliminar",
+  "account.cancel": "Cancelar",
+
+  // Embed
+  "embed.button": "Insertar",
+  "embed.copied": "¡Copiado!",
+
+  // Turnstile
+  "turnstile.failed": "La comprobación humana falló. Inténtalo de nuevo.",
+  "turnstile.expired": "La comprobación humana caducó. Inténtalo de nuevo.",
+  "turnstile.loadError": "No se pudo cargar la comprobación humana.",
 };

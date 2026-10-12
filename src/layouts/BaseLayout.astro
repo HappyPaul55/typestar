@@ -4,7 +4,7 @@ import { getEntry } from "astro:content";
 import Seo from "../components/layout/Seo.astro";
 import Header from "../components/layout/Header.astro";
 import Footer from "../components/layout/Footer.astro";
-import { localeFromPath } from "../i18n/astro";
+import { localeFromPath, tFor } from "../i18n/astro";
 import { HTML_LANG } from "../i18n/locales";
 
 interface Crumb {
@@ -34,6 +34,7 @@ if (!siteEntry) {
 }
 const site = siteEntry.data;
 const locale = localeFromPath(Astro.url.pathname);
+const t = tFor(locale);
 ---
 
 <!doctype html>
@@ -154,7 +155,7 @@ const locale = localeFromPath(Astro.url.pathname);
     <slot name="head" />
   </head>
   <body>
-    <a class="skip-link no-print" href="#main">Skip to content</a>
+    <a class="skip-link no-print" href="#main">{t("common.skipToContent")}</a>
 
     <p class="print-only print-masthead">
       {site.name} · {site.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}

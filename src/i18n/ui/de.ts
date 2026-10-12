@@ -29,33 +29,27 @@ export const de: Partial<Record<MessageKey, string>> = {
   "home.titleAfter": ".",
   "home.howComment": "so funktioniert's",
   "home.step1Title": "Wähle einen Song",
-  "home.step1Body":
-    "Füge einen YouTube-Link ein oder starte mit der Empfehlungsliste. TypeStar liest die Untertitel und taktet jedes Wort.",
+  "home.step1Body": "Füge einen YouTube-Link ein oder starte mit der Empfehlungsliste. TypeStar liest die Untertitel und taktet jedes Wort.",
   "home.step2Title": "Tippe im Takt",
-  "home.step2Body":
-    "Wörter leuchten auf, wenn sie kommen. Tippe jedes, bevor sein Moment vorbei ist — wie Guitar Hero, nur für die Tastatur.",
+  "home.step2Body": "Wörter leuchten auf, wenn sie kommen. Tippe jedes, bevor sein Moment vorbei ist — wie Guitar Hero, nur für die Tastatur.",
   "home.step3Title": "Jage die Punktzahl",
-  "home.step3Body":
-    "Ketten bauen einen Multiplikator auf und fehlerfreie Zeilen geben Bonus. Drei Schwierigkeiten, vier Spielmodi, endlose Wiederholungen.",
+  "home.step3Body": "Ketten bauen einen Multiplikator auf und fehlerfreie Zeilen geben Bonus. Drei Schwierigkeiten, vier Spielmodi, endlose Wiederholungen.",
 
   // 404
   "notFound.comment": "404 · nicht gefunden",
   "notFound.titleBefore": "Dieser Song konnte nicht",
   "notFound.titleMark": "geladen werden",
   "notFound.titleAfter": ".",
-  "notFound.body":
-    "Der Link ist vielleicht defekt oder die Seite wurde verschoben. Zurück zur Startseite oder direkt ins Spiel.",
+  "notFound.body": "Der Link ist vielleicht defekt oder die Seite wurde verschoben. Zurück zur Startseite oder direkt ins Spiel.",
   "notFound.home": "Zurück zur Startseite",
   "notFound.play": "Ein Spiel starten",
 
   // Play page
   "play.crumb": "spielen",
   "play.localCrumb": "lokal",
-  "play.subtitle":
-    "{tagline} — YouTube liefert Musik und Bilder; du tippst die Lyrics, wenn die Wörter kommen.",
+  "play.subtitle": "{tagline} — YouTube liefert Musik und Bilder; du tippst die Lyrics, wenn die Wörter kommen.",
   "play.ratingComment": "Bewertung",
-  "play.ratingTitle":
-    "Wie schwer die Lyrics zu tippen sind, bewertet nach den Wörtern pro Sekunde des Songs",
+  "play.ratingTitle": "Wie schwer die Lyrics zu tippen sind, bewertet nach den Wörtern pro Sekunde des Songs",
   "play.embed": "Einbetten",
   "play.embedCopied": "Kopiert!",
 
@@ -83,8 +77,7 @@ export const de: Partial<Record<MessageKey, string>> = {
 
   // Calibration
   "calibration.comment": "Sync",
-  "calibration.help":
-    "Wenn die Wörter der Musik vorauslaufen, verschiebe sie nach hinten. Wenn sie hinterherhinken, verschiebe sie nach vorne.",
+  "calibration.help": "Wenn die Wörter der Musik vorauslaufen, verschiebe sie nach hinten. Wenn sie hinterherhinken, verschiebe sie nach vorne.",
   "calibration.offset": "Versatz",
   "calibration.reset": "Zurücksetzen",
   "calibration.done": "Fertig",
@@ -98,6 +91,7 @@ export const de: Partial<Record<MessageKey, string>> = {
   "results.newBest": "Neuer Bestwert!",
   "results.thanks": "Danke fürs Spielen!",
   "results.failed": "Fehlgeschlagen",
+  "results.rank": "Rang {rank}",
   "results.through": "{percent}% geschafft",
   "results.tryAgain": "Nochmal versuchen",
   "results.share": "Teilen",
@@ -110,19 +104,19 @@ export const de: Partial<Record<MessageKey, string>> = {
   "results.invalid": "Als ungeprüft gespeichert ({reason}).",
   "results.signedOut": "Melde dich an, um deine Punkte in der Rangliste zu speichern.",
   "results.saveError": "Speichern in der Rangliste nicht möglich.",
+  "results.failScore": "Deine Punktzahl ist negativ geworden.",
+  "results.failMistake": "Du hast einen Fehler gemacht.",
+  "results.failStreak": "Du hast 20 hintereinander verpasst.",
 
   // Track picker
   "picker.pasteLabel": "Füge einen YouTube-Link oder eine UltraStar-URL ein",
   "picker.placeholder": "https://www.youtube.com/watch?v=…  oder  …/song.txt",
   "picker.play": "Spielen",
-  "picker.note":
-    "Ein YouTube-Link wird aus seinen Untertiteln abgespielt; ein Link zu einem UltraStar-.txt-Chart wird geladen und sein Audio vom eigenen Host gestreamt. GitHub-Blob-Links werden automatisch in Raw-Links umgewandelt.",
+  "picker.note": "Ein YouTube-Link wird aus seinen Untertiteln abgespielt; ein Link zu einem UltraStar-.txt-Chart wird geladen und sein Audio vom eigenen Host gestreamt. GitHub-Blob-Links werden automatisch in Raw-Links umgewandelt.",
   "picker.localHeading": "Auf diesem Gerät",
-  "picker.localNote":
-    "Spiele Songs, die du schon hast. Wähle einen Ordner mit UltraStar-Charts oder Videos mit passenden .vtt-Untertiteln — nichts wird hochgeladen.",
+  "picker.localNote": "Spiele Songs, die du schon hast. Wähle einen Ordner mit UltraStar-Charts oder Videos mit passenden .vtt-Untertiteln — nichts wird hochgeladen.",
   "picker.openLocal": "Lokale Dateien öffnen",
-  "picker.unsupported":
-    "Lokale Wiedergabe ist in diesem Browser nicht verfügbar — sie benötigt die File System Access API. Versuche Chrome, Edge oder Brave, um lokale Dateien abzuspielen.",
+  "picker.unsupported": "Lokale Wiedergabe ist in diesem Browser nicht verfügbar — sie benötigt die File System Access API. Versuche Chrome, Edge oder Brave, um lokale Dateien abzuspielen.",
   "picker.checking": "Browser wird geprüft…",
   "picker.featured": "Empfohlen",
 
@@ -153,8 +147,7 @@ export const de: Partial<Record<MessageKey, string>> = {
   "recent.empty": "Noch keine Punkte — spiele einen Song und sei der Erste in der Rangliste.",
   "recent.loading": "Neueste Punkte werden geladen…",
   "challenge.title": "Tages- und Wochenherausforderung",
-  "challenge.lede":
-    "Ein Song und ein Modifikator pro Zeitraum, mit eigenen Ranglisten für Tippen und Singen. Für alle gleich, und es ändert sich von selbst.",
+  "challenge.lede": "Ein Song und ein Modifikator pro Zeitraum, mit eigenen Ranglisten für Tippen und Singen. Für alle gleich, und es ändert sich von selbst.",
   "challenge.daily": "Täglich",
   "challenge.weekly": "Wöchentlich",
   "challenge.playTyping": "Tippen spielen",
@@ -163,4 +156,70 @@ export const de: Partial<Record<MessageKey, string>> = {
   "challenge.singingBoard": "Gesangs-Rangliste",
   "challenge.loading": "Herausforderungen werden geladen…",
   "challenge.error": "Die Herausforderung konnte nicht geladen werden.",
+
+  // Site copy
+  "site.tagline": "Tippe die Lyrics im Takt",
+  "site.description": "Ein Rhythmus-Tippspiel. YouTube liefert Musik und Bilder, und du tippst die Lyrics, während die Wörter kommen — ein bisschen wie Guitar Hero für deine Tastatur.",
+  "common.skipToContent": "Zum Inhalt springen",
+  "seo.ogAlt": "{name} — eine gelbe „TS“-Kachel neben dem Titel auf dunklem Notizbuch-Hintergrund",
+  "seo.requiresJs": "Erfordert JavaScript",
+
+  // Game status (island)
+  "game.loadingTrack": "Song wird geladen…",
+  "game.fetchingCaptions": "Untertitel werden geladen und die Wörter getaktet.",
+  "game.noTrack": "Kein Song zum Spielen",
+  "game.tryAnother": "Anderen Song versuchen",
+  "game.humanCheckComment": "neuer Song",
+  "game.humanCheckTitle": "Kurze Menschen-Prüfung",
+  "game.humanCheckBody": "Dieser Song ist noch nicht in der Bibliothek, deshalb müssen wir kurz prüfen, dass du ein Mensch bist, bevor wir ihn laden. Das passiert nur einmal pro Song.",
+  "game.humanCheckFailed": "Die Menschen-Prüfung konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
+  "game.loadError": "Beim Laden dieses Songs ist etwas schiefgelaufen.",
+  "game.embedNoSong": "Dieses Embed benötigt einen Song in seiner URL.",
+
+  // Sign-in and account
+  "signin.comment": "Anmelden",
+  "signin.title": "Anmelden",
+  "signin.lede": "TypeStar verwendet einen Einmal-Link statt eines Passworts. Gib deine E-Mail ein, öffne den Link, den wir senden, und du bist angemeldet.",
+  "signin.formTitle": "Mit einem Link anmelden",
+  "signin.formBody": "Gib deine E-Mail ein und wir senden dir einen Einmal-Anmeldelink. Kein Passwort zum Merken, und es existiert kein Konto, bis du den Link verwendest.",
+  "signin.emailLabel": "E-Mail-Adresse",
+  "signin.submit": "Anmeldelink per E-Mail senden",
+  "signin.sending": "Wird gesendet…",
+  "signin.invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
+  "signin.needCheck": "Bitte schließe die Menschen-Prüfung ab.",
+  "signin.sendFailed": "Der Link konnte nicht gesendet werden. Bitte versuche es erneut.",
+  "signin.sentComment": "prüfe deinen Posteingang",
+  "signin.sentTitle": "Link gesendet",
+  "signin.sentBody": "Wir haben einen Einmal-Anmeldelink an {email} gesendet. Öffne ihn in diesem Browser, um die Anmeldung abzuschließen. Der Link läuft in 15 Minuten ab und kann nur einmal verwendet werden.",
+  "signin.nothing": "Nichts angekommen? Prüfe deinen Spam-Ordner oder",
+  "signin.tryAgain": "versuche es erneut",
+  "account.comment": "Konto",
+  "account.title": "Konto",
+  "account.lede": "Deine E-Mail, dein öffentlicher Name und deine Sitzung.",
+  "account.loading": "Konto wird geladen…",
+  "account.signedOutTitle": "Du bist nicht angemeldet",
+  "account.signedOutBody": "Melde dich mit einem Einmal-E-Mail-Link an, um deine Punkte und Einstellungen geräteübergreifend zu behalten.",
+  "account.signIn": "Anmelden",
+  "account.signedInTitle": "Angemeldet",
+  "account.email": "E-Mail",
+  "account.memberSince": "Mitglied seit",
+  "account.handleLabel": "Benutzername",
+  "account.handleHint": "Dein öffentlicher Name in Ranglisten. Kleinbuchstaben, Zahlen und Unterstriche, 3–20 Zeichen.",
+  "account.save": "Speichern",
+  "account.saving": "Wird gespeichert…",
+  "account.saved": "Benutzername gespeichert.",
+  "account.signOut": "Abmelden",
+  "account.deleteAccount": "Konto löschen",
+  "account.deleteConfirm": "Dein Konto und alle zugehörigen Daten löschen?",
+  "account.deleteYes": "Ja, löschen",
+  "account.cancel": "Abbrechen",
+
+  // Embed
+  "embed.button": "Einbetten",
+  "embed.copied": "Kopiert!",
+
+  // Turnstile
+  "turnstile.failed": "Die Menschen-Prüfung ist fehlgeschlagen. Bitte versuche es erneut.",
+  "turnstile.expired": "Die Menschen-Prüfung ist abgelaufen. Bitte versuche es erneut.",
+  "turnstile.loadError": "Die Menschen-Prüfung konnte nicht geladen werden.",
 };

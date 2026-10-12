@@ -98,6 +98,7 @@ export const ptBR: Partial<Record<MessageKey, string>> = {
   "results.newBest": "Novo recorde!",
   "results.thanks": "Obrigado por jogar!",
   "results.failed": "Falhou",
+  "results.rank": "Posição {rank}",
   "results.through": "{percent}% concluído",
   "results.tryAgain": "Tentar de novo",
   "results.share": "Compartilhar",
@@ -110,6 +111,9 @@ export const ptBR: Partial<Record<MessageKey, string>> = {
   "results.invalid": "Salvo como não verificado ({reason}).",
   "results.signedOut": "Entre na sua conta para salvar suas pontuações no placar.",
   "results.saveError": "Não foi possível salvar no placar.",
+  "results.failScore": "Sua pontuação ficou negativa.",
+  "results.failMistake": "Você cometeu um erro.",
+  "results.failStreak": "Você errou 20 seguidas.",
 
   // Track picker
   "picker.pasteLabel": "Cole um link do YouTube ou uma URL do UltraStar",
@@ -164,4 +168,79 @@ export const ptBR: Partial<Record<MessageKey, string>> = {
   "challenge.singingBoard": "Placar de canto",
   "challenge.loading": "Carregando desafios…",
   "challenge.error": "Não foi possível carregar o desafio.",
+
+  // Site copy
+  "site.tagline": "Digite a letra no ritmo",
+  "site.description":
+    "Um jogo de digitação rítmica. O YouTube fornece a música e os visuais, e você digita a letra conforme as palavras chegam — um pouco como Guitar Hero para o seu teclado.",
+  "common.skipToContent": "Pular para o conteúdo",
+  "seo.ogAlt":
+    "{name} — um bloco “TS” amarelo ao lado do título num fundo de caderno escuro",
+  "seo.requiresJs": "Requer JavaScript",
+
+  // Game status (island)
+  "game.loadingTrack": "Carregando música…",
+  "game.fetchingCaptions": "Buscando as legendas e marcando o tempo das palavras.",
+  "game.noTrack": "Nenhuma música para tocar",
+  "game.tryAnother": "Tentar outra música",
+  "game.humanCheckComment": "música nova",
+  "game.humanCheckTitle": "Verificação humana rápida",
+  "game.humanCheckBody":
+    "Esta música ainda não está na biblioteca, então só precisamos confirmar que você é humano antes de buscá-la. Isso acontece apenas uma vez por música.",
+  "game.humanCheckFailed":
+    "Não foi possível concluir a verificação humana. Tente de novo mais tarde.",
+  "game.loadError": "Algo deu errado ao carregar esta música.",
+  "game.embedNoSong": "Esta incorporação precisa de uma música na URL.",
+
+  // Sign-in and account
+  "signin.comment": "entrar",
+  "signin.title": "Entrar",
+  "signin.lede":
+    "O TypeStar usa um link de uso único em vez de senha. Digite seu e-mail, abra o link que enviarmos e pronto.",
+  "signin.formTitle": "Entrar com um link",
+  "signin.formBody":
+    "Digite seu e-mail e enviaremos um link de acesso de uso único. Nada de senha para lembrar, e nenhuma conta existe até você usar o link.",
+  "signin.emailLabel": "Endereço de e-mail",
+  "signin.submit": "Enviar link de acesso por e-mail",
+  "signin.sending": "Enviando…",
+  "signin.invalidEmail": "Digite um endereço de e-mail válido.",
+  "signin.needCheck": "Conclua a verificação humana.",
+  "signin.sendFailed": "Não foi possível enviar o link. Tente de novo.",
+  "signin.sentComment": "confira sua caixa de entrada",
+  "signin.sentTitle": "Link enviado",
+  "signin.sentBody":
+    "Enviamos um link de acesso de uso único para {email}. Abra-o neste navegador para concluir a entrada. O link expira em 15 minutos e só pode ser usado uma vez.",
+  "signin.nothing": "Não chegou nada? Confira a pasta de spam ou",
+  "signin.tryAgain": "tente de novo",
+  "account.comment": "conta",
+  "account.title": "Conta",
+  "account.lede": "Seu e-mail, seu apelido público e sua sessão.",
+  "account.loading": "Carregando sua conta…",
+  "account.signedOutTitle": "Você não está conectado",
+  "account.signedOutBody":
+    "Entre com um link de e-mail de uso único para manter suas pontuações e configurações entre dispositivos.",
+  "account.signIn": "Entrar",
+  "account.signedInTitle": "Conectado",
+  "account.email": "E-mail",
+  "account.memberSince": "Membro desde",
+  "account.handleLabel": "Apelido",
+  "account.handleHint":
+    "Seu nome público nos placares. Letras minúsculas, números e sublinhados, de 3 a 20 caracteres.",
+  "account.save": "Salvar",
+  "account.saving": "Salvando…",
+  "account.saved": "Apelido salvo.",
+  "account.signOut": "Sair",
+  "account.deleteAccount": "Excluir conta",
+  "account.deleteConfirm": "Excluir sua conta e todos os seus dados?",
+  "account.deleteYes": "Sim, excluir",
+  "account.cancel": "Cancelar",
+
+  // Embed
+  "embed.button": "Incorporar",
+  "embed.copied": "Copiado!",
+
+  // Turnstile
+  "turnstile.failed": "A verificação humana falhou. Tente de novo.",
+  "turnstile.expired": "A verificação humana expirou. Tente de novo.",
+  "turnstile.loadError": "Não foi possível carregar a verificação humana.",
 };

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { authClient, AUTH_TURNSTILE_ACTION } from "../../lib/auth/client";
 import { normalizeEmail } from "../../lib/auth/validate";
 import { TURNSTILE_SITE_KEY } from "../../lib/game/turnstile";
+import { useT } from "../../i18n/react";
 import TurnstileChallenge from "../game/TurnstileChallenge";
 
 /** Only same-origin, relative paths are allowed as a post-sign-in destination. */
@@ -23,6 +24,7 @@ function safeNext(raw: string | undefined): string {
 }
 
 export default function SignInForm({ next }: { next?: string }) {
+  const t = useT();
   const [destination, setDestination] = useState(safeNext(next));
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +68,12 @@ export default function SignInForm({ next }: { next?: string }) {
     if (apiError.status === 403) {
       // Turnstile is configured: show the widget and let the player retry.
       setNeedsChallenge(true);
-      setError("Please complete the human check.");
+      setError(t("signin.needCheck"));
       setChallengeId((id) => id + 1);
       return;
     }
-    setError(apiError.message ?? "Could not send the link. Please try again.");
-  }, []);
+    setError(apiError.message ?? t("signin.sendFailed"));
+  }, [t]);
 
   const onToken = useCallback(
     (value: string) => {
@@ -86,7 +88,7 @@ export default function SignInForm({ next }: { next?: string }) {
   async function submit() {
     const value = normalizeEmail(email);
     if (!value) {
-      setError("Enter a valid email address.");
+      setError(t("signin.invalidEmail"));
       return;
     }
     await send(null);
@@ -99,16 +101,14 @@ export default function SignInForm({ next }: { next?: string }) {
           <span className="slash" aria-hidden="true">
             //
           </span>{" "}
-          check your inbox
+          {t("signin.sentComment")}
         </p>
-        <h2 className="panel__title mt-2">Link sent</h2>
+        <h2 className="panel__title mt-2">{t("signin.sentTitle")}</h2>
         <p className="mt-2 text-ink-soft">
-          We sent a one-time sign-in link to <strong>{email}</strong>. Open it in
-          this browser to finish signing in. The link expires in 15 minutes and
-          can only be used once.
+          {t("signin.sentBody", { email })}
         </p>
         <p className="mt-4 text-ink-soft">
-          Nothing arrived? Check your spam folder, or{" "}
+          {t("signin.nothing")}{" "}
           <button
             type="button"
             className="auth-link"
@@ -117,7 +117,7 @@ export default function SignInForm({ next }: { next?: string }) {
               setChallengeId((id) => id + 1);
             }}
           >
-            try again
+            {t("signin.tryAgain")}
           </button>
           .
         </p>
@@ -131,13 +131,10 @@ export default function SignInForm({ next }: { next?: string }) {
         <span className="slash" aria-hidden="true">
           //
         </span>{" "}
-        sign in
+        {t("signin.comment")}
       </p>
-      <h2 className="panel__title mt-2">Sign in with a link</h2>
-      <p className="mt-2 text-ink-soft">
-        Enter your email and we&rsquo;ll send a one-time sign-in link. No
-        password to remember, and no account exists until you use the link.
-      </p>
+      <h2 className="panel__title mt-2">{t("signin.formTitle")}</h2>
+      <p className="mt-2 text-ink-soft">{t("signin.formBody")}</p>
 
       <form
         className="auth-form"
@@ -148,7 +145,7 @@ export default function SignInForm({ next }: { next?: string }) {
         noValidate
       >
         <label className="auth-label" htmlFor="auth-email">
-          Email address
+          {t("signin.emailLabel")}
         </label>
         <input
           id="auth-email"
@@ -185,7 +182,7 @@ export default function SignInForm({ next }: { next?: string }) {
           className="btn-game btn-game--primary auth-submit"
           disabled={busy}
         >
-          {busy ? "Sending…" : "Email me a sign-in link"}
+          {busy ? t("signin.sending") : t("signin.submit")}
         </button>
       </form>
     </div>

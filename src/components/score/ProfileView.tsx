@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchProfile, type ProfileResponse } from "../../lib/score/client";
+import { useT } from "../../i18n/react";
 import ScoreList from "./ScoreList";
 
 type State = "loading" | "ready" | "missing";
@@ -19,6 +20,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 export default function ProfileView() {
+  const t = useT();
   const [state, setState] = useState<State>("loading");
   const [data, setData] = useState<ProfileResponse | null>(null);
 
@@ -44,9 +46,9 @@ export default function ProfileView() {
     };
   }, []);
 
-  if (state === "loading") return <p className="text-ink-soft">Loading profile…</p>;
+  if (state === "loading") return <p className="text-ink-soft">{t("common.loading")}</p>;
   if (state === "missing" || !data) {
-    return <p className="text-ink-soft">No player with that handle.</p>;
+    return <p className="text-ink-soft">{t("profile.missing")}</p>;
   }
 
   const name = data.profile.displayName || data.profile.handle || "Player";
@@ -64,7 +66,7 @@ export default function ProfileView() {
         <span className="slash" aria-hidden="true">
           //
         </span>{" "}
-        profile
+        {t("profile.comment")}
       </p>
       <h2 className="panel__title mt-2">{name}</h2>
       <p className="score-card__meta mt-1">
@@ -73,15 +75,15 @@ export default function ProfileView() {
       </p>
 
       <div className="score-stats">
-        <Stat label="plays" value={data.stats.plays.toLocaleString("en-GB")} />
-        <Stat label="songs" value={data.stats.tracks.toLocaleString("en-GB")} />
-        <Stat label="best" value={data.stats.bestScore.toLocaleString("en-GB")} />
+        <Stat label={t("profile.plays")} value={data.stats.plays.toLocaleString("en-GB")} />
+        <Stat label={t("profile.songs")} value={data.stats.tracks.toLocaleString("en-GB")} />
+        <Stat label={t("profile.best")} value={data.stats.bestScore.toLocaleString("en-GB")} />
       </div>
 
-      <p className="group-label">Best scores</p>
-      <ScoreList rows={data.bests} empty="No verified scores yet." />
+      <p className="group-label">{t("profile.bestHeading")}</p>
+      <ScoreList rows={data.bests} empty={t("profile.noBests")} />
 
-      <p className="group-label">Recent</p>
+      <p className="group-label">{t("profile.recentHeading")}</p>
       <ScoreList rows={data.recent} />
     </div>
   );

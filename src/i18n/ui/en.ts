@@ -106,6 +106,7 @@ export const en = {
   "results.newBest": "New best!",
   "results.thanks": "Thanks for playing!",
   "results.failed": "Failed",
+  "results.rank": "Rank {rank}",
   "results.through": "{percent}% through",
   "results.tryAgain": "Try Again",
   "results.share": "Share",
@@ -118,6 +119,9 @@ export const en = {
   "results.invalid": "Saved as unverified ({reason}).",
   "results.signedOut": "Sign in to save your scores to the leaderboard.",
   "results.saveError": "Could not save to the leaderboard.",
+  "results.failScore": "Your score went negative.",
+  "results.failMistake": "You made a mistake.",
+  "results.failStreak": "You missed 20 in a row.",
 
   // Track picker
   "picker.pasteLabel": "Paste a YouTube link or an UltraStar URL",
@@ -171,6 +175,80 @@ export const en = {
   "challenge.singingBoard": "Singing board",
   "challenge.loading": "Loading challenges…",
   "challenge.error": "The challenge could not be loaded.",
+
+  // Site copy
+  "site.tagline": "Type the lyrics in time",
+  "site.description":
+    "A rhythm touch-typing game. YouTube supplies the music and visuals, and you type the lyrics as the words arrive — a bit like Guitar Hero for your keyboard.",
+  "common.skipToContent": "Skip to content",
+  "seo.ogAlt": "{name} — a yellow “TS” tile beside the title on a dark notebook background",
+  "seo.requiresJs": "Requires JavaScript",
+
+  // Game status (island)
+  "game.loadingTrack": "Loading track…",
+  "game.fetchingCaptions": "Fetching the captions and timing the words.",
+  "game.noTrack": "No track to play",
+  "game.tryAnother": "Try another song",
+  "game.humanCheckComment": "new song",
+  "game.humanCheckTitle": "Quick human check",
+  "game.humanCheckBody":
+    "This song isn't in the library yet, so we just need to check you're human before fetching it. It only ever happens once per song.",
+  "game.humanCheckFailed":
+    "The human check could not be completed. Please try again later.",
+  "game.loadError": "Something went wrong loading this track.",
+  "game.embedNoSong": "This embed needs a song in its URL.",
+
+  // Sign-in and account
+  "signin.comment": "sign in",
+  "signin.title": "Sign in",
+  "signin.lede":
+    "TypeStar uses a one-time link instead of a password. Enter your email, open the link we send, and you're in.",
+  "signin.formTitle": "Sign in with a link",
+  "signin.formBody":
+    "Enter your email and we'll send a one-time sign-in link. No password to remember, and no account exists until you use the link.",
+  "signin.emailLabel": "Email address",
+  "signin.submit": "Email me a sign-in link",
+  "signin.sending": "Sending…",
+  "signin.invalidEmail": "Enter a valid email address.",
+  "signin.needCheck": "Please complete the human check.",
+  "signin.sendFailed": "Could not send the link. Please try again.",
+  "signin.sentComment": "check your inbox",
+  "signin.sentTitle": "Link sent",
+  "signin.sentBody":
+    "We sent a one-time sign-in link to {email}. Open it in this browser to finish signing in. The link expires in 15 minutes and can only be used once.",
+  "signin.nothing": "Nothing arrived? Check your spam folder, or",
+  "signin.tryAgain": "try again",
+  "account.comment": "account",
+  "account.title": "Account",
+  "account.lede": "Your email, your public handle and your session.",
+  "account.loading": "Loading your account…",
+  "account.signedOutTitle": "You're not signed in",
+  "account.signedOutBody":
+    "Sign in with a one-time email link to keep your scores and settings across devices.",
+  "account.signIn": "Sign in",
+  "account.signedInTitle": "Signed in",
+  "account.email": "Email",
+  "account.memberSince": "Member since",
+  "account.handleLabel": "Handle",
+  "account.handleHint":
+    "Your public name on leaderboards. Lowercase letters, numbers and underscores, 3–20 characters.",
+  "account.save": "Save",
+  "account.saving": "Saving…",
+  "account.saved": "Handle saved.",
+  "account.signOut": "Sign out",
+  "account.deleteAccount": "Delete account",
+  "account.deleteConfirm": "Delete your account and all its data?",
+  "account.deleteYes": "Yes, delete",
+  "account.cancel": "Cancel",
+
+  // Embed
+  "embed.button": "Embed",
+  "embed.copied": "Copied!",
+
+  // Turnstile
+  "turnstile.failed": "The human check failed. Please try again.",
+  "turnstile.expired": "The human check expired. Please try again.",
+  "turnstile.loadError": "Could not load the human check.",
 } as const;
 
 export type MessageKey = keyof typeof en;

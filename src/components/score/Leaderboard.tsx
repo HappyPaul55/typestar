@@ -4,26 +4,28 @@
  */
 
 import type { LeaderboardEntry } from "../../lib/score/types";
+import { useT } from "../../i18n/react";
 
 export default function Leaderboard({
   entries,
-  empty = "No scores yet — be the first.",
+  empty,
 }: {
   entries: LeaderboardEntry[];
   empty?: string;
 }) {
+  const t = useT();
   if (entries.length === 0) {
-    return <p className="score-empty">{empty}</p>;
+    return <p className="score-empty">{empty ?? t("leaderboard.empty")}</p>;
   }
   return (
     <table className="score-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Player</th>
-          <th>Score</th>
-          <th>Accuracy</th>
-          <th>Combo</th>
+          <th>{t("leaderboard.rank")}</th>
+          <th>{t("leaderboard.player")}</th>
+          <th>{t("leaderboard.score")}</th>
+          <th>{t("leaderboard.accuracy")}</th>
+          <th>{t("leaderboard.combo")}</th>
         </tr>
       </thead>
       <tbody>

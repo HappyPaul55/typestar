@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { sourceFromLocation } from "../../lib/game/client";
 import { videoIdOf } from "../../lib/track/source";
+import { useT } from "../../i18n/react";
 
 /** The embed URL for the current page, or `null` when there is none. */
 function embedUrl(): string | null {
@@ -23,6 +24,7 @@ function snippet(url: string): string {
 }
 
 export default function EmbedButton() {
+  const t = useT();
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -45,7 +47,7 @@ export default function EmbedButton() {
 
   return (
     <button type="button" className="btn-game" onClick={() => void copy()}>
-      {copied ? "Copied!" : "Embed"}
+      {copied ? t("embed.copied") : t("embed.button")}
     </button>
   );
 }

@@ -7,6 +7,7 @@ import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import { sourceFromInput } from "../../lib/game/client";
 import { supportsLocalLibrary } from "../../lib/local/library";
 import { RATING_LABEL, type TrackRating } from "../../lib/track/rating";
+import { useT } from "../../i18n/react";
 import TrackCard from "./TrackCard";
 
 export default function TrackPicker({
@@ -24,6 +25,7 @@ export default function TrackPicker({
   /** Switch to the local-file picker in place. */
   onOpenLocal?(): void;
 }) {
+  const t = useT();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   // The File System Access API only exists in some browsers. Checking during
@@ -83,7 +85,7 @@ export default function TrackPicker({
           }}
         >
           <label className="track-picker__label" htmlFor="track-url">
-            Paste a YouTube link or an UltraStar URL
+            {t("picker.pasteLabel")}
           </label>
           <div className="track-picker__row">
             <input
@@ -93,7 +95,7 @@ export default function TrackPicker({
               inputMode="url"
               autoComplete="off"
               spellCheck={false}
-              placeholder="https://www.youtube.com/watch?v=…  or  …/song.txt"
+              placeholder={t("picker.placeholder")}
               value={value}
               onChange={(event) => {
                 setValue(event.target.value);
@@ -101,16 +103,11 @@ export default function TrackPicker({
               }}
             />
             <button type="submit" className="btn-game btn-game--primary">
-              Play
+              {t("picker.play")}
             </button>
           </div>
           {error ? <p className="track-picker__error">{error}</p> : null}
-          <p className="track-picker__note">
-            A YouTube link is played from its captions; a link to an{" "}
-            <strong>UltraStar</strong> <code>.txt</code> chart is fetched and its
-            audio streamed from its own host. GitHub <code>blob</code> links are
-            converted to raw automatically.
-          </p>
+          <p className="track-picker__note">{t("picker.note")}</p>
         </form>
 
         <aside
@@ -120,40 +117,34 @@ export default function TrackPicker({
           }
           aria-label="Local files"
         >
-          <p className="group-label">On this device</p>
+          <p className="group-label">{t("picker.localHeading")}</p>
           {localSupport === "yes" ? (
             <>
-              <p className="track-picker__note">
-                Play songs you already have. Pick a folder of{" "}
-                <strong>UltraStar</strong> charts or videos with matching{" "}
-                <code>.vtt</code> captions — nothing is uploaded.
-              </p>
+              <p className="track-picker__note">{t("picker.localNote")}</p>
               <div className="track-picker__local-action">
                 <a
                   className="btn-game btn-game--primary"
                   href="/play/local"
                   onClick={openLocal}
                 >
-                  Open local files
+                  {t("picker.openLocal")}
                 </a>
               </div>
             </>
           ) : localSupport === "no" ? (
             <p className="track-picker__note track-picker__local-warning">
-              Local playback isn&rsquo;t available in this browser — it needs the
-              File System Access API. Try Chrome, Edge or Brave to play local
-              files.
+              {t("picker.unsupported")}
             </p>
           ) : (
             <p className="track-picker__note track-picker__local-checking">
-              Checking this browser&hellip;
+              {t("picker.checking")}
             </p>
           )}
         </aside>
       </div>
 
       <div className="track-picker__featured">
-        <p className="group-label">Featured</p>
+        <p className="group-label">{t("picker.featured")}</p>
         <div className="track-picker__grid">
           {FEATURED_TRACKS.map((track) => {
             // YouTube's own cover art. `mq`/`hq`/`sd`/`maxres` are picked by

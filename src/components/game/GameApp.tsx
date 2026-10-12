@@ -83,7 +83,7 @@ import { usePitchInput } from "./hooks/usePitchInput";
 import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
 import { useSignedIn } from "../../lib/auth/session";
-import { I18nProvider } from "../../i18n/react";
+import { I18nProvider, useT } from "../../i18n/react";
 import type { Locale } from "../../i18n/locales";
 import {
   fetchRunNonce,
@@ -264,6 +264,7 @@ export default function GameApp({
   // records its inputs as they happen, and submits them when the results appear.
   // Nothing is recorded while signed out.
   const signedIn = useSignedIn();
+  const t = useT();
   const timelineRef = useRef<TimelineEvent[]>([]);
   const nonceRef = useRef<string | null>(null);
   const nonceSettingsRef = useRef<RunSettingsInput | null>(null);
@@ -538,9 +539,7 @@ export default function GameApp({
             // Give up rather than loop forever if the check keeps being refused.
             turnstileFailures.current += 1;
             if (turnstileFailures.current > 2) {
-              setLoadError(
-                "The human check could not be completed. Please try again later.",
-              );
+              setLoadError(t("game.humanCheckFailed"));
               return;
             }
           }
@@ -551,7 +550,7 @@ export default function GameApp({
         setLoadError(
           error instanceof TrackApiError
             ? error.message
-            : "Something went wrong loading this track.",
+            : t("game.loadError"),
         );
       });
 
@@ -1145,7 +1144,7 @@ export default function GameApp({
     );
   } else if (source === null && !song) {
     body = embed ? (
-      <StatusPanel title="No song" message="This embed needs a song in its URL." />
+      <StatusPanel title={t("game.noTrack")} message={t("game.embedNoSong")} />
     ) : (
       <TrackPicker
         ratings={ratings}
@@ -1157,9 +1156,9 @@ export default function GameApp({
   } else if (loadError) {
     body = (
       <StatusPanel
-        title="No track to play"
+        title={t("game.noTrack")}
         message={loadError}
-        action="Try another song"
+        action={t("game.tryAnother")}
         onAction={changeSong}
       />
     );
@@ -1171,14 +1170,10 @@ export default function GameApp({
             <span className="slash" aria-hidden="true">
               //
             </span>{" "}
-            new song
+            {t("game.humanCheckComment")}
           </p>
-          <h2 className="panel__title mt-2">Quick human check</h2>
-          <p className="mt-2 text-ink-soft">
-            This song isn&rsquo;t in the library yet, so we just need to check
-            you&rsquo;re human before fetching it. It only ever happens once per
-            song.
-          </p>
+          <h2 className="panel__title mt-2">{t("game.humanCheckTitle")}</h2>
+          <p className="mt-2 text-ink-soft">{t("game.humanCheckBody")}</p>
           <div className="mt-4">
             <TurnstileChallenge
               key={challengeId}
@@ -1195,8 +1190,8 @@ export default function GameApp({
       </div>
     ) : (
       <StatusPanel
-        title="Loading track…"
-        message="Fetching the captions and timing the words."
+        title={t("game.loadingTrack")}
+        message={t("game.fetchingCaptions")}
       />
     );
   }

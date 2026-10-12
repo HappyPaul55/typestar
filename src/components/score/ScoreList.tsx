@@ -4,26 +4,28 @@
 
 import type { RecentEntry } from "../../lib/score/client";
 import { modeLabel, playHref, timeAgo } from "../../lib/score/format";
+import { useT } from "../../i18n/react";
 
 export default function ScoreList({
   rows,
   showPlayer = false,
-  empty = "Nothing yet.",
+  empty,
 }: {
   rows: RecentEntry[];
   showPlayer?: boolean;
   empty?: string;
 }) {
-  if (rows.length === 0) return <p className="score-empty">{empty}</p>;
+  const t = useT();
+  if (rows.length === 0) return <p className="score-empty">{empty ?? t("profile.nothing")}</p>;
   return (
     <table className="score-table">
       <thead>
         <tr>
-          {showPlayer ? <th>Player</th> : null}
-          <th>Song</th>
-          <th>Mode</th>
-          <th>Score</th>
-          <th>When</th>
+          {showPlayer ? <th>{t("leaderboard.player")}</th> : null}
+          <th>{t("score.song")}</th>
+          <th>{t("score.mode")}</th>
+          <th>{t("leaderboard.score")}</th>
+          <th>{t("score.when")}</th>
         </tr>
       </thead>
       <tbody>

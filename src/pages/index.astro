@@ -2,14 +2,17 @@
 import { getEntry } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import HomePage from "../components/home/HomePage.astro";
+import { localeFromPath, tFor } from "../i18n/astro";
 
 const site = (await getEntry("site", "main"))!.data;
+const locale = localeFromPath(Astro.url.pathname);
+const t = tFor(locale);
 ---
 
 <BaseLayout
-  title={`${site.name} — ${site.tagline}`}
-  description={site.description}
+  title={`${site.name} — ${t("site.tagline")}`}
+  description={t("site.description")}
   path="/"
 >
-  <HomePage site={site} />
+  <HomePage />
 </BaseLayout>
