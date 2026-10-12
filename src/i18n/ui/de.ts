@@ -158,7 +158,7 @@ export const de: Partial<Record<MessageKey, string>> = {
   "challenge.error": "Die Herausforderung konnte nicht geladen werden.",
 
   // Site copy
-  "site.tagline": "Tippe die Lyrics im Takt",
+  "site.tagline": "Ein Musikspiel für Tastatur, Stimme und mehr",
   "site.description": "Ein Rhythmus-Tippspiel. YouTube liefert Musik und Bilder, und du tippst die Lyrics, während die Wörter kommen — ein bisschen wie Guitar Hero für deine Tastatur.",
   "common.skipToContent": "Zum Inhalt springen",
   "seo.ogAlt": "{name} — eine gelbe „TS“-Kachel neben dem Titel auf dunklem Notizbuch-Hintergrund",

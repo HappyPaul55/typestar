@@ -574,7 +574,7 @@ export default function GameApp({
   useEffect(() => {
     const titleEl = document.getElementById("play-title");
     const subtitleEl = document.getElementById("play-subtitle");
-    const defaultSubtitle = `${site.tagline} — YouTube supplies the music and visuals; you type the lyrics as the words arrive.`;
+    const defaultSubtitle = t("play.subtitle", { tagline: t("site.tagline") });
 
     if (activeTrack) {
       document.title = `${activeTrack.title} — ${site.name}`;

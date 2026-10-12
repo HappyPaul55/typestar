@@ -171,7 +171,7 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "challenge.error": "チャレンジを読み込めませんでした。",
 
   // Site copy
-  "site.tagline": "歌詞を時間どおりにタイプ",
+  "site.tagline": "キーボードでも歌声でも、もっと自由に遊べる音楽ゲーム",
   "site.description":
     "リズムタッチタイピングゲーム。YouTubeが音楽と映像を提供し、単語が届くたびに歌詞をタイプします — キーボード版のGuitar Heroのようなものです。",
   "common.skipToContent": "コンテンツへスキップ",

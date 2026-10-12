@@ -177,7 +177,7 @@ export const en = {
   "challenge.error": "The challenge could not be loaded.",
 
   // Site copy
-  "site.tagline": "Type the lyrics in time",
+  "site.tagline": "A music game you play with your keyboard, your voice, and more",
   "site.description":
     "A rhythm touch-typing game. YouTube supplies the music and visuals, and you type the lyrics as the words arrive — a bit like Guitar Hero for your keyboard.",
   "common.skipToContent": "Skip to content",

@@ -169,7 +169,7 @@ export const ptBR: Partial<Record<MessageKey, string>> = {
   "challenge.error": "Não foi possível carregar o desafio.",
 
   // Site copy
-  "site.tagline": "Digite a letra no tempo",
+  "site.tagline": "Um jogo de música que você joga com o teclado, a voz e muito mais",
   "site.description":
     "Um jogo de digitação rítmica. O YouTube fornece a música e as imagens, e você digita a letra conforme as palavras chegam — um pouco como o Guitar Hero para o seu teclado.",
   "common.skipToContent": "Pular para o conteúdo",

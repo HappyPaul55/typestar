@@ -170,7 +170,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "challenge.error": "No se pudo cargar el desafío.",
 
   // Site copy
-  "site.tagline": "Escribe la letra a tiempo",
+  "site.tagline": "Un juego de música que se juega con el teclado, la voz y mucho más",
   "site.description":
     "Un juego de mecanografía rítmica. YouTube pone la música y las imágenes, y tú escribes la letra según llegan las palabras: algo así como Guitar Hero para tu teclado.",
   "common.skipToContent": "Ir al contenido",
