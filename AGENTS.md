@@ -25,7 +25,8 @@ Routes: `/` (landing), `/play` (track picker), `/play/youtube/<id>` (a YouTube
 game), `/play/ultrastar/<url>` (a chart fetched from a URL), `/play/local` (the
 in-browser local-file picker), `/signin` and `/account` (the optional email
 sign-in islands), `/recent` and `/challenge` (scores), `/u/<handle>`
-(a public profile), `/privacy`, `/404`, and
+(a public profile), `/embed/youtube/<id>` and `/embed/ultrastar/<url>` (the
+iframe-able widget), `/privacy`, `/404`, and
 `GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. Accounts
 live behind `/api/auth/*` (Better Auth) and scores behind `/api/scores/*`. The
 legacy `/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
@@ -223,6 +224,9 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `src/components/score/**` islands render the profiles, feed, boards and
   challenge; `/recent`, `/challenge` and `/u/*` are their pages, and
   `migrations/0002_scores.sql` is the `score` table.
+- `src/components/embed/**` + `src/pages/embed.astro` — the iframe-able widget: a
+  compact `GameApp` (`embed`), no accounts or scores, plus the `EmbedButton` that
+  copies the snippet.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane),
   `StartScreen`, `Hud`, `ResultsModal` (shared by every style), `Calibration`,
@@ -278,7 +282,10 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   are allowed for `script-src` and `frame-src`; `img-src` and `media-src` allow
   `blob:` (local media) and `https:` (an UltraStar chart's hotlinked cover, audio
   and background video, wherever it is hosted). `Permissions-Policy` allows
-  `microphone=(self)` for scored singing.
+  `microphone=(self)` for scored singing. The `/embed/*` block re-declares the
+  CSP with `frame-ancestors *`, so only the widget may be framed; every other
+  page keeps `frame-ancestors 'none'`. `X-Frame-Options` is not set — CSP
+  `frame-ancestors` is the modern control and can be overridden per path.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
 - `public/og-image.png` — the 1200×630 social card referenced by `Seo.astro`.
@@ -334,6 +341,14 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `node:sqlite` score store in the same `.cache/auth.sqlite` file. The
   daily/weekly challenge is derived from the date (no cron): one seeded featured
   track and one modifier per period, and its board is a time-boxed query.
+- **Embeds are a compact `GameApp`, and only `/embed/*` is frameable.** The
+  embed route serves the same island with `embed` set: no picker, no local
+  files, no accounts and no score recording, and the HUD hides "change song"
+  (`compact`). It reaches the session endpoint directly (`useSignedIn`) rather
+  than importing the auth client, so the play and embed bundles stay lean. The
+  `EmbedButton` on a song's page copies the `<iframe>` snippet. Framing is
+  allowed only for `/embed/*` via a per-path CSP `frame-ancestors *` override;
+  `X-Frame-Options` is intentionally not set.
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is

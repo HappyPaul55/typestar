@@ -4,6 +4,7 @@
 
 import type { Track } from "../track/types";
 import {
+  embedSourceFromPathname,
   parseSourceValue,
   parseYouTubeId,
   playSourceFromPathname,
@@ -96,7 +97,9 @@ export async function loadTrack(
  */
 export function sourceFromLocation(): TrackSourceRef | null {
   if (typeof window === "undefined") return null;
-  const fromPath = playSourceFromPathname(window.location.pathname);
+  const fromPath =
+    playSourceFromPathname(window.location.pathname) ??
+    embedSourceFromPathname(window.location.pathname);
   if (fromPath) return fromPath;
 
   const params = new URLSearchParams(window.location.search);

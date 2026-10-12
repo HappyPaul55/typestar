@@ -77,6 +77,9 @@ typing / keyboard speed game**.
   server-side and ranked per song, style, difficulty, run mode and speed. There
   are public profiles (`/u/<handle>`), a recent-scores feed (`/recent`) and a
   daily/weekly challenge (`/challenge`).
+- **Embeds**: any song can be dropped into a blog or forum as an `<iframe>`
+  (`/embed/youtube/<id>`). Only the embed route may be framed; every other page
+  stays unframeable.
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
@@ -304,6 +307,33 @@ scored run is verified and saved, then ranked.
   recorded events), `challenge.ts` (the period's song and modifier), `store.ts`
   (D1) and `dev-store.ts` (dev SQLite). The `score` table is
   `migrations/0002_scores.sql`.
+
+## Embeds
+
+Any song can be embedded in a blog or forum:
+
+```html
+<iframe
+  src="https://typestar.happypaul55.com/embed/youtube/<id>"
+  width="640"
+  height="360"
+  style="border: 0; max-width: 100%"
+  allow="autoplay; fullscreen; microphone"
+  loading="lazy"
+  title="TypeStar"
+></iframe>
+```
+
+- The **Embed** button on a song's page copies that snippet.
+- The embed is the game in a compact frame: the start screen waits for a click,
+  then you type as usual. It loads no accounts and no scores.
+- **Only `/embed/*` may be framed.** The global CSP sets `frame-ancestors 'none'`;
+  the embed re-declares it with `frame-ancestors *`. `X-Frame-Options` is no
+  longer set — CSP `frame-ancestors` is the modern control, and it can be
+  overridden per path.
+- A brand-new song still gets the Turnstile human check, inside the iframe.
+- Singing needs the embedder to add `allow="microphone"`; without it the run
+  falls back to karaoke.
 
 ## Singing
 

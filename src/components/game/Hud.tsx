@@ -50,6 +50,8 @@ interface Props {
   onChangeSong(): void;
   /** Nudge the fullscreen button on the first visit, until the player uses it. */
   highlightFullscreen: boolean;
+  /** Hide the "change song" control (the embed has no picker to return to). */
+  compact?: boolean;
   /** The HUD root, so the shell can measure it and clear the start overlay. */
   rootRef?: React.Ref<HTMLDivElement>;
 }
@@ -118,6 +120,7 @@ export default function Hud({
   onFullscreen,
   onChangeSong,
   highlightFullscreen,
+  compact = false,
   rootRef,
 }: Props) {
   const percent = Math.round(summary.accuracy * 100);
@@ -230,9 +233,11 @@ export default function Hud({
         >
           ⛶
         </Control>
-        <Control onClick={onChangeSong} title="Change song">
-          song
-        </Control>
+        {compact ? null : (
+          <Control onClick={onChangeSong} title="Change song">
+            song
+          </Control>
+        )}
       </div>
     </div>
   );

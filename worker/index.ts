@@ -233,6 +233,14 @@ export default {
       );
     }
 
+    // The iframe-able embed widget at `/embed/...`; the page reads its song
+    // from the URL.
+    if (pathname === "/embed" || pathname.startsWith("/embed/")) {
+      return env.ASSETS.fetch(
+        new Request(new URL("/embed", url), { headers: request.headers }),
+      );
+    }
+
     return env.ASSETS.fetch(request);
   },
 };

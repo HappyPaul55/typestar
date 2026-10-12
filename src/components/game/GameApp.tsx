@@ -82,7 +82,7 @@ import { useMediaPlayer } from "./hooks/useMediaPlayer";
 import { usePitchInput } from "./hooks/usePitchInput";
 import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
-import { useSession as useAuthSession } from "../../lib/auth/client";
+import { useSignedIn } from "../../lib/auth/session";
 import {
   fetchRunNonce,
   submitRun,
@@ -211,10 +211,13 @@ function StatusPanel({
 export default function GameApp({
   site,
   ratings = {},
+  embed = false,
 }: {
   site: SiteSettings;
   /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
   ratings?: Record<string, TrackRating>;
+  /** Compact, no-account mode for the iframe-able embed widget. */
+  embed?: boolean;
 }) {
   const [source, setSource] = useState<TrackSourceRef | null | undefined>(undefined);
   const [song, setSong] = useState<LoadedSong | null>(null);
@@ -255,8 +258,7 @@ export default function GameApp({
   // Server-side run recording. A scored run asks for a nonce when it starts,
   // records its inputs as they happen, and submits them when the results appear.
   // Nothing is recorded while signed out.
-  const { data: accountSession } = useAuthSession();
-  const signedIn = !!accountSession?.user;
+  const signedIn = useSignedIn();
   const timelineRef = useRef<TimelineEvent[]>([]);
   const nonceRef = useRef<string | null>(null);
   const nonceSettingsRef = useRef<RunSettingsInput | null>(null);
@@ -734,7 +736,7 @@ export default function GameApp({
       timelineRef.current = [];
       nonceRef.current = null;
       nonceSettingsRef.current = null;
-      if (!willScore || !signedIn || !activeTrack || isLocal) return;
+      if (embed || !willScore || !signedIn || !activeTrack || isLocal) return;
 
       const settings: RunSettingsInput = {
         trackId: activeTrack.id,
@@ -754,7 +756,7 @@ export default function GameApp({
           // No nonce: the run simply will not be submitted.
         });
     },
-    [signedIn, activeTrack, isLocal, run],
+    [signedIn, activeTrack, isLocal, run, embed],
   );
 
   const start = useCallback(async () => {
@@ -797,7 +799,7 @@ export default function GameApp({
   // Submit the recorded run when the results appear, and report the outcome.
   useEffect(() => {
     if (phase !== "results") return;
-    if (isLocal || !capabilities.scored) {
+    if (embed || isLocal || !capabilities.scored) {
       setRecord(null);
       return;
     }
@@ -835,7 +837,7 @@ export default function GameApp({
     return () => {
       cancelled = true;
     };
-  }, [phase, isLocal, capabilities.scored, signedIn]);
+  }, [phase, isLocal, capabilities.scored, signedIn, embed]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
@@ -992,10 +994,12 @@ export default function GameApp({
   );
 
   const changeSong = useCallback(() => {
+    // An embed has no picker to return to.
+    if (embed) return;
     // A local run returns to the local library rather than the YouTube picker.
     if (isLocal) openLocalPicker();
     else openRemotePicker();
-  }, [isLocal, openLocalPicker, openRemotePicker]);
+  }, [embed, isLocal, openLocalPicker, openRemotePicker]);
 
   // Point first-time players at the fullscreen button: the game is much better
   // in fullscreen, and the nudge is only worth showing once.
@@ -1135,7 +1139,9 @@ export default function GameApp({
       />
     );
   } else if (source === null && !song) {
-    body = (
+    body = embed ? (
+      <StatusPanel title="No song" message="This embed needs a song in its URL." />
+    ) : (
       <TrackPicker
         ratings={ratings}
         onOpen={openTrack}
@@ -1372,6 +1378,7 @@ export default function GameApp({
           onFullscreen={toggleFullscreen}
           onChangeSong={changeSong}
           highlightFullscreen={highlightFullscreen}
+          compact={embed}
           rootRef={hudRef}
         />
 

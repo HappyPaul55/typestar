@@ -137,6 +137,15 @@ function safeDecode(value: string): string | null {
 }
 
 /**
+ * Read a source from an embed pathname: `/embed/youtube/<id>` or
+ * `/embed/ultrastar/<encoded>`. The `/embed` prefix maps onto the `/play` one.
+ */
+export function embedSourceFromPathname(pathname: string): TrackSourceRef | null {
+  if (!/^\/embed(\/|$)/.test(pathname)) return null;
+  return playSourceFromPathname(pathname.replace(/^\/embed/, "/play"));
+}
+
+/**
  * Read a source from a `/play/...` pathname: `/play/youtube/<id>`,
  * `/play/ultrastar/<encoded>` or the legacy `/play/<id>`. Returns `null` for the
  * picker, the local route and anything unrecognised.

@@ -187,6 +187,13 @@ function devServer(env) {
           return;
         }
 
+        // The embed widget at `/embed/...` renders the `/embed` page.
+        if (path === "/embed" || /^\/embed\//.test(path)) {
+          req.url = "/embed";
+          next();
+          return;
+        }
+
         next();
       });
 
@@ -390,7 +397,7 @@ export default defineConfig({
   trailingSlash: "never",
   integrations: [
     // The account pages are private (noindex); keep them out of the sitemap.
-    sitemap({ filter: (page) => !/\/(account|signin|u)\/?$/.test(page) }),
+    sitemap({ filter: (page) => !/\/(account|signin|u|embed)\/?$/.test(page) }),
     react(),
   ],
   vite: {
