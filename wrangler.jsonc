@@ -47,11 +47,19 @@
   ],
   // Accounts (users, sessions, magic-link tokens) live in D1. Create it with:
   //   bun run db:create   (then paste the printed database_id here)
+  // `DB_PREVIEW` is not used by the Worker; it exists only so the Wrangler CLI
+  // can target the preview database for migrations, since `wrangler d1
+  // migrations` does not read the `previews` block below.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "typestar-auth",
-      "database_id": "REPLACE_WITH_PRODUCTION_D1_ID"
+      "database_id": "e672b561-5c13-42dc-95c2-35cd7641eeff"
+    },
+    {
+      "binding": "DB_PREVIEW",
+      "database_name": "typestar-auth-preview",
+      "database_id": "8d6521cc-bc65-4e4a-aa96-9196ea7fe87a"
     }
   ],
   // Transactional email (sign-in links). The domain must be onboarded to
@@ -83,7 +91,7 @@
       {
         "binding": "DB",
         "database_name": "typestar-auth-preview",
-        "database_id": "REPLACE_WITH_PREVIEW_D1_ID"
+        "database_id": "8d6521cc-bc65-4e4a-aa96-9196ea7fe87a"
       }
     ],
     "send_email": [

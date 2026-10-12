@@ -23,7 +23,7 @@
     "db:create:preview": "wrangler d1 create typestar-auth-preview",
     "db:migrate": "wrangler d1 migrations apply typestar-auth --remote",
     "db:migrate:local": "wrangler d1 migrations apply typestar-auth --local",
-    "db:migrate:preview": "wrangler d1 migrations apply typestar-auth-preview --remote",
+    "db:migrate:preview": "wrangler d1 migrations apply DB_PREVIEW --remote",
     "astro": "astro"
   },
   "dependencies": {
