@@ -14,7 +14,6 @@ import {
   isFailMode,
   isGameMode,
   isPlaybackSpeed,
-  SCORE_VERSION,
   type FailMode,
   type GameMode,
 } from "../game/engine";
@@ -138,7 +137,6 @@ function boardFilter(query: BoardQuery): { where: string; params: unknown[] } {
     "difficulty = ?",
     "runMode = ?",
     "speed = ?",
-    "scoreVersion = ?",
     "valid = 1",
   ];
   const params: unknown[] = [
@@ -147,7 +145,6 @@ function boardFilter(query: BoardQuery): { where: string; params: unknown[] } {
     query.difficulty,
     query.runMode,
     query.speed,
-    SCORE_VERSION,
   ];
   if (query.since) {
     clauses.push("createdAt >= ?");
@@ -227,8 +224,8 @@ async function insertScore(store: SqlStore, record: ScoreRecord): Promise<void> 
     `INSERT INTO score (
        id, userId, trackId, trackType, title, artist, style, difficulty, runMode,
        speed, score, accuracy, maxCombo, hits, misses, progress, valid, invalidReason,
-       scoreVersion, createdAt
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       createdAt
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       record.id,
       record.userId,
@@ -248,7 +245,6 @@ async function insertScore(store: SqlStore, record: ScoreRecord): Promise<void> 
       record.progress,
       record.valid ? 1 : 0,
       record.invalidReason,
-      record.scoreVersion,
       record.createdAt,
     ],
   );
@@ -378,7 +374,6 @@ async function submitHandler(
     progress,
     valid,
     invalidReason: reason,
-    scoreVersion: SCORE_VERSION,
     createdAt: now.toISOString(),
   };
   await insertScore(env.store, record);
@@ -439,10 +434,10 @@ async function recentHandler(url: URL, env: ScoreEnv): Promise<Response> {
             s.speed, s.score, s.accuracy, s.maxCombo, s.progress, s.createdAt,
             u.handle, u.displayName
        FROM score s JOIN user u ON u.id = s.userId
-      WHERE s.valid = 1 AND s.scoreVersion = ?
+      WHERE s.valid = 1
       ORDER BY s.createdAt DESC
       LIMIT ?`,
-    [SCORE_VERSION, limit],
+    [limit],
   );
   return json({ recent });
 }
@@ -469,8 +464,8 @@ async function profileHandler(url: URL, env: ScoreEnv): Promise<Response> {
             COALESCE(SUM(valid), 0) AS validPlays,
             COUNT(DISTINCT trackId) AS tracks,
             MAX(CASE WHEN valid = 1 THEN score END) AS bestScore
-       FROM score WHERE userId = ? AND scoreVersion = ?`,
-    [account.id, SCORE_VERSION],
+       FROM score WHERE userId = ?`,
+    [account.id],
   );
 
   const bests = await env.store.all<RecentRow>(
@@ -480,21 +475,21 @@ async function profileHandler(url: URL, env: ScoreEnv): Promise<Response> {
          SELECT *, ROW_NUMBER() OVER (
            PARTITION BY trackId, style, difficulty, runMode, speed ORDER BY score DESC, createdAt ASC
          ) AS rn
-         FROM score WHERE userId = ? AND valid = 1 AND scoreVersion = ?
+         FROM score WHERE userId = ? AND valid = 1
        ) WHERE rn = 1
       ORDER BY score DESC
       LIMIT 10`,
-    [account.id, SCORE_VERSION],
+    [account.id],
   );
 
   const recent = await env.store.all<RecentRow & { valid: number; invalidReason: string | null }>(
     `SELECT trackId, trackType, title, artist, style, difficulty, runMode, speed,
             score, accuracy, maxCombo, progress, createdAt, valid, invalidReason,
             NULL AS handle, NULL AS displayName
-       FROM score WHERE userId = ? AND scoreVersion = ?
+       FROM score WHERE userId = ?
       ORDER BY createdAt DESC
       LIMIT 20`,
-    [account.id, SCORE_VERSION],
+    [account.id],
   );
 
   return json({

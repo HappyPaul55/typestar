@@ -66,11 +66,6 @@ export const HIT_BASE = 100;
  * `press`), so a typical five-letter word is worth about {@link HIT_BASE}.
  */
 const HIT_BASE_PER_CHAR = 20;
-/**
- * Bumped whenever the scoring maths changes. Stored with every score, so a
- * leaderboard only ever compares runs scored the same way.
- */
-export const SCORE_VERSION = 2;
 /** Points lost for a wrong keystroke (and the chain breaks). */
 export const WRONG_PENALTY = 20;
 /** Points lost for letting a word pass (smaller than a wrong key). */
