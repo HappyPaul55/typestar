@@ -23,11 +23,13 @@ interface DatabaseLike {
   exec(sql: string): void;
 }
 
+/** The score migrations, applied to the dev database on open, in order. */
+const MIGRATIONS = ["0002_scores.sql", "0003_challenge.sql"];
+
 /** The score schema, applied to the dev database on open. */
-const SCHEMA = readFileSync(
-  new URL("../../../migrations/0002_scores.sql", import.meta.url),
-  "utf8",
-);
+const SCHEMA = MIGRATIONS.map((file) =>
+  readFileSync(new URL(`../../../migrations/${file}`, import.meta.url), "utf8"),
+).join("\n");
 
 /** Open (or create) a SQLite database at `file` and ensure the score schema. */
 export function createDevScoreStore(file: string): SqlStore {

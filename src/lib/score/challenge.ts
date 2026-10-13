@@ -1,43 +1,33 @@
 /**
  * The daily and weekly challenge.
  *
- * A challenge is derived purely from the date: one seeded (pre-warmed) track for
- * the period, and nothing else — there is no difficulty, run mode or speed to
- * play it under, so every run of the song counts. There is no schedule to
- * maintain and no cron: every server computes the same challenge for the same
- * moment, so its board is just a time-boxed query over scores for that track.
+ * A period is derived purely from the date, so every server agrees on when it
+ * starts and ends and there is no cron to maintain. The song is not derived: it
+ * is the most-played featured track that has not been a challenge yet
+ * ({@link pickChallengeTrack}), chosen once per period and recorded in the
+ * `challenge` table so it stays the same for everyone from then on.
  */
 
 import { FEATURED_TRACKS, type FeaturedTrack } from "../../content/tracks/featured";
 
 export type ChallengePeriod = "daily" | "weekly";
 
-export interface Challenge {
+/** A stretch of time: the day or the ISO week a challenge runs for. */
+export interface ChallengeWindow {
   period: ChallengePeriod;
   /** Stable id, e.g. `daily:2026-10-12` or `weekly:2026-W42`. */
   id: string;
   /** The period key alone, e.g. `2026-10-12`. */
   key: string;
-  track: FeaturedTrack;
-  /** The namespaced track id (`youtube-<id>`). */
-  trackId: string;
   startsAt: string;
   endsAt: string;
 }
 
-/** A small deterministic hash of a string (FNV-1a). */
-function hash(value: string): number {
-  let result = 2166136261;
-  for (let index = 0; index < value.length; index++) {
-    result ^= value.charCodeAt(index);
-    result = Math.imul(result, 16777619);
-  }
-  return result >>> 0;
-}
-
-function pick<T>(list: readonly T[], seed: number, salt: number): T {
-  const value = (seed ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
-  return list[value % list.length] as T;
+/** A window with the song it was given. */
+export interface Challenge extends ChallengeWindow {
+  track: FeaturedTrack;
+  /** The namespaced track id (`youtube-<id>`). */
+  trackId: string;
 }
 
 function pad(value: number, width = 2): string {
@@ -79,42 +69,77 @@ function build(
   key: string,
   start: Date,
   end: Date,
-): Challenge {
-  if (FEATURED_TRACKS.length === 0) {
-    throw new Error("A challenge needs at least one featured track.");
-  }
-  const id = `${period}:${key}`;
-  const seed = hash(id);
-  const track = pick(FEATURED_TRACKS, seed, 1);
+): ChallengeWindow {
   return {
     period,
-    id,
+    id: `${period}:${key}`,
     key,
-    track,
-    trackId: `youtube-${track.id}`,
     startsAt: start.toISOString(),
     endsAt: end.toISOString(),
   };
 }
 
-export function dailyChallenge(date: Date): Challenge {
+export function dailyChallenge(date: Date): ChallengeWindow {
   const start = startOfUtcDay(date);
   return build("daily", utcDateKey(start), start, new Date(start.getTime() + 86400000));
 }
 
-export function weeklyChallenge(date: Date): Challenge {
+export function weeklyChallenge(date: Date): ChallengeWindow {
   const start = startOfIsoWeek(date);
   return build("weekly", isoWeekKey(start), start, new Date(start.getTime() + 7 * 86400000));
 }
 
-export function currentChallenges(date: Date): { daily: Challenge; weekly: Challenge } {
+export function currentChallenges(date: Date): { daily: ChallengeWindow; weekly: ChallengeWindow } {
   return { daily: dailyChallenge(date), weekly: weeklyChallenge(date) };
 }
 
 /** The periods immediately before the ones containing `date`. */
-export function previousChallenges(date: Date): { daily: Challenge; weekly: Challenge } {
+export function previousChallenges(date: Date): { daily: ChallengeWindow; weekly: ChallengeWindow } {
   return {
     daily: dailyChallenge(new Date(date.getTime() - 86400000)),
     weekly: weeklyChallenge(new Date(date.getTime() - 7 * 86400000)),
   };
+}
+
+/** The namespaced track id a featured track is stored and scored under. */
+export function featuredTrackId(track: FeaturedTrack): string {
+  return `youtube-${track.id}`;
+}
+
+/**
+ * The next challenge song: the most-played featured track that has not been a
+ * challenge yet. Ties keep the featured order, so a cold start (no scores at
+ * all) is stable.
+ *
+ * Once every featured track has had a turn the whole list is eligible again and
+ * the one used longest ago wins, so a short list still rotates rather than
+ * settling on a single song.
+ */
+export function pickChallengeTrack(
+  used: ReadonlySet<string>,
+  plays: ReadonlyMap<string, number>,
+  lastUsed: ReadonlyMap<string, number>,
+): FeaturedTrack {
+  if (FEATURED_TRACKS.length === 0) {
+    throw new Error("A challenge needs at least one featured track.");
+  }
+
+  const unused = FEATURED_TRACKS.filter((track) => !used.has(featuredTrackId(track)));
+  if (unused.length > 0) {
+    let best = unused[0];
+    for (const track of unused) {
+      if ((plays.get(featuredTrackId(track)) ?? 0) > (plays.get(featuredTrackId(best)) ?? 0)) {
+        best = track;
+      }
+    }
+    return best;
+  }
+
+  let oldest = FEATURED_TRACKS[0];
+  for (const track of FEATURED_TRACKS) {
+    if ((lastUsed.get(featuredTrackId(track)) ?? 0) < (lastUsed.get(featuredTrackId(oldest)) ?? 0)) {
+      oldest = track;
+    }
+  }
+  return oldest;
 }

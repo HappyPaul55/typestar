@@ -20,7 +20,14 @@ import {
 import type { RunSettings } from "../game/game";
 import { isPlayStyle, trackCanSing, type PlayStyle } from "../game/modes";
 import type { Track } from "../track/types";
-import { currentChallenges, previousChallenges, type Challenge } from "./challenge";
+import {
+  currentChallenges,
+  featuredTrackId,
+  pickChallengeTrack,
+  previousChallenges,
+  type Challenge,
+  type ChallengeWindow,
+} from "./challenge";
 import { issueNonce, MAX_OFFSET, verifyNonce } from "./nonce";
 import { replayRun } from "./replay";
 import type { SqlStore } from "./store";
@@ -524,21 +531,119 @@ async function challengeBoards(env: ScoreEnv, challenge: Challenge) {
   return { type, sing };
 }
 
+/** A recorded challenge: the song is denormalised so it survives a list change. */
+interface ChallengeRow {
+  trackId: string;
+  title: string;
+  artist: string;
+}
+
+async function storedChallenge(store: SqlStore, id: string): Promise<ChallengeRow | null> {
+  return store.first<ChallengeRow>(
+    `select "trackId" as trackId, "title" as title, "artist" as artist
+       from "challenge" where "id" = ?`,
+    [id],
+  );
+}
+
+/** How many valid scores each track has, by namespaced track id. */
+async function trackPlays(store: SqlStore): Promise<Map<string, number>> {
+  const rows = await store.all<{ trackId: string; plays: number }>(
+    `select "trackId" as trackId, count(*) as plays
+       from "score" where "valid" = 1 group by "trackId"`,
+  );
+  return new Map(rows.map((row) => [row.trackId, Number(row.plays)]));
+}
+
+/** Which tracks have been a challenge, and when each was last used. */
+async function challengeHistory(
+  store: SqlStore,
+): Promise<{ used: Set<string>; lastUsed: Map<string, number> }> {
+  const rows = await store.all<{ trackId: string; lastUsed: string }>(
+    `select "trackId" as trackId, max("createdAt") as lastUsed
+       from "challenge" group by "trackId"`,
+  );
+  const used = new Set<string>();
+  const lastUsed = new Map<string, number>();
+  for (const row of rows) {
+    used.add(row.trackId);
+    lastUsed.set(row.trackId, Date.parse(row.lastUsed));
+  }
+  return { used, lastUsed };
+}
+
+function toChallenge(window: ChallengeWindow, row: ChallengeRow): Challenge {
+  return {
+    ...window,
+    track: {
+      id: row.trackId.replace(/^youtube-/, ""),
+      title: row.title,
+      artist: row.artist,
+    },
+    trackId: row.trackId,
+  };
+}
+
+/**
+ * Attach a song to a window: the one already recorded for it, or the most-played
+ * featured track that has not had a turn yet, written immediately so every
+ * server agrees from then on. `history` is shared across a request so it never
+ * picks the same song twice in one go.
+ */
+async function resolveChallenge(
+  env: ScoreEnv,
+  window: ChallengeWindow,
+  history: { used: Set<string>; lastUsed: Map<string, number> },
+  plays: ReadonlyMap<string, number>,
+  now: Date,
+): Promise<Challenge> {
+  const stored = await storedChallenge(env.store, window.id);
+  if (stored) {
+    history.used.add(stored.trackId);
+    return toChallenge(window, stored);
+  }
+
+  const track = pickChallengeTrack(history.used, plays, history.lastUsed);
+  const row: ChallengeRow = {
+    trackId: featuredTrackId(track),
+    title: track.title,
+    artist: track.artist,
+  };
+  await env.store.run(
+    `insert or ignore into "challenge" ("id", "trackId", "title", "artist", "createdAt")
+     values (?, ?, ?, ?, ?)`,
+    [window.id, row.trackId, row.title, row.artist, now.toISOString()],
+  );
+  // A concurrent request may have won the race; read back what was recorded.
+  const recorded = (await storedChallenge(env.store, window.id)) ?? row;
+  history.used.add(recorded.trackId);
+  return toChallenge(window, recorded);
+}
+
 async function challengeHandler(env: ScoreEnv, now: Date): Promise<Response> {
   const current = currentChallenges(now);
   const previous = previousChallenges(now);
-  const [daily, weekly, pastDaily, pastWeekly] = await Promise.all([
-    challengeBoards(env, current.daily),
-    challengeBoards(env, current.weekly),
-    challengeBoards(env, previous.daily),
-    challengeBoards(env, previous.weekly),
+  // Resolved in order against one shared history, so this request cannot pick
+  // the same song for two periods.
+  const history = await challengeHistory(env.store);
+  const plays = await trackPlays(env.store);
+  const daily = await resolveChallenge(env, current.daily, history, plays, now);
+  const weekly = await resolveChallenge(env, current.weekly, history, plays, now);
+  const pastDaily = await resolveChallenge(env, previous.daily, history, plays, now);
+  const pastWeekly = await resolveChallenge(env, previous.weekly, history, plays, now);
+
+  const [dailyBoards, weeklyBoards, pastDailyBoards, pastWeeklyBoards] = await Promise.all([
+    challengeBoards(env, daily),
+    challengeBoards(env, weekly),
+    challengeBoards(env, pastDaily),
+    challengeBoards(env, pastWeekly),
   ]);
   return json({
-    daily: { ...current.daily, boards: daily },
-    weekly: { ...current.weekly, boards: weekly },
+    daily: { ...daily, boards: dailyBoards },
+    weekly: { ...weekly, boards: weeklyBoards },
     previous: {
-      daily: { ...previous.daily, boards: pastDaily },
-      weekly: { ...previous.weekly, boards: pastWeekly },
+      daily: { ...pastDaily, boards: pastDailyBoards },
+      weekly: { ...pastWeekly, boards: pastWeeklyBoards },
     },
   });
 }

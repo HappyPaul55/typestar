@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import {
   currentChallenges,
   dailyChallenge,
+  featuredTrackId,
   isoWeekKey,
+  pickChallengeTrack,
   previousChallenges,
   utcDateKey,
   weeklyChallenge,
@@ -21,7 +24,7 @@ describe("period keys", () => {
   });
 });
 
-describe("challenge", () => {
+describe("challenge window", () => {
   test("is deterministic for a given day", () => {
     const date = new Date(Date.UTC(2026, 9, 12, 15, 30));
     const first = dailyChallenge(date);
@@ -30,15 +33,12 @@ describe("challenge", () => {
     expect(second).toEqual(first);
   });
 
-  test("picks a seeded track", () => {
-    const daily = dailyChallenge(new Date(Date.UTC(2026, 9, 12)));
-    expect(daily.trackId).toBe(`youtube-${daily.track.id}`);
-  });
-
-  test("carries no modifier", () => {
+  test("carries no song and no modifier of its own", () => {
     const { daily, weekly } = currentChallenges(new Date(Date.UTC(2026, 9, 12)));
+    expect("track" in daily).toBe(false);
+    expect("trackId" in daily).toBe(false);
     expect("modifier" in daily).toBe(false);
-    expect("modifier" in weekly).toBe(false);
+    expect("track" in weekly).toBe(false);
   });
 
   test("the previous period is the one before", () => {
@@ -57,5 +57,49 @@ describe("challenge", () => {
       7 * 86400000,
     );
     expect(weekly.period).toBe("weekly");
+  });
+});
+
+describe("pickChallengeTrack", () => {
+  const ids = FEATURED_TRACKS.map(featuredTrackId);
+  const noPlays = new Map<string, number>();
+  const never = new Map<string, number>();
+
+  test("starts at the first featured track when nothing has been played", () => {
+    expect(pickChallengeTrack(new Set(), noPlays, never)).toEqual(FEATURED_TRACKS[0]);
+  });
+
+  test("takes the most played track that has not had a turn", () => {
+    const plays = new Map([
+      [ids[1], 3],
+      [ids[2], 9],
+    ]);
+    expect(pickChallengeTrack(new Set(), plays, never)).toEqual(FEATURED_TRACKS[2]);
+  });
+
+  test("skips a track that has already been a challenge", () => {
+    const plays = new Map([
+      [ids[0], 9],
+      [ids[1], 3],
+    ]);
+    expect(pickChallengeTrack(new Set([ids[0]]), plays, never)).toEqual(FEATURED_TRACKS[1]);
+  });
+
+  test("keeps the featured order on a tie", () => {
+    const plays = new Map([
+      [ids[1], 4],
+      [ids[2], 4],
+    ]);
+    expect(pickChallengeTrack(new Set(), plays, never)).toEqual(FEATURED_TRACKS[1]);
+  });
+
+  test("reuses the track used longest ago once every one has had a turn", () => {
+    const used = new Set(ids);
+    const byOrder = new Map(ids.map((id, index): [string, number] => [id, 1000 + index]));
+    expect(pickChallengeTrack(used, noPlays, byOrder)).toEqual(FEATURED_TRACKS[0]);
+
+    // Push the first track to the back of the queue and it moves on.
+    const rotated = new Map(ids.map((id, index): [string, number] => [id, index === 0 ? 9999 : 1000 + index]));
+    expect(pickChallengeTrack(used, noPlays, rotated)).toEqual(FEATURED_TRACKS[1]);
   });
 });
