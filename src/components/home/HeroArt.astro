@@ -1,4 +1,6 @@
 ---
+import { localeFromPath, tFor } from "../../i18n/astro";
+
 /**
  * A stylised "screenshot" of the game for the homepage hero: the notebook
  * aesthetic, a YouTube-style video pane, a lyric highway with the active word
@@ -10,6 +12,7 @@ interface Props {
 }
 
 const { class: className = "" } = Astro.props;
+const t = tFor(localeFromPath(Astro.url.pathname));
 
 const mono = "'Space Mono', ui-monospace, 'SFMono-Regular', monospace";
 const display = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
@@ -26,7 +29,7 @@ const inkSoft = "rgba(12,13,10,0.34)";
   class={className || undefined}
   viewBox="0 0 560 400"
   role="img"
-  aria-label="A screenshot of TypeStar: a YouTube video beside the lyric highway, with a word highlighted and a score, combo and accuracy in the HUD."
+  aria-label={t("home.heroAlt")}
   xmlns="http://www.w3.org/2000/svg"
 >
   <!-- hard offset shadow -->

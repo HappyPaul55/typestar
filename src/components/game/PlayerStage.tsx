@@ -6,6 +6,8 @@
  */
 
 import type { ReactNode } from "react";
+import type { MessageKey } from "../../i18n";
+import { useT } from "../../i18n/react";
 
 interface Props {
   containerRef: (node: HTMLElement | null) => void;
@@ -25,12 +27,12 @@ interface Props {
   errorMessage?: string;
 }
 
-const ERROR_MESSAGES: Record<number, string> = {
-  2: "That video id is not valid.",
-  5: "This video cannot play in the embedded player.",
-  100: "This video is private or has been removed.",
-  101: "The owner does not allow this video to be embedded.",
-  150: "The owner does not allow this video to be embedded.",
+const ERROR_KEYS: Record<number, MessageKey> = {
+  2: "player.errInvalidId",
+  5: "player.errEmbedded",
+  100: "player.errPrivate",
+  101: "player.errNotEmbeddable",
+  150: "player.errNotEmbeddable",
 };
 
 export default function PlayerStage({
@@ -42,6 +44,7 @@ export default function PlayerStage({
   error,
   errorMessage,
 }: Props): ReactNode {
+  const t = useT();
   return (
     <div className="player-stage">
       {mode === "audio" ? (
@@ -68,18 +71,17 @@ export default function PlayerStage({
             <span className="slash" aria-hidden="true">
               //
             </span>{" "}
-            loading player
+            {t("player.loading")}
           </span>
         </div>
       ) : null}
 
       {error !== null ? (
         <div className="player-stage__placeholder player-stage__placeholder--error">
-          <p className="font-display text-lg font-bold">Video unavailable</p>
+          <p className="font-display text-lg font-bold">{t("player.unavailable")}</p>
           <p className="mt-2 text-sm">
             {errorMessage ??
-              ERROR_MESSAGES[error] ??
-              "The player could not start this video."}
+              (ERROR_KEYS[error] ? t(ERROR_KEYS[error]) : t("player.startFailed"))}
           </p>
         </div>
       ) : null}

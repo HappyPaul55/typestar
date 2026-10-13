@@ -1,0 +1,92 @@
+/**
+ * A public profile at `/u/<handle>`: aggregate stats, best scores and recent
+ * runs. The handle is read from the URL, so the page stays static.
+ */
+
+import { useEffect, useState } from "react";
+import { fetchProfile, type ProfileResponse } from "../../lib/score/client";
+import { useT, withLocale } from "../../i18n/react";
+import ScoreList from "./ScoreList";
+
+type State = "loading" | "ready" | "missing";
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="score-stat">
+      <span className="score-stat__label">{label}</span>
+      <span className="score-stat__value">{value}</span>
+    </div>
+  );
+}
+
+function ProfileView() {
+  const t = useT();
+  const [state, setState] = useState<State>("loading");
+  const [data, setData] = useState<ProfileResponse | null>(null);
+
+  useEffect(() => {
+    const match = /^\/u\/([^/]+)\/?$/.exec(window.location.pathname);
+    const handle = match ? decodeURIComponent(match[1]) : null;
+    if (!handle) {
+      setState("missing");
+      return;
+    }
+    let cancelled = false;
+    fetchProfile(handle).then((result) => {
+      if (cancelled) return;
+      if (!result) {
+        setState("missing");
+        return;
+      }
+      setData(result);
+      setState("ready");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state === "loading") return <p className="text-ink-soft">{t("common.loading")}</p>;
+  if (state === "missing" || !data) {
+    return <p className="text-ink-soft">{t("profile.missing")}</p>;
+  }
+
+  const name = data.profile.displayName || data.profile.handle || t("profile.player");
+  const since = data.profile.createdAt
+    ? new Date(data.profile.createdAt).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  return (
+    <div>
+      <p className="comment">
+        <span className="slash" aria-hidden="true">
+          //
+        </span>{" "}
+        {t("profile.comment")}
+      </p>
+      <h2 className="panel__title mt-2">{name}</h2>
+      <p className="score-card__meta mt-1">
+        {data.profile.handle ? `@${data.profile.handle}` : t("profile.anonymous")}
+        {since ? t("profile.joined", { date: since }) : ""}
+      </p>
+
+      <div className="score-stats">
+        <Stat label={t("profile.plays")} value={data.stats.plays.toLocaleString("en-GB")} />
+        <Stat label={t("profile.songs")} value={data.stats.tracks.toLocaleString("en-GB")} />
+        <Stat label={t("profile.best")} value={data.stats.bestScore.toLocaleString("en-GB")} />
+      </div>
+
+      <p className="group-label">{t("profile.bestHeading")}</p>
+      <ScoreList rows={data.bests} empty={t("profile.noBests")} />
+
+      <p className="group-label">{t("profile.recentHeading")}</p>
+      <ScoreList rows={data.recent} />
+    </div>
+  );
+}
+
+export default withLocale(ProfileView);

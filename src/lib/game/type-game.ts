@@ -18,7 +18,6 @@ import {
   type GameState,
 } from "./engine";
 import { bestKey, runMetrics, type GameEngine, type Metric, type RunSettings } from "./game";
-import { PLAY_STYLE_HELP } from "./modes";
 import { formatTime } from "./storage";
 import { trackPath } from "../track/source";
 import type { Track } from "../track/types";
@@ -33,7 +32,7 @@ const CAPABILITIES = {
   runMode: true,
 } as const;
 
-function makeConfig(track: Track | null, run: RunSettings): GameConfig {
+export function makeConfig(track: Track | null, run: RunSettings): GameConfig {
   return {
     words: track?.words ?? [],
     lines: track?.lines ?? [],
@@ -53,11 +52,11 @@ const FAIL_MESSAGE: Record<"score" | "mistake" | "streak", string> = {
 
 export const TypeGame: GameEngine<GameState> = {
   id: "type",
-  label: "Type",
+  labelKey: "style.type",
 
   capabilities: () => ({ ...CAPABILITIES }),
 
-  help: () => PLAY_STYLE_HELP.type,
+  helpKey: () => "style.helpType",
 
   createState: (track) => createGameState(track?.words.length ?? 0),
 
@@ -116,6 +115,7 @@ export const TypeGame: GameEngine<GameState> = {
       elapsed > 0 ? Math.round(state.correctKeys / 5 / (elapsed / 60)) : 0;
     const metrics: Metric[] = [
       { label: "accuracy", value: `${Math.round(accuracy * 100)}%` },
+      { label: "perfect hits", value: `${state.perfectChars}` },
       { label: "best combo", value: `×${state.maxCombo}` },
       { label: "perfect lines", value: `${state.perfectLines}` },
       { label: "words", value: `${state.hits}/${state.hits + state.misses}` },

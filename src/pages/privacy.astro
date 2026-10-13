@@ -3,27 +3,39 @@ import { getEntry, render } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Container from "../components/ui/Container.astro";
 import Breadcrumbs from "../components/layout/Breadcrumbs.astro";
+import { localeFromPath, tFor } from "../i18n/astro";
+import { localePath } from "../i18n/paths";
+import { DEFAULT_LOCALE } from "../i18n/locales";
 
 const site = (await getEntry("site", "main"))!.data;
-const entry = await getEntry("legal", "privacy");
+const locale = localeFromPath(Astro.url.pathname);
+const t = tFor(locale);
+
+// The English notice is the source of truth. A translated entry is used when it
+// exists, and the page falls back to the English one otherwise.
+const entry =
+  (locale !== DEFAULT_LOCALE
+    ? await getEntry("legal", `privacy.${locale}`)
+    : undefined) ?? (await getEntry("legal", "privacy"));
 
 if (!entry) {
   throw new Error("Missing privacy notice (legal/privacy).");
 }
 
 const { Content } = await render(entry);
+const isTranslation = locale !== DEFAULT_LOCALE;
 // SEO JSON-LD keeps Home → Privacy; the visible crumb is `// privacy`.
 const breadcrumbs = [
-  { name: "Home", path: "/" },
-  { name: "Privacy", path: "/privacy" },
+  { name: t("nav.home"), path: localePath(locale, "/") },
+  { name: t("nav.privacy"), path: localePath(locale, "/privacy") },
 ];
-const crumbs = [{ name: "privacy", path: "/privacy" }];
+const crumbs = [{ name: t("nav.privacy"), path: localePath(locale, "/privacy") }];
 ---
 
 <BaseLayout
   title={`${entry.data.title} — ${site.name}`}
   description={entry.data.description}
-  path="/privacy"
+  path={localePath(locale, "/privacy")}
   breadcrumbs={breadcrumbs}
 >
   <main id="main">
@@ -40,13 +52,21 @@ const crumbs = [{ name: "privacy", path: "/privacy" }];
         <p
           class="mt-4 font-mono text-[0.72rem] font-bold tracking-[0.1em] text-[rgba(250,250,244,0.6)] uppercase"
         >
-          Last updated {entry.data.updated}
+          {t("privacy.updated", { date: entry.data.updated })}
         </p>
       </Container>
     </section>
 
     <div class="grid-paper bg-paper py-[clamp(3rem,8vw,5.5rem)]">
       <Container>
+        {
+          isTranslation ? (
+            <p class="legal-note">
+              {t("privacy.banner")}{" "}
+              <a href="/privacy">{t("privacy.bannerLink")}</a>
+            </p>
+          ) : null
+        }
         <article class="legal">
           <Content />
         </article>

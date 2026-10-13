@@ -24,10 +24,16 @@ pretty play routes.
 Routes: `/` (landing), `/play` (track picker), `/play/youtube/<id>` (a YouTube
 game), `/play/ultrastar/<url>` (a chart fetched from a URL), `/play/local` (the
 in-browser local-file picker), `/signin` and `/account` (the optional email
-sign-in islands), `/privacy`, `/404`, and
+sign-in islands), `/recent` and `/challenge` (scores), `/u/<handle>`
+(a public profile), `/embed/youtube/<id>` and `/embed/ultrastar/<url>` (the
+iframe-able widget), `/privacy`, `/404`, and
 `GET /api/track/youtube/<id>` / `GET /api/track/ultrastar?url=<url>`. Accounts
-live behind `/api/auth/*` (Better Auth). The legacy
-`/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
+live behind `/api/auth/*` (Better Auth) and scores behind `/api/scores/*`. The
+legacy `/play/<id>` and `/play?v=<id>` 301-redirect to `/play/youtube/<id>`.
+The interface is localized: `en` is at the root and the other locales live under
+a `/<locale>` prefix (`/de`, `/fr`, `/es`, `/pt-BR`, `/ja`) for every page.
+Internal links are built with `localePath`, and only the dynamic pretty routes
+run the Worker.
 
 Moving between those play routes is done **in place** (History `pushState` plus
 React state), never a full document navigation, so a **fullscreen** session
@@ -214,6 +220,26 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `types.ts` (the inline D1 / `send_email` binding types).
 - `migrations/0001_auth.sql` — the Better Auth schema, generated from the auth
   config by `bun run auth:schema` (via `scripts/auth-schema.ts`).
+- `src/lib/score/**` — recording and ranking: `api.ts` (the `/api/scores/*`
+  handlers), `replay.ts` (the server re-score through the pure engines),
+  `nonce.ts` (the signed run token), `timeline.ts` (the recorded events and
+  checksum), `challenge.ts` (the period, and the next song to pick), `store.ts`
+  (D1), `dev-store.ts` (dev SQLite) and `load.ts` (load a track by its id). The
+  `src/components/score/**` islands render the profiles, feed, boards and
+  challenge; `/recent`, `/challenge` and `/u/*` are their pages,
+  `migrations/0002_scores.sql` is the `score` table and
+  `migrations/0003_challenge.sql` the `challenge` one.
+- `src/i18n/**` — the interface translations: `locales.ts` (the six locales,
+  default `en`), `ui/<locale>.ts` (the dictionaries; `en` is the source of truth
+  and the rest are complete translations, each still a partial overlay so a
+  missing key reads English), `index.ts` (`t`), `astro.ts` (`tFor`,
+  `localeFromPath`), `react.tsx` (`I18nProvider`, `useT`, `useLocale`,
+  `withLocale`) and `labels.ts` (the dictionary keys for the small vocabularies:
+  play style, difficulty, run mode, playback speed and the results metrics). The
+  `[locale]/` routes and `LocaleSwitcher` render the non-default locales.
+- `src/components/embed/**` + `src/pages/embed.astro` — the iframe-able widget: a
+  compact `GameApp` (`embed`), no accounts or scores, plus the `EmbedButton` that
+  copies the snippet.
 - `src/components/game/**` — the game island: `GameApp` (phase machine),
   `PlayerStage`, `LyricHighway`, `PitchHighway` (the singing note lane),
   `StartScreen`, `Hud`, `ResultsModal` (shared by every style), `Calibration`,
@@ -259,9 +285,13 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `/api/track/ultrastar?url=`, `/play?v=` and legacy `/play/<id>` → 301,
   `/play/youtube/<id>` and `/play/ultrastar/<url>` → the play page, with
   per-track SEO when the song is known.
-- `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding,
-  `run_worker_first: ["/api/*", "/play", "/play/*"]`, and the `previews` block
-  (the bindings and vars a branch Worker Preview uses).
+- `wrangler.jsonc` — `nodejs_compat`, the `TRACKS` R2 binding, and the
+  `previews` block (the bindings and vars a branch Worker Preview uses).
+  `run_worker_first` lists only the **dynamic** routes: `/api/*`, the play page
+  and its pretty sub-routes, `/u/*`, `/embed/*`, and the same sub-routes under
+  each locale (`/de/play/*`, `/de/u/*`, `/de/embed/*`, …). Plain localized pages
+  (`/de`, `/de/privacy`, `/de/play`, …) are static assets served straight from
+  the edge cache and never run the Worker.
 - `astro.config.mjs` — the `devServer` Vite plugin reproduces the Worker routing
   and runs the real API handler locally.
 - `public/tracks/*.json` — pre-warmed seed tracks (generated, committed).
@@ -269,7 +299,10 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   are allowed for `script-src` and `frame-src`; `img-src` and `media-src` allow
   `blob:` (local media) and `https:` (an UltraStar chart's hotlinked cover, audio
   and background video, wherever it is hosted). `Permissions-Policy` allows
-  `microphone=(self)` for scored singing.
+  `microphone=(self)` for scored singing. The `/embed/*` block re-declares the
+  CSP with `frame-ancestors *`, so only the widget may be framed; every other
+  page keeps `frame-ancestors 'none'`. `X-Frame-Options` is not set — CSP
+  `frame-ancestors` is the modern control and can be overridden per path.
 - `src/components/ui/Mark.astro` + `public/icons/brand-mark.svg` — the **TS**
   tile. `bun run icons` regenerates the icon set.
 - `public/og-image.png` — the 1200×630 social card referenced by `Seo.astro`.
@@ -313,6 +346,50 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   changing the auth config. OAuth is a later addition: Better Auth already
   records a linked `account` row per provider, so it is a config change, not a
   migration.
+- **Scores are verified by server replay.** A scored, signed-in run records its
+  inputs (keystrokes or pitch samples, with timings) and submits them with a
+  signed **nonce**; the server replays them through the same pure reducers the
+  game uses (`makeConfig` / `singConfig` + `gameReducer` / `singReducer`) to
+  derive the score, then **discards the recording**. The nonce is a stateless
+  HMAC over the run's settings, signed with `BETTER_AUTH_SECRET`, and is not
+  single-use. An invalid submission is **stored** (`valid = 0` + reason), never
+  rejected; boards read only valid rows. A board is keyed by song + style +
+  difficulty + run mode + speed, so typing and singing never mix. Dev uses a
+  `node:sqlite` score store in the same `.cache/auth.sqlite` file. The
+  daily/weekly challenge: the period is derived from the date (no cron) and its
+  board is a time-boxed query over that track at any settings, with no modifier.
+  The song is not derived — the most-played featured track that has not been a
+  challenge yet is picked once per period and recorded in the `challenge` table
+  (`migrations/0003_challenge.sql`), so every server agrees from then on; once
+  every featured track has had a turn the least recently used wins. The response
+  also carries the previous day and week, shown as final standings.
+- **Embeds are a compact `GameApp`, and only `/embed/*` is frameable.** The
+  embed route serves the same island with `embed` set: no picker, no local
+  files, no accounts and no score recording, and the HUD hides "change song"
+  (`compact`). It reaches the session endpoint directly (`useSignedIn`) rather
+  than importing the auth client, so the play and embed bundles stay lean. The
+  `EmbedButton` on a song's page copies the `<iframe>` snippet. Framing is
+  allowed only for `/embed/*` via a per-path CSP `frame-ancestors *` override;
+  `X-Frame-Options` is intentionally not set.
+- **i18n is path-prefixed, with English fallback.** Six locales; `en` at the
+  root and the rest under `/<locale>`. `en.ts` is the source of truth and every
+  other dictionary is a partial overlay, so a missing key reads English (all six
+  are currently complete). Astro uses
+  `tFor(localeFromPath(Astro.url.pathname))`; an island uses `useT()`, and every
+  `client:*` root installs the provider with `withLocale` — Astro hydrates each
+  island as its own React root, so a provider rendered by the page cannot reach
+  inside one. **`build.format: "file"` means the build-time pathname ends in
+  `.html`**, so `localeFromPath` strips it before reading the first segment. The
+  current translations are machine-made and pending human review. The
+  lyrics/caption `?lang=` is a separate concern. The magic-link email is rendered
+  in the locale carried by the link's `callbackURL`.
+- **The privacy notice is per-locale, with English as the source of truth.**
+  `src/content/legal/privacy.md` is English; `privacy.<locale>.md` are
+  translations. `privacy.astro` picks the entry for the locale and falls back to
+  English if one is missing, and a translated notice shows a banner linking to
+  `/privacy`. The `legal` collection's glob loader sets
+  `generateId: ({ entry }) => entry.replace(/\.md$/, "")`, because the default
+  slugifier strips the dot and turns `privacy.de` into `privacyde`.
 - **Local files are browser-only and Chromium-first.** `/play/local` is offered
   only when `window.showDirectoryPicker` exists; media plays from object URLs
   and the lyrics are parsed in the browser, so no server, R2 or Turnstile is
@@ -408,6 +485,10 @@ page have all been deleted. `@astrojs/react` is kept for the game island.
   `bunx wrangler preview base-config secret put BETTER_AUTH_SECRET`). Onboard the
   sending domain to Email Sending (`bunx wrangler email sending enable
   typestar.happypaul55.com`) so the `EMAIL` binding can deliver sign-in links.
+  The preview database is listed **twice** in `wrangler.jsonc`: as `DB_PREVIEW`
+  at the top level, so `wrangler d1 migrations apply DB_PREVIEW --remote` can
+  target it (the CLI does not read the `previews` block), and inside `previews`,
+  which is the binding a preview build actually uses.
 - **Branch previews** build with `bunx wrangler preview` (Worker Previews) for
   every non-`main` branch, served at `<branch>.typestar.happypaul55.com` — the
   apex custom domain enabled for **Production and Preview** in the dashboard.

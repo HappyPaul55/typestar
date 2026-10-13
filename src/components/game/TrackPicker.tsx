@@ -7,6 +7,8 @@ import { FEATURED_TRACKS } from "../../content/tracks/featured";
 import { sourceFromInput } from "../../lib/game/client";
 import { supportsLocalLibrary } from "../../lib/local/library";
 import { RATING_LABEL, type TrackRating } from "../../lib/track/rating";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale } from "../../i18n/react";
 import TrackCard from "./TrackCard";
 
 export default function TrackPicker({
@@ -24,6 +26,8 @@ export default function TrackPicker({
   /** Switch to the local-file picker in place. */
   onOpenLocal?(): void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   // The File System Access API only exists in some browsers. Checking during
@@ -40,18 +44,20 @@ export default function TrackPicker({
   function go(raw: string) {
     const source = sourceFromInput(raw);
     if (!source) {
-      setError("That does not look like a YouTube link or an UltraStar .txt URL.");
+      setError(t("picker.invalidInput"));
       return;
     }
     if (source.kind === "youtube") {
       if (onOpen) onOpen(source.id);
-      else window.location.href = `/play/youtube/${source.id}${window.location.hash}`;
+      else {
+        window.location.href = `${localePath(locale, `/play/youtube/${source.id}`)}${window.location.hash}`;
+      }
       return;
     }
     if (onOpenUltraStar) {
       onOpenUltraStar(source.url);
     } else {
-      window.location.href = `/play/ultrastar/${encodeURIComponent(source.url)}${window.location.hash}`;
+      window.location.href = `${localePath(locale, `/play/ultrastar/${encodeURIComponent(source.url)}`)}${window.location.hash}`;
     }
   }
 
@@ -83,7 +89,7 @@ export default function TrackPicker({
           }}
         >
           <label className="track-picker__label" htmlFor="track-url">
-            Paste a YouTube link or an UltraStar URL
+            {t("picker.pasteLabel")}
           </label>
           <div className="track-picker__row">
             <input
@@ -93,7 +99,7 @@ export default function TrackPicker({
               inputMode="url"
               autoComplete="off"
               spellCheck={false}
-              placeholder="https://www.youtube.com/watch?v=…  or  …/song.txt"
+              placeholder={t("picker.placeholder")}
               value={value}
               onChange={(event) => {
                 setValue(event.target.value);
@@ -101,16 +107,11 @@ export default function TrackPicker({
               }}
             />
             <button type="submit" className="btn-game btn-game--primary">
-              Play
+              {t("picker.play")}
             </button>
           </div>
           {error ? <p className="track-picker__error">{error}</p> : null}
-          <p className="track-picker__note">
-            A YouTube link is played from its captions; a link to an{" "}
-            <strong>UltraStar</strong> <code>.txt</code> chart is fetched and its
-            audio streamed from its own host. GitHub <code>blob</code> links are
-            converted to raw automatically.
-          </p>
+          <p className="track-picker__note">{t("picker.note")}</p>
         </form>
 
         <aside
@@ -118,42 +119,36 @@ export default function TrackPicker({
             "track-picker__local" +
             (localSupport === "no" ? " track-picker__local--unsupported" : "")
           }
-          aria-label="Local files"
+          aria-label={t("picker.localAria")}
         >
-          <p className="group-label">On this device</p>
+          <p className="group-label">{t("picker.localHeading")}</p>
           {localSupport === "yes" ? (
             <>
-              <p className="track-picker__note">
-                Play songs you already have. Pick a folder of{" "}
-                <strong>UltraStar</strong> charts or videos with matching{" "}
-                <code>.vtt</code> captions — nothing is uploaded.
-              </p>
+              <p className="track-picker__note">{t("picker.localNote")}</p>
               <div className="track-picker__local-action">
                 <a
                   className="btn-game btn-game--primary"
-                  href="/play/local"
+                  href={localePath(locale, "/play/local")}
                   onClick={openLocal}
                 >
-                  Open local files
+                  {t("picker.openLocal")}
                 </a>
               </div>
             </>
           ) : localSupport === "no" ? (
             <p className="track-picker__note track-picker__local-warning">
-              Local playback isn&rsquo;t available in this browser — it needs the
-              File System Access API. Try Chrome, Edge or Brave to play local
-              files.
+              {t("picker.unsupported")}
             </p>
           ) : (
             <p className="track-picker__note track-picker__local-checking">
-              Checking this browser&hellip;
+              {t("picker.checking")}
             </p>
           )}
         </aside>
       </div>
 
       <div className="track-picker__featured">
-        <p className="group-label">Featured</p>
+        <p className="group-label">{t("picker.featured")}</p>
         <div className="track-picker__grid">
           {FEATURED_TRACKS.map((track) => {
             // YouTube's own cover art. `mq`/`hq`/`sd`/`maxres` are picked by
@@ -169,7 +164,7 @@ export default function TrackPicker({
             return (
               <TrackCard
                 key={track.id}
-                href={`/play/youtube/${track.id}`}
+                href={localePath(locale, `/play/youtube/${track.id}`)}
                 title={track.title}
                 subtitle={track.artist}
                 onOpen={onOpen ? () => onOpen(track.id) : undefined}

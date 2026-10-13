@@ -10,16 +10,60 @@ import { useEffect, useRef, useState } from "react";
 import type { ResultsSummary } from "../../lib/game/game";
 import { readSetting, writeSetting } from "../../lib/game/storage";
 import { buildHash } from "../../lib/game/url";
+import { metricLabel, metricValue } from "../../i18n/labels";
+import { localePath } from "../../i18n/paths";
+import { useT, useLocale } from "../../i18n/react";
 
 interface Props {
   summary: ResultsSummary;
+  /** How the run's submission to the leaderboard went, if it was scored. */
+  record?: RecordStatus | null;
   onReplay(): void;
   onChangeSong(): void;
   onClose(): void;
 }
 
+/** How a scored run's submission to the leaderboard went. */
+export type RecordStatus =
+  | { status: "saving" }
+  | { status: "saved"; score: number; rank: number | null }
+  | { status: "invalid"; reason: string }
+  | { status: "error" }
+  | { status: "signed-out" };
+
+function RecordLine({ record }: { record: RecordStatus }) {
+  const t = useT();
+  switch (record.status) {
+    case "saving":
+      return <p className="results__record">{t("results.saving")}</p>;
+    case "saved":
+      return (
+        <p className="results__record results__record--ok">
+          {record.rank
+            ? t("results.savedRank", { rank: record.rank })
+            : t("results.saved")}
+        </p>
+      );
+    case "invalid":
+      return (
+        <p className="results__record results__record--warn">
+          {t("results.invalid", { reason: record.reason })}
+        </p>
+      );
+    case "signed-out":
+      return <p className="results__record">{t("results.signedOut")}</p>;
+    default:
+      return (
+        <p className="results__record results__record--warn">
+          {t("results.saveError")}
+        </p>
+      );
+  }
+}
+
 export default function ResultsModal({
   summary,
+  record,
   onReplay,
   onChangeSong,
   onClose,
@@ -103,18 +147,20 @@ export default function ResultsModal({
     }
   }, [summary.bestKey, summary.scored, summary.score]);
 
+  const t = useT();
+  const locale = useLocale();
   const failed = summary.failed;
   const header = summary.scored
     ? failed
-      ? "run over"
-      : "results"
-    : "karaoke";
+      ? t("results.runOver")
+      : t("results.results")
+    : t("results.karaoke");
 
   /** Share the same track and settings so someone else can take the same run. */
   async function share() {
     // Local songs have no shareable URL; the button is hidden for them anyway.
     if (summary.sharePath === "/play") return;
-    const url = `${window.location.origin}${summary.sharePath}${buildHash(summary.share)}`;
+    const url = `${window.location.origin}${localePath(locale, summary.sharePath)}${buildHash(summary.share)}`;
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ title: "TypeStar", url });
@@ -139,7 +185,7 @@ export default function ResultsModal({
         className={"results" + (failed ? " results--failed" : "")}
         role="dialog"
         aria-modal="true"
-        aria-label={failed ? "Run over" : "Results"}
+        aria-label={failed ? t("results.ariaRunOver") : t("results.ariaResults")}
       >
         <div className="results__head">
           <p className="comment">
@@ -152,7 +198,7 @@ export default function ResultsModal({
             type="button"
             className="results__close"
             onClick={onClose}
-            aria-label="Close results"
+            aria-label={t("results.close")}
           >
             ×
           </button>
@@ -161,7 +207,7 @@ export default function ResultsModal({
         <div className="results__headline">
           {summary.scored ? (
             <div className="results__score">
-              <span className="results__score-label">score</span>
+              <span className="results__score-label">{t("results.score")}</span>
               <span className="results__score-value">
                 {summary.score.toLocaleString("en-GB")}
               </span>
@@ -169,51 +215,65 @@ export default function ResultsModal({
               <p className="results__best">
                 {summary.scored
                   ? newBest
-                    ? "New best!"
-                    : `Best ${best?.toLocaleString("en-GB") ?? "—"}`
-                  : "Thanks for playing!"}
+                    ? t("results.newBest")
+                    : t("results.best", {
+                        score: best?.toLocaleString("en-GB") ?? "—",
+                      })
+                  : t("results.thanks")}
               </p>
             </div>
           ) : null}
           <div className="results__grade">
             {failed ? (
               <>
-                <span className="results__verdict">Failed</span>
-                <span className="results__reason">{summary.failMessage ?? ""}</span>
+                <span className="results__verdict">{t("results.failed")}</span>
+                <span className="results__reason">
+                  {summary.failReason === "score"
+                    ? t("results.failScore")
+                    : summary.failReason === "mistake"
+                      ? t("results.failMistake")
+                      : summary.failReason === "streak"
+                        ? t("results.failStreak")
+                        : (summary.failMessage ?? "")}
+                </span>
               </>
             ) : summary.rank ? (
-              <span className="results__rank" aria-label={`Rank ${summary.rank}`}>
+              <span className="results__rank" aria-label={t("results.rank", { rank: summary.rank })}>
                 {summary.rank}
               </span>
             ) : null}
             {summary.scored ? (
               <span className="results__progress">
-                {Math.round(summary.progress * 100)}% through
+                {t("results.through", { percent: Math.round(summary.progress * 100) })}
               </span>
             ) : null}
           </div>
         </div>
 
+        {record ? <RecordLine record={record} /> : null}
+
         <div className="results__grid">
           {summary.metrics.map((metric) => (
             <div className="results__metric" key={metric.label}>
-              <span className="results__metric-label">{metric.label}</span>
-              <span className="results__metric-value">{metric.value}</span>
+              <span className="results__metric-label">{metricLabel(metric.label, t)}</span>
+              <span className="results__metric-value">
+                {metricValue(metric.label, metric.value, t)}
+              </span>
             </div>
           ))}
         </div>
 
         <div className="results__actions">
           <button type="button" className="btn-game btn-game--primary" onClick={onReplay}>
-            Try Again
+            {t("results.tryAgain")}
           </button>
           {summary.sharePath !== "/play" ? (
             <button type="button" className="btn-game" onClick={share}>
-              {copied ? "Copied!" : "Share"}
+              {copied ? t("results.copied") : t("results.share")}
             </button>
           ) : null}
           <button type="button" className="btn-game" onClick={onChangeSong}>
-            Change song
+            {t("results.changeSong")}
           </button>
         </div>
       </div>

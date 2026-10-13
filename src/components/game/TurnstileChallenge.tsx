@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { useT } from "../../i18n/react";
 
 type TurnstileApi = {
   render(container: HTMLElement, options: Record<string, unknown>): string;
@@ -69,6 +70,7 @@ export default function TurnstileChallenge({
   onToken,
   onError,
 }: Props) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,14 +88,12 @@ export default function TurnstileChallenge({
           action,
           theme: "light",
           callback: (token: string) => onToken(token),
-          "error-callback": () =>
-            onError?.("The human check failed. Please try again."),
-          "expired-callback": () =>
-            onError?.("The human check expired. Please try again."),
+          "error-callback": () => onError?.(t("turnstile.failed")),
+          "expired-callback": () => onError?.(t("turnstile.expired")),
         });
       })
       .catch(() => {
-        if (!cancelled) onError?.("Could not load the human check.");
+        if (!cancelled) onError?.(t("turnstile.loadError"));
       });
 
     return () => {
@@ -105,7 +105,7 @@ export default function TurnstileChallenge({
         // Widget already gone; nothing to clean up.
       }
     };
-  }, [siteKey, action, onToken, onError]);
+  }, [siteKey, action, onToken, onError, t]);
 
   return <div className="turnstile" ref={containerRef} />;
 }

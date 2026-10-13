@@ -37,6 +37,10 @@ import type {
   D1LikeDatabase,
   SendEmailBinding,
 } from "../src/lib/auth/types";
+import { handleScoreRequest, type ScoreEnv } from "../src/lib/score/api";
+import { loadTrackById } from "../src/lib/score/load";
+import { d1SqlStore, type D1DatabaseLike } from "../src/lib/score/store";
+import { splitLocale } from "../src/i18n/paths";
 import { injectTrackSeo, trackSeo } from "../src/lib/seo";
 import type { Track } from "../src/lib/track/types";
 import { r2Store, type R2LikeBucket } from "../src/lib/track/store";
@@ -153,6 +157,15 @@ export default {
       return getAuth(env).handler(request);
     }
 
+    // Scores: issue run nonces, accept replayed runs and serve boards. Invalid
+    // submissions are stored (with a reason), never rejected.
+    if (pathname === "/api/scores" || pathname.startsWith("/api/scores/")) {
+      if (!env.DB || !env.BETTER_AUTH_SECRET) {
+        return json({ error: "scores-unavailable" }, 503);
+      }
+      return handleScoreRequest(request, scoreEnv(env, store, seed));
+    }
+
     if (pathname.startsWith("/api/track/")) {
       const source = apiSourceFromRequest(pathname, url.searchParams);
       if (!source) {
@@ -171,30 +184,41 @@ export default {
       );
     }
 
-    if (pathname === "/play") {
+    // App routes are locale-aware: `/de/play/youtube/<id>` serves the German
+    // play page. `splitLocale` peels off a leading locale and hands back the
+    // rest; the default locale has no prefix.
+    const { locale, path: appPath } = splitLocale(pathname);
+    const prefix = locale ? `/${locale}` : "";
+
+    if (appPath === "/play") {
       const video = url.searchParams.get("v");
       if (video && YOUTUBE_ID_RE.test(video)) {
-        return Response.redirect(new URL(`/play/youtube/${video}`, url).toString(), 301);
+        return Response.redirect(
+          new URL(`${prefix}/play/youtube/${video}`, url).toString(),
+          301,
+        );
       }
-      return env.ASSETS.fetch(request);
+      return env.ASSETS.fetch(
+        new Request(new URL(`${prefix}/play`, url), { headers: request.headers }),
+      );
     }
 
     // Legacy pretty URL: `/play/<11-char id>` now redirects to its typed form.
-    const legacy = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(pathname);
+    const legacy = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(appPath);
     if (legacy) {
       return Response.redirect(
-        new URL(`/play/youtube/${legacy[1]}`, url).toString(),
+        new URL(`${prefix}/play/youtube/${legacy[1]}`, url).toString(),
         301,
       );
     }
 
     // The typed pretty routes. Fetch the static page once, and if the song is
     // already known, fill in its title and social tags before serving it.
-    const source = playSourceFromPathname(pathname);
+    const source = playSourceFromPathname(appPath);
     if (source) {
       const pageRequest = () =>
         env.ASSETS.fetch(
-          new Request(new URL("/play", url), { headers: request.headers }),
+          new Request(new URL(`${prefix}/play`, url), { headers: request.headers }),
         );
       const [page, track] = await Promise.all([
         pageRequest(),
@@ -206,10 +230,26 @@ export default {
       return page;
     }
 
-    if (pathname.startsWith("/play/")) {
+    if (appPath.startsWith("/play/")) {
       // `/play/local` and a malformed id: serve the static play page as before.
       return env.ASSETS.fetch(
-        new Request(new URL("/play", url), { headers: request.headers }),
+        new Request(new URL(`${prefix}/play`, url), { headers: request.headers }),
+      );
+    }
+
+    // A public profile lives at `/u/<handle>`; the static page reads the handle
+    // from the URL and fetches its data.
+    if (appPath === "/u" || appPath.startsWith("/u/")) {
+      return env.ASSETS.fetch(
+        new Request(new URL(`${prefix}/u`, url), { headers: request.headers }),
+      );
+    }
+
+    // The iframe-able embed widget at `/embed/...`; the page reads its song
+    // from the URL.
+    if (appPath === "/embed" || appPath.startsWith("/embed/")) {
+      return env.ASSETS.fetch(
+        new Request(new URL(`${prefix}/embed`, url), { headers: request.headers }),
       );
     }
 
@@ -234,4 +274,22 @@ function getAuth(env: Env): ReturnType<typeof authFromEnv> {
   };
   authInstance = authFromEnv(authEnv);
   return authInstance;
+}
+
+/** The score API's collaborators, wired to D1 and Better Auth. */
+function scoreEnv(
+  env: Env,
+  store: ReturnType<typeof r2Store>,
+  seed: (seedId: string, lang: string) => Promise<string | null>,
+): ScoreEnv {
+  return {
+    store: d1SqlStore(env.DB as unknown as D1DatabaseLike),
+    user: async (request: Request) => {
+      const session = await getAuth(env).api.getSession({ headers: request.headers });
+      const user = session?.user as { id: string; handle?: string | null } | undefined;
+      return user ? { id: user.id, handle: user.handle ?? null } : null;
+    },
+    loadTrack: (id: string) => loadTrackById(id, { store, seed }),
+    secret: env.BETTER_AUTH_SECRET as string,
+  };
 }

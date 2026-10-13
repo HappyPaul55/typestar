@@ -10,7 +10,7 @@
  */
 
 import { comboTier, type WordResult } from "./engine";
-import { bestKey, runMetrics, type Capabilities, type GameEngine, type Metric } from "./game";
+import { bestKey, runMetrics, type Capabilities, type GameEngine, type Metric, type RunSettings } from "./game";
 import { karaokePointer, karaokeProgress } from "./karaoke";
 import { trackCanSing } from "./modes";
 import { trackPath } from "../track/source";
@@ -33,9 +33,17 @@ function isScored(track: Track | null, micFallback: boolean): boolean {
   return !!track && trackCanSing(track) && !micFallback;
 }
 
-const SCORED_HELP = "Hit the notes as they arrive — your pitch is scored.";
-const KARAOKE_HELP =
-  "The words light up as they arrive — sing along. No score is kept.";
+/** The singing config for a run. Exported so the server replay uses the same one. */
+export function singConfig(track: Track | null, run: RunSettings): SingConfig {
+  return makeSingConfig(track?.notes ?? [], {
+    offset: run.offset,
+    tolerance: SING_TOLERANCE[run.difficulty],
+    // Hard is octave-strict; easy and normal forgive an octave (the format's
+    // convention that singers are not penalised for it).
+    octaveInsensitive: run.difficulty !== "hard",
+    failMode: run.runMode,
+  });
+}
 
 /** Stable empty result list: the shell derives karaoke results from the pointer,
  * so returning a new array each call would needlessly rebuild the highway. */
@@ -49,7 +57,7 @@ const FAIL_MESSAGE: Record<"score" | "mistake" | "streak", string> = {
 
 export const SingGame: GameEngine<SingState> = {
   id: "sing",
-  label: "Sing",
+  labelKey: "style.sing",
 
   capabilities(track, micFallback): Capabilities {
     const scored = isScored(track, micFallback);
@@ -66,18 +74,12 @@ export const SingGame: GameEngine<SingState> = {
     };
   },
 
-  help: (track, micFallback) =>
-    isScored(track, micFallback) ? SCORED_HELP : KARAOKE_HELP,
+  helpKey: (track, micFallback) =>
+    isScored(track, micFallback) ? "style.helpSingScored" : "style.helpSingKaraoke",
 
   createState: (track) => createSingState(track?.notes?.length ?? 0),
 
-  config(track, run) {
-    return makeSingConfig(track?.notes ?? [], {
-      offset: run.offset,
-      tolerance: SING_TOLERANCE[run.difficulty],
-      failMode: run.runMode,
-    });
-  },
+  config: singConfig,
 
   reduce(state, action, config) {
     const cfg = config as SingConfig;
@@ -170,6 +172,7 @@ export const SingGame: GameEngine<SingState> = {
     const metrics: Metric[] = [
       { label: "pitch accuracy", value: `${accuracy}%` },
       { label: "notes", value: `${state.hits}/${notes}` },
+      { label: "perfect notes", value: `${state.perfectNotes}` },
       { label: "best combo", value: `×${state.maxCombo}` },
       { label: "time", value: formatTime(ctx.time) },
       ...runMetrics(run, run.runMode === "practise" ? state.replays : undefined),

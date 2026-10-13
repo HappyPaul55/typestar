@@ -10,6 +10,7 @@
  */
 
 import type { CueInfo } from "../../lib/game/engine";
+import { useT } from "../../i18n/react";
 
 interface Props {
   cue: CueInfo;
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function CueBar({ cue, first, onSkip }: Props) {
+  const t = useT();
   // Show for the opening wait, and for any mid-song gap longer than 3 seconds.
   if (!cue.waiting || (!first && cue.span <= 3)) return null;
 
@@ -32,11 +34,13 @@ export default function CueBar({ cue, first, onSkip }: Props) {
         />
       </div>
       <span className="cue-bar__label" role="status" aria-live="off">
-        {first ? "first word" : "next word"} in {cue.remaining.toFixed(1)}s
+        {first
+          ? t("cue.firstWord", { seconds: cue.remaining.toFixed(1) })
+          : t("cue.nextWord", { seconds: cue.remaining.toFixed(1) })}
       </span>
       {onSkip ? (
         <button type="button" className="cue-bar__skip" onClick={onSkip}>
-          Skip
+          {t("cue.skip")}
         </button>
       ) : null}
     </div>

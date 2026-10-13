@@ -73,7 +73,7 @@ import LocalLibrary, { type LocalSelection } from "./LocalLibrary";
 import LyricHighway from "./LyricHighway";
 import PitchHighway from "./PitchHighway";
 import PlayerStage from "./PlayerStage";
-import ResultsModal from "./ResultsModal";
+import ResultsModal, { type RecordStatus } from "./ResultsModal";
 import StartScreen from "./StartScreen";
 import TrackPicker from "./TrackPicker";
 import TurnstileChallenge from "./TurnstileChallenge";
@@ -82,6 +82,16 @@ import { useMediaPlayer } from "./hooks/useMediaPlayer";
 import { usePitchInput } from "./hooks/usePitchInput";
 import { useUltraStarPlayer } from "./hooks/useUltraStarPlayer";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
+import { useSignedIn } from "../../lib/auth/session";
+import { localePath } from "../../i18n/paths";
+import { I18nProvider, useT, useLocale } from "../../i18n/react";
+import type { Locale } from "../../i18n/locales";
+import {
+  fetchRunNonce,
+  submitRun,
+  type RunSettingsInput,
+} from "../../lib/score/client";
+import { timelineChecksum, type TimelineEvent } from "../../lib/score/timeline";
 
 type Phase = "idle" | "countdown" | "playing" | "paused" | "results";
 
@@ -115,11 +125,6 @@ function localToSong(selection: LocalSelection): LoadedSong {
     artist: selection.artist,
   };
 }
-
-/** The hero copy shown on `/play/local` while no song is open. */
-const LOCAL_PICKER_TITLE = "Play from this device";
-const LOCAL_PICKER_SUBTITLE =
-  "Point TypeStar at a folder of songs. It reads UltraStar charts (.txt) and videos paired with a same-named .vtt caption. Nothing is uploaded, and the folder stays on your machine.";
 
 interface GameFlash {
   id: number;
@@ -157,11 +162,16 @@ function CountdownOverlay({ value }: { value: number }) {
 }
 
 function PausedOverlay({ onResume }: { onResume(): void }) {
+  const t = useT();
   return (
-    <div className="game-overlay game-overlay--paused" role="dialog" aria-label="Paused">
-      <p className="game-overlay__title">Paused</p>
+    <div
+      className="game-overlay game-overlay--paused"
+      role="dialog"
+      aria-label={t("game.paused")}
+    >
+      <p className="game-overlay__title">{t("game.paused")}</p>
       <button type="button" className="btn-game btn-game--primary" onClick={onResume}>
-        Resume
+        {t("hud.resume")}
       </button>
     </div>
   );
@@ -178,6 +188,7 @@ function StatusPanel({
   action?: string;
   onAction?: () => void;
 }) {
+  const t = useT();
   return (
     <div className="game-status">
       <div className="panel game-status__panel">
@@ -185,7 +196,7 @@ function StatusPanel({
           <span className="slash" aria-hidden="true">
             //
           </span>{" "}
-          play
+          {t("play.crumb")}
         </p>
         <h2 className="panel__title mt-2">{title}</h2>
         <p className="mt-2 text-ink-soft">{message}</p>
@@ -201,14 +212,34 @@ function StatusPanel({
   );
 }
 
-export default function GameApp({
-  site,
-  ratings = {},
-}: {
+interface GameAppProps {
   site: SiteSettings;
   /** Track id -> difficulty rating, computed from the pre-warmed seeds. */
   ratings?: Record<string, TrackRating>;
-}) {
+  /** Compact, no-account mode for the iframe-able embed widget. */
+  embed?: boolean;
+  /** The UI locale for the island. */
+  locale?: Locale;
+}
+
+/**
+ * The island's entry point: it provides the chosen locale and renders
+ * {@link GameAppInner}. The split matters — a component cannot read a context
+ * it renders itself, so `useT` would otherwise always fall back to English.
+ */
+export default function GameApp({ locale = "en", ...props }: GameAppProps) {
+  return (
+    <I18nProvider locale={locale}>
+      <GameAppInner {...props} />
+    </I18nProvider>
+  );
+}
+
+function GameAppInner({
+  site,
+  ratings = {},
+  embed = false,
+}: Omit<GameAppProps, "locale">) {
   const [source, setSource] = useState<TrackSourceRef | null | undefined>(undefined);
   const [song, setSong] = useState<LoadedSong | null>(null);
   const [localMode, setLocalMode] = useState(false);
@@ -244,6 +275,18 @@ export default function GameApp({
   const playingRef = useRef(false);
   /** Throttles scoring dispatches so the island does not re-render every frame. */
   const lastSingSampleRef = useRef(0);
+
+  // Server-side run recording. A scored run asks for a nonce when it starts,
+  // records its inputs as they happen, and submits them when the results appear.
+  // Nothing is recorded while signed out.
+  const signedIn = useSignedIn();
+  const t = useT();
+  const locale = useLocale();
+  const timelineRef = useRef<TimelineEvent[]>([]);
+  const nonceRef = useRef<string | null>(null);
+  const nonceSettingsRef = useRef<RunSettingsInput | null>(null);
+  const armedRef = useRef(false);
+  const [record, setRecord] = useState<RecordStatus | null>(null);
 
   const activeTrack = song?.track ?? null;
   const isLocal =
@@ -348,6 +391,9 @@ export default function GameApp({
     time,
     getTime,
     seek: seekTo,
+    onEvent: (event) => {
+      if (armedRef.current) timelineRef.current.push(event);
+    },
   });
 
   // Keep the microphone frame callback in step without re-subscribing.
@@ -469,6 +515,12 @@ export default function GameApp({
     setNeedsTurnstile(false);
     setTurnstileError(null);
     setMicFallback(false);
+    // Discard any half-recorded run for the previous song.
+    armedRef.current = false;
+    timelineRef.current = [];
+    nonceRef.current = null;
+    nonceSettingsRef.current = null;
+    setRecord(null);
   }, [source]);
 
   // Load the track, and restore its saved sync offset.
@@ -504,9 +556,7 @@ export default function GameApp({
             // Give up rather than loop forever if the check keeps being refused.
             turnstileFailures.current += 1;
             if (turnstileFailures.current > 2) {
-              setLoadError(
-                "The human check could not be completed. Please try again later.",
-              );
+              setLoadError(t("game.humanCheckFailed"));
               return;
             }
           }
@@ -516,8 +566,8 @@ export default function GameApp({
         }
         setLoadError(
           error instanceof TrackApiError
-            ? error.message
-            : "Something went wrong loading this track.",
+            ? t(error.messageKey)
+            : t("game.loadError"),
         );
       });
 
@@ -541,7 +591,7 @@ export default function GameApp({
   useEffect(() => {
     const titleEl = document.getElementById("play-title");
     const subtitleEl = document.getElementById("play-subtitle");
-    const defaultSubtitle = `${site.tagline} — YouTube supplies the music and visuals; you type the lyrics as the words arrive.`;
+    const defaultSubtitle = t("play.subtitle", { tagline: t("site.tagline") });
 
     if (activeTrack) {
       document.title = `${activeTrack.title} — ${site.name}`;
@@ -558,8 +608,8 @@ export default function GameApp({
         }
       }
     } else if (localMode) {
-      if (titleEl) titleEl.textContent = LOCAL_PICKER_TITLE;
-      if (subtitleEl) subtitleEl.textContent = LOCAL_PICKER_SUBTITLE;
+      if (titleEl) titleEl.textContent = t("game.localTitle");
+      if (subtitleEl) subtitleEl.textContent = t("game.localSubtitle");
     } else {
       if (titleEl) titleEl.textContent = site.name;
       if (subtitleEl) subtitleEl.textContent = defaultSubtitle;
@@ -696,6 +746,40 @@ export default function GameApp({
     return () => window.removeEventListener("keydown", handler);
   }, [phase, capabilities.keyboard, session]);
 
+  /**
+   * Arm a scored run for recording: clear the buffer, ask for a nonce and start
+   * recording inputs. A run that will not be scored (karaoke), a local song, or
+   * a signed-out player records nothing.
+   */
+  const armRun = useCallback(
+    (willScore: boolean) => {
+      armedRef.current = false;
+      timelineRef.current = [];
+      nonceRef.current = null;
+      nonceSettingsRef.current = null;
+      if (embed || !willScore || !signedIn || !activeTrack || isLocal) return;
+
+      const settings: RunSettingsInput = {
+        trackId: activeTrack.id,
+        style: run.style,
+        difficulty: run.difficulty,
+        runMode: run.runMode,
+        speed: run.speed,
+        offset: run.offset,
+      };
+      armedRef.current = true;
+      nonceSettingsRef.current = settings;
+      void fetchRunNonce(settings)
+        .then((nonce) => {
+          if (armedRef.current) nonceRef.current = nonce;
+        })
+        .catch(() => {
+          // No nonce: the run simply will not be submitted.
+        });
+    },
+    [signedIn, activeTrack, isLocal, run, embed],
+  );
+
   const start = useCallback(async () => {
     if (!ready) return;
     // Scored singing needs the microphone before the run begins; if it is
@@ -706,6 +790,8 @@ export default function GameApp({
       fallback = !ok;
       setMicFallback(!ok);
     }
+    // Start recording (or clear the buffer) for a scored run.
+    armRun(capabilities.scored && !fallback);
     // The countdown runs before playback: park the video at the start and hold
     // it paused, so a stray play (or a higher speed) can't run the opening away.
     pause();
@@ -723,11 +809,56 @@ export default function GameApp({
     ready,
     capabilities.microphone,
     capabilities.keyboard,
+    capabilities.scored,
+    armRun,
     pitchInput,
     pause,
     seekTo,
     session,
   ]);
+
+  // Submit the recorded run when the results appear, and report the outcome.
+  useEffect(() => {
+    if (phase !== "results") return;
+    if (embed || isLocal || !capabilities.scored) {
+      setRecord(null);
+      return;
+    }
+    if (!signedIn) {
+      setRecord({ status: "signed-out" });
+      return;
+    }
+    if (!armedRef.current) return;
+    armedRef.current = false;
+
+    const nonce = nonceRef.current;
+    const settings = nonceSettingsRef.current;
+    const events = timelineRef.current;
+    if (!nonce || !settings || events.length === 0) {
+      setRecord({ status: "error" });
+      return;
+    }
+
+    let cancelled = false;
+    setRecord({ status: "saving" });
+    void (async () => {
+      const checksum = await timelineChecksum(nonce, events);
+      const result = await submitRun({ nonce, checksum, settings, events });
+      if (cancelled) return;
+      if (!result) {
+        setRecord({ status: "error" });
+        return;
+      }
+      setRecord(
+        result.status === "valid"
+          ? { status: "saved", score: result.score, rank: result.rank }
+          : { status: "invalid", reason: result.reason ?? "invalid" },
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, isLocal, capabilities.scored, signedIn, embed]);
 
   const togglePause = useCallback(() => {
     if (phase === "playing") {
@@ -746,6 +877,10 @@ export default function GameApp({
     pause();
     seekTo(0);
     setPhase("idle");
+    armedRef.current = false;
+    timelineRef.current = [];
+    nonceRef.current = null;
+    setRecord(null);
   }, [session, pitchInput, pause, seekTo]);
 
   const replay = useCallback(() => {
@@ -757,6 +892,7 @@ export default function GameApp({
     session.reset();
     pitchInput.stop();
     setPhase("idle");
+    setRecord(null);
   }, [session, pitchInput]);
 
   const selectMode = useCallback(
@@ -814,10 +950,10 @@ export default function GameApp({
     setLoadError(null);
     setMicFallback(false);
     setPhase("idle");
-    const target = `/play/local?file=${encodeURIComponent(selection.filePath)}`;
+    const target = localePath(locale, `/play/local?file=${encodeURIComponent(selection.filePath)}`);
     const current = `${window.location.pathname}${window.location.search}`;
     if (current !== target) window.history.pushState(null, "", target);
-  }, []);
+  }, [locale]);
 
   /**
    * Route changes are done in place (pushState + state) rather than by a full
@@ -826,38 +962,42 @@ export default function GameApp({
    */
   const openRemotePicker = useCallback(() => {
     pitchInput.stop();
-    window.history.pushState(null, "", "/play");
+    window.history.pushState(null, "", localePath(locale, "/play"));
     setLocalMode(false);
     setSource(null);
     setSong(null);
     setLocalRequest(null);
     setLoadError(null);
     setPhase("idle");
-  }, [pitchInput.stop]);
+  }, [locale, pitchInput.stop]);
 
   const openLocalPicker = useCallback(() => {
     pitchInput.stop();
-    window.history.pushState(null, "", "/play/local");
+    window.history.pushState(null, "", localePath(locale, "/play/local"));
     setLocalMode(true);
     setSource(null);
     setSong(null);
     setLocalRequest(null);
     setLoadError(null);
     setPhase("idle");
-  }, [pitchInput.stop]);
+  }, [locale, pitchInput.stop]);
 
   /** Open a YouTube track from the picker without reloading the document. */
   const openTrack = useCallback(
     (id: string) => {
       pitchInput.stop();
-      window.history.pushState(null, "", `/play/youtube/${id}${window.location.hash}`);
+      window.history.pushState(
+        null,
+        "",
+        `${localePath(locale, `/play/youtube/${id}`)}${window.location.hash}`,
+      );
       setLocalMode(false);
       setSong(null);
       setSource({ kind: "youtube", id });
       setLoadError(null);
       setPhase("idle");
     },
-    [pitchInput.stop],
+    [locale, pitchInput.stop],
   );
 
   /** Open an UltraStar chart from a URL without reloading the document. */
@@ -867,7 +1007,7 @@ export default function GameApp({
       window.history.pushState(
         null,
         "",
-        `/play/ultrastar/${encodeURIComponent(url)}${window.location.hash}`,
+        `${localePath(locale, `/play/ultrastar/${encodeURIComponent(url)}`)}${window.location.hash}`,
       );
       setLocalMode(false);
       setSong(null);
@@ -875,14 +1015,16 @@ export default function GameApp({
       setLoadError(null);
       setPhase("idle");
     },
-    [pitchInput.stop],
+    [locale, pitchInput.stop],
   );
 
   const changeSong = useCallback(() => {
+    // An embed has no picker to return to.
+    if (embed) return;
     // A local run returns to the local library rather than the YouTube picker.
     if (isLocal) openLocalPicker();
     else openRemotePicker();
-  }, [isLocal, openLocalPicker, openRemotePicker]);
+  }, [embed, isLocal, openLocalPicker, openRemotePicker]);
 
   // Point first-time players at the fullscreen button: the game is much better
   // in fullscreen, and the nudge is only worth showing once.
@@ -977,12 +1119,12 @@ export default function GameApp({
     let next: { text: string; tier: ComboFlash } | null = null;
 
     if (perfectLines > previousPerfect.current) {
-      next = { text: "Perfect line!", tier: "medium" };
+      next = { text: t("game.perfectLine"), tier: "medium" };
     }
     if (combo > previousCombo.current) {
       const tier = comboMilestone(combo);
       if (tier && (!next || TIER_RANK[tier] >= TIER_RANK[next.tier])) {
-        next = { text: `${combo} combo!`, tier };
+        next = { text: t("game.combo", { count: combo }), tier };
       }
     }
 
@@ -993,7 +1135,7 @@ export default function GameApp({
       flashId.current += 1;
       setFlash({ id: flashId.current, ...next });
     }
-  }, [summary.combo, summary.perfectLines]);
+  }, [summary.combo, summary.perfectLines, t]);
 
   // A blip on every wrong key.
   const previousErrors = useRef(0);
@@ -1022,7 +1164,9 @@ export default function GameApp({
       />
     );
   } else if (source === null && !song) {
-    body = (
+    body = embed ? (
+      <StatusPanel title={t("game.noTrack")} message={t("game.embedNoSong")} />
+    ) : (
       <TrackPicker
         ratings={ratings}
         onOpen={openTrack}
@@ -1033,9 +1177,9 @@ export default function GameApp({
   } else if (loadError) {
     body = (
       <StatusPanel
-        title="No track to play"
+        title={t("game.noTrack")}
         message={loadError}
-        action="Try another song"
+        action={t("game.tryAnother")}
         onAction={changeSong}
       />
     );
@@ -1047,14 +1191,10 @@ export default function GameApp({
             <span className="slash" aria-hidden="true">
               //
             </span>{" "}
-            new song
+            {t("game.humanCheckComment")}
           </p>
-          <h2 className="panel__title mt-2">Quick human check</h2>
-          <p className="mt-2 text-ink-soft">
-            This song isn&rsquo;t in the library yet, so we just need to check
-            you&rsquo;re human before fetching it. It only ever happens once per
-            song.
-          </p>
+          <h2 className="panel__title mt-2">{t("game.humanCheckTitle")}</h2>
+          <p className="mt-2 text-ink-soft">{t("game.humanCheckBody")}</p>
           <div className="mt-4">
             <TurnstileChallenge
               key={challengeId}
@@ -1071,8 +1211,8 @@ export default function GameApp({
       </div>
     ) : (
       <StatusPanel
-        title="Loading track…"
-        message="Fetching the captions and timing the words."
+        title={t("game.loadingTrack")}
+        message={t("game.fetchingCaptions")}
       />
     );
   }
@@ -1111,7 +1251,7 @@ export default function GameApp({
         <StartScreen
           style={style}
           onSelectStyle={selectStyle}
-          help={engine.help(activeTrack, micFallback)}
+          help={t(engine.helpKey(activeTrack, micFallback))}
           onStart={start}
         />
       ) : null}
@@ -1142,7 +1282,7 @@ export default function GameApp({
           autoCapitalize="off"
           spellCheck={false}
           enterKeyHint="go"
-          aria-label="Type the lyrics"
+          aria-label={t("game.typeLyricsAria")}
           onKeyDown={(event) => {
             if (event.key === "Backspace") {
               event.preventDefault();
@@ -1178,9 +1318,9 @@ export default function GameApp({
               playerError === null
                 ? undefined
                 : isLocal
-                  ? "This file could not be played. The browser may not support its format."
+                  ? t("game.localMediaError")
                   : isRemoteUltra
-                    ? "This song’s media could not be loaded from its source."
+                    ? t("game.remoteMediaError")
                     : undefined
             }
           />
@@ -1220,15 +1360,14 @@ export default function GameApp({
           />
           {capabilities.microphone ? (
             <p className="pitch-mic" data-state={pitchInput.status}>
-              {pitchInput.error ??
-                (pitchInput.status === "listening"
-                  ? "microphone live"
-                  : "preparing microphone…")}
+              {pitchInput.error
+                ? t(pitchInput.error)
+                : t(pitchInput.status === "listening" ? "mic.live" : "mic.preparing")}
             </p>
           ) : null}
           {style === "sing" && micFallback ? (
             <p className="pitch-mic" data-state="denied">
-              Microphone unavailable — singing along without scoring.
+              {t("mic.unavailable")}
             </p>
           ) : null}
           </div>
@@ -1259,6 +1398,7 @@ export default function GameApp({
           onFullscreen={toggleFullscreen}
           onChangeSong={changeSong}
           highlightFullscreen={highlightFullscreen}
+          compact={embed}
           rootRef={hudRef}
         />
 
@@ -1278,6 +1418,7 @@ export default function GameApp({
       {phase === "results" ? (
         <ResultsModal
           summary={resultsSummary}
+          record={record}
           onReplay={replay}
           onChangeSong={changeSong}
           onClose={closeResults}

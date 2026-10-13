@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPitchDetector, rms } from "../../../lib/game/pitch";
+import type { MessageKey } from "../../../i18n";
 
 export type MicStatus =
   | "idle"
@@ -49,7 +50,8 @@ export interface PitchInputHandle {
   /** Whether this browser can offer the microphone at all. */
   supported: boolean;
   status: MicStatus;
-  error: string | null;
+  /** The failure, as a dictionary key, or `null` when there is none. */
+  error: MessageKey | null;
   /**
    * The latest detected MIDI note, updated every frame (not throttled). The
    * pitch lane reads this in its animation loop so the cursor stays smooth.
@@ -77,7 +79,7 @@ export function usePitchInput(
 ): PitchInputHandle {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState<MicStatus>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessageKey | null>(null);
 
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
@@ -231,11 +233,7 @@ export function usePitchInput(
         cause instanceof DOMException &&
         (cause.name === "NotAllowedError" || cause.name === "SecurityError");
       setStatus(denied ? "denied" : "error");
-      setError(
-        denied
-          ? "Microphone access was declined, so pitching cannot be scored."
-          : "The microphone could not be started.",
-      );
+      setError(denied ? "mic.declined" : "mic.failed");
       return false;
     }
   }, [supported, release, startLoop]);

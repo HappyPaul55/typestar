@@ -4,6 +4,8 @@ import { getEntry } from "astro:content";
 import Seo from "../components/layout/Seo.astro";
 import Header from "../components/layout/Header.astro";
 import Footer from "../components/layout/Footer.astro";
+import { localeFromPath, tFor } from "../i18n/astro";
+import { HTML_LANG } from "../i18n/locales";
 
 interface Crumb {
   name: string;
@@ -31,10 +33,12 @@ if (!siteEntry) {
   throw new Error("Missing site settings entry (site/main).");
 }
 const site = siteEntry.data;
+const locale = localeFromPath(Astro.url.pathname);
+const t = tFor(locale);
 ---
 
 <!doctype html>
-<html lang="en-GB">
+<html lang={HTML_LANG[locale]}>
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -48,6 +52,7 @@ const site = siteEntry.data;
       path={path}
       noindex={noindex}
       breadcrumbs={breadcrumbs}
+      locale={locale}
       settings={site}
     />
 
@@ -150,7 +155,7 @@ const site = siteEntry.data;
     <slot name="head" />
   </head>
   <body>
-    <a class="skip-link no-print" href="#main">Skip to content</a>
+    <a class="skip-link no-print" href="#main">{t("common.skipToContent")}</a>
 
     <p class="print-only print-masthead">
       {site.name} · {site.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}

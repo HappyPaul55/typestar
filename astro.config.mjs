@@ -18,6 +18,22 @@ const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 // session survives a hot reload.
 const DEV_AUTH_SECRET = "typestar-dev-only-insecure-secret-change-me";
 
+// The UI locales other than the default (`en`), for the dev route rewrites.
+const DEV_LOCALES = ["de", "fr", "es", "pt-BR", "ja"];
+
+/**
+ * Split a dev pathname into its leading locale (if any) and the rest, mirroring
+ * `splitLocale` in `src/i18n/paths.ts`.
+ * @param {string} path
+ */
+function splitLocale(path) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length > 0 && DEV_LOCALES.includes(parts[0])) {
+    return { locale: parts[0], path: `/${parts.slice(1).join("/")}` };
+  }
+  return { locale: null, path };
+}
+
 // Env for the dev-only Turnstile gate. `.env*` is git-ignored; the values are
 // ignored entirely in a production build (the plugin only runs in `serve`).
 const env = loadEnv(
@@ -48,6 +64,21 @@ function fileStore() {
       await writeFile(file, value, "utf8");
     },
   };
+}
+
+/**
+ * Read a pre-warmed seed track from `public/tracks/`, mirroring the Worker's
+ * asset-backed seed. Only the default language is bundled.
+ * @param {string} seedId
+ * @param {string} lang
+ */
+async function readSeed(seedId, lang) {
+  if (lang !== "en") return null;
+  try {
+    return await readFile(join(TRACKS_DIR, `${seedId}.json`), "utf8");
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -133,13 +164,15 @@ function devServer(env) {
         : undefined;
 
       server.middlewares.use((req, res, next) => {
-        const [path, query = ""] = (req.url ?? "").split("?");
+        const [rawPath, query = ""] = (req.url ?? "").split("?");
+        const { locale, path } = splitLocale(rawPath);
+        const prefix = locale ? `/${locale}` : "";
 
         if (path === "/play") {
           const video = new URLSearchParams(query).get("v");
           if (video && VIDEO_ID_RE.test(video)) {
             res.statusCode = 301;
-            res.setHeader("location", `/play/youtube/${video}`);
+            res.setHeader("location", `${prefix}/play/youtube/${video}`);
             res.end();
             return;
           }
@@ -149,7 +182,7 @@ function devServer(env) {
         const legacy = /^\/play\/([A-Za-z0-9_-]{11})\/?$/.exec(path);
         if (legacy) {
           res.statusCode = 301;
-          res.setHeader("location", `/play/youtube/${legacy[1]}`);
+          res.setHeader("location", `${prefix}/play/youtube/${legacy[1]}`);
           res.end();
           return;
         }
@@ -160,7 +193,21 @@ function devServer(env) {
           /^\/play\/youtube\/[^/]+\/?$/.test(path) ||
           /^\/play\/ultrastar\/.+\/?$/.test(path)
         ) {
-          req.url = "/play";
+          req.url = `${prefix}/play`;
+          next();
+          return;
+        }
+
+        // A public profile at `/u/<handle>` renders the `/u` page.
+        if (path === "/u" || /^\/u\/[^/]+\/?$/.test(path)) {
+          req.url = `${prefix}/u`;
+          next();
+          return;
+        }
+
+        // The embed widget at `/embed/...` renders the `/embed` page.
+        if (path === "/embed" || /^\/embed\//.test(path)) {
+          req.url = `${prefix}/embed`;
           next();
           return;
         }
@@ -195,15 +242,7 @@ function devServer(env) {
             return;
           }
 
-          /** @param {string} seedId @param {string} lang */
-          const seed = async (seedId, lang) => {
-            if (lang !== "en") return null;
-            try {
-              return await readFile(join(TRACKS_DIR, `${seedId}.json`), "utf8");
-            } catch {
-              return null;
-            }
-          };
+          const seed = readSeed;
 
           const request = new Request(`http://localhost${req.url ?? ""}`, {
             method: req.method,
@@ -312,12 +351,70 @@ function devServer(env) {
           res.end(JSON.stringify({ error: "dev-auth-failed" }));
         }
       });
+
+      // Dev-only scores. The score API runs against a local SQLite database in
+      // the same file as the dev auth database, so the `userId` reference
+      // resolves. Tracks come from the dev cache/seeds, exactly as in the
+      // Worker, so the server replay reads the same track the player did.
+      server.middlewares.use(async (req, res, next) => {
+        const path = (req.url ?? "").split("?")[0];
+        if (!path.startsWith("/api/scores")) {
+          next();
+          return;
+        }
+        try {
+          const [scoreApi, devStore, load, auth] = await Promise.all([
+            server.ssrLoadModule("/src/lib/score/api.ts"),
+            server.ssrLoadModule("/src/lib/score/dev-store.ts"),
+            server.ssrLoadModule("/src/lib/score/load.ts"),
+            getDevAuth(),
+          ]);
+
+          const body = await readBody(req);
+          const request = toWebRequest(
+            req,
+            `http://localhost${req.url ?? ""}`,
+            body,
+          );
+          const trackStore = fileStore();
+
+          const envScore = {
+            store: devStore.createDevScoreStore(AUTH_DB),
+            user: async (/** @type {Request} */ req2) => {
+              const session = await auth.api.getSession({ headers: req2.headers });
+              const user = session?.user;
+              return user
+                ? { id: user.id, handle: user.handle ?? null }
+                : null;
+            },
+            loadTrack: (/** @type {string} */ id) =>
+              load.loadTrackById(id, { store: trackStore, seed: readSeed }),
+            secret: env.BETTER_AUTH_SECRET || DEV_AUTH_SECRET,
+          };
+
+          await sendWebResponse(res, await scoreApi.handleScoreRequest(request, envScore));
+        } catch (error) {
+          server.config.logger.error(
+            `[dev-scores] ${error instanceof Error ? error.message : String(error)}`,
+          );
+          res.statusCode = 500;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: "dev-scores-failed" }));
+        }
+      });
     },
   };
 }
 
 export default defineConfig({
   site: "https://typestar.happypaul55.com",
+  // `en` is served without a prefix; the rest live under `/<locale>/…`. The
+  // lyrics/caption language (`?lang=`) is a separate concern.
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "de", "fr", "es", "pt-BR", "ja"],
+    routing: { prefixDefaultLocale: false },
+  },
   build: {
     format: "file",
     inlineStylesheets: "always",
@@ -325,7 +422,7 @@ export default defineConfig({
   trailingSlash: "never",
   integrations: [
     // The account pages are private (noindex); keep them out of the sitemap.
-    sitemap({ filter: (page) => !/\/(account|signin)\/?$/.test(page) }),
+    sitemap({ filter: (page) => !/\/(account|signin|u|embed)\/?$/.test(page) }),
     react(),
   ],
   vite: {

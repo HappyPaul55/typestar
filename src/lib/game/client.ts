@@ -4,48 +4,54 @@
 
 import type { Track } from "../track/types";
 import {
+  embedSourceFromPathname,
   parseSourceValue,
   parseYouTubeId,
   playSourceFromPathname,
   type TrackSourceRef,
 } from "../track/source";
+import type { MessageKey } from "../../i18n";
+import { stripLocale } from "../../i18n/paths";
 import { isTrack } from "../track/validate";
 
 export class TrackApiError extends Error {
   readonly status: number;
   readonly code?: string;
+  /** The user-facing message, as a dictionary key. */
+  readonly messageKey: MessageKey;
 
-  constructor(message: string, status: number, code?: string) {
-    super(message);
+  constructor(messageKey: MessageKey, status: number, code?: string) {
+    super(messageKey);
     this.name = "TrackApiError";
     this.status = status;
     this.code = code;
+    this.messageKey = messageKey;
   }
 }
 
-/** A friendly message for an API error code. */
-function messageForCode(code: string | undefined): string {
+/** The dictionary key for an API error code. */
+function keyForCode(code: string | undefined): MessageKey {
   switch (code) {
     case "no-captions":
-      return "This video has no captions, so there is nothing to type.";
+      return "trackError.noCaptions";
     case "bad-video-id":
-      return "That video id looks wrong.";
+      return "trackError.badVideoId";
     case "bad-source-url":
     case "blocked-url":
-      return "That song URL can’t be used.";
+      return "trackError.badUrl";
     case "no-lyrics":
-      return "That UltraStar chart has no lyrics to play.";
+      return "trackError.noLyrics";
     case "no-audio":
-      return "That UltraStar chart does not name an audio file.";
+      return "trackError.noAudio";
     case "not-found":
-      return "That song file could not be found.";
+      return "trackError.notFound";
     case "too-large":
-      return "That song file is too large.";
+      return "trackError.tooLarge";
     case "turnstile-required":
     case "turnstile-failed":
-      return "Please complete the quick human check to load this new song.";
+      return "trackError.humanCheck";
     default:
-      return "Could not load this track.";
+      return "trackError.generic";
   }
 }
 
@@ -70,7 +76,7 @@ export async function loadTrack(
     response = await fetch(endpoint, { signal, headers });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new TrackApiError("Could not reach the track service.", 0, "network");
+    throw new TrackApiError("trackError.network", 0, "network");
   }
 
   if (!response.ok) {
@@ -80,12 +86,12 @@ export async function loadTrack(
     } catch {
       // Non-JSON error body; fall through to the generic message.
     }
-    throw new TrackApiError(messageForCode(code), response.status, code);
+    throw new TrackApiError(keyForCode(code), response.status, code);
   }
 
   const data: unknown = await response.json();
   if (!isTrack(data)) {
-    throw new TrackApiError("The track data was unreadable.", 502, "invalid");
+    throw new TrackApiError("trackError.unreadable", 502, "invalid");
   }
   return data;
 }
@@ -96,7 +102,10 @@ export async function loadTrack(
  */
 export function sourceFromLocation(): TrackSourceRef | null {
   if (typeof window === "undefined") return null;
-  const fromPath = playSourceFromPathname(window.location.pathname);
+  // The app routes are locale-prefixed (`/de/play/youtube/<id>`), so peel the
+  // locale off before reading the route.
+  const path = stripLocale(window.location.pathname);
+  const fromPath = playSourceFromPathname(path) ?? embedSourceFromPathname(path);
   if (fromPath) return fromPath;
 
   const params = new URLSearchParams(window.location.search);
@@ -115,7 +124,7 @@ export function sourceFromInput(value: string): TrackSourceRef | null {
 /** Whether the current URL is the local-file route (`/play/local`). */
 export function isLocalRoute(): boolean {
   if (typeof window === "undefined") return false;
-  return /^\/play\/local\/?$/.test(window.location.pathname);
+  return /^\/play\/local\/?$/.test(stripLocale(window.location.pathname));
 }
 
 /**

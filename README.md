@@ -27,8 +27,11 @@ typing / keyboard speed game**.
   setting above.
 - A **Skip** tab appears under the intro cue when a song opens with more than
   two seconds of music, jumping to just before the first lyric.
-- Scoring rewards chains: a combo multiplier up to ×3 and a bonus for every
-  clean line. Wrong keys cost more than a missed word.
+- Scoring is **per keystroke**: each correct character is graded **Perfect /
+  Great / Good** by how late it is (early is free), scaled by a combo multiplier
+  up to ×3, with a bonus for every clean line. Wrong keys cost more than a
+  missed word. Singing grades each note by how long it is held in tune, with a
+  sustain bonus for long notes and an escalating golden-note chain.
 - Typing is forgiving: if you start a later word (say “stra to love” for
   “strangers to love”), the game skips the words you passed over, counts them
   missed and carries on instead of holding you on the old word. A key that isn't
@@ -67,8 +70,17 @@ typing / keyboard speed game**.
   title, description and social tags name the song and use its cover art.
 - **Optional accounts**: sign in with a one-time email link (no password) to
   keep an account across devices and claim a public handle. Signing in is
-  optional — the game plays without one — and a leaderboard is a future
-  addition.
+  optional — the game plays without one.
+- **Leaderboards, profiles and challenges**: a signed-in run is verified
+  server-side and ranked per song, style, difficulty, run mode and speed. There
+  are public profiles (`/u/<handle>`), a recent-scores feed (`/recent`) and a
+  daily/weekly challenge (`/challenge`).
+- **Embeds**: any song can be dropped into a blog or forum as an `<iframe>`
+  (`/embed/youtube/<id>`). Only the embed route may be framed; every other page
+  stays unframeable.
+- **Languages**: the interface is available in English, German, French, Spanish,
+  Brazilian Portuguese and Japanese. `en` is at the root; the rest live under
+  `/de`, `/fr`, `/es`, `/pt-BR`, `/ja`. (Translations are machine-made for now.)
 
 It is an Astro site with a React game island, served as a Cloudflare Worker
 with static assets, and it caches processed tracks in **R2**.
@@ -272,6 +284,81 @@ The auth module lives in `src/lib/auth/`: `server.ts` (the instance),
 schema is `migrations/0001_auth.sql`, generated from the config by
 `bun run auth:schema`.
 
+## Scores and leaderboards
+
+Playing without an account keeps your scores in your browser. Sign in and a
+scored run is verified and saved, then ranked.
+
+- **Verified server-side.** The browser records the run's inputs (keystrokes or
+  pitch samples, with timings) and submits them with a server-issued **nonce**.
+  The server replays them against the song's own timings, through the same pure
+  engines the game uses, to derive the score — the score is never trusted from
+  the client. The recording is then discarded; only the result is stored.
+- **Invalid runs are kept, not rejected.** A submission that fails its integrity
+  check is stored with `valid = 0` and a reason (`invalid-checksum`, …), and
+  simply left off the boards.
+- **Boards are per mode.** A board is keyed by song + style (typing or singing)
+  + difficulty + run mode + speed, so typing and singing are never compared.
+- **Pages.** `/u/<handle>` is a public profile, `/recent` is the recent-scores
+  feed, and `/challenge` is the daily and weekly challenge (one seeded song and
+  one modifier per period, with its own boards). A song's board appears after a
+  run and on a player's profile; a browsable index of songs is a future release.
+- **Where it lives.** `src/lib/score/`: `api.ts` (the handlers), `replay.ts` (the
+  server re-score), `nonce.ts` (the signed run token), `timeline.ts` (the
+  recorded events), `challenge.ts` (the period's song and modifier), `store.ts`
+  (D1) and `dev-store.ts` (dev SQLite). The `score` table is
+  `migrations/0002_scores.sql`.
+
+## Embeds
+
+Any song can be embedded in a blog or forum:
+
+```html
+<iframe
+  src="https://typestar.happypaul55.com/embed/youtube/<id>"
+  width="640"
+  height="360"
+  style="border: 0; max-width: 100%"
+  allow="autoplay; fullscreen; microphone"
+  loading="lazy"
+  title="TypeStar"
+></iframe>
+```
+
+- The **Embed** button on a song's page copies that snippet.
+- The embed is the game in a compact frame: the start screen waits for a click,
+  then you type as usual. It loads no accounts and no scores.
+- **Only `/embed/*` may be framed.** The global CSP sets `frame-ancestors 'none'`;
+  the embed re-declares it with `frame-ancestors *`. `X-Frame-Options` is no
+  longer set — CSP `frame-ancestors` is the modern control, and it can be
+  overridden per path.
+- A brand-new song still gets the Turnstile human check, inside the iframe.
+- Singing needs the embedder to add `allow="microphone"`; without it the run
+  falls back to karaoke.
+
+## Languages
+
+The interface is translated, not just the lyrics. `en` is served at the root;
+the other locales live under a path prefix (`/de`, `/fr`, `/es`, `/pt-BR`,
+`/ja`).
+
+- Strings live in `src/i18n/ui/<locale>.ts`, keyed by dotted names, with `en` as
+  the complete source of truth. Any other locale is a **partial overlay** that
+  falls back to English key by key, so a half-finished translation still reads
+  sensibly.
+- `t("key", { name })` fills `{name}` placeholders. Astro pages use `tFor()`
+  (`src/i18n/astro.ts`); the game island uses `useT()` inside an `I18nProvider`
+  (`src/i18n/react.tsx`).
+- `Astro`'s `i18n` config (`astro.config.mjs`) sets the locales and
+  `prefixDefaultLocale: false`; `<html lang>`, `og:locale` and the JSON-LD
+  `inLanguage` follow the locale.
+- The **lyrics/caption language** (`?lang=` on the track API) is a separate
+  concern from the UI locale and is not wired to it.
+- The **privacy notice** is translated too
+  (`src/content/legal/privacy.<locale>.md`). The English notice is the source of
+  truth, so a translated notice shows a banner linking back to it.
+- The current translations are **machine-made** and pending human review.
+
 ## Singing
 
 The start screen offers two play styles: **Type** (the game above) and **Sing**.
@@ -321,6 +408,7 @@ stays the same in every mode.
 | --- | --- |
 | `GET /api/track/youtube/:id?lang=en` | Get-or-create a YouTube track. `422` when the video has no captions, `502` when YouTube is unreachable. |
 | `/api/auth/*` | Better Auth: email magic-link sign-in, session, sign-out and account management. |
+| `/api/scores/*` | Run nonces, run submission (replayed server-side and stored), leaderboards, recent scores, profiles and the challenge. |
 | `GET /api/track/ultrastar?url=:url&lang=en` | Get-or-create an UltraStar track from a chart URL. `422` when the chart has no lyrics or no audio. |
 | `GET /api/track/:id?lang=en` | Legacy YouTube path, still supported. |
 | `/play?v=<id>` | `301` redirect to `/play/youtube/<id>`. |
@@ -337,9 +425,9 @@ Only `/api/*`, `/play` and `/play/*` run the Worker (`run_worker_first` in
 - **Workers + static assets** — hosting and routing.
 - **R2** (`typestar-tracks`) — the production processed-track cache; branch
   previews use a separate `typestar-tracks-preview` bucket.
-- **D1** (`typestar-auth`) — accounts: users, sessions, accounts and the
-  short-lived magic-link verification records. Branch previews use
-  `typestar-auth-preview`.
+- **D1** (`typestar-auth`) — accounts (users, sessions, accounts and the
+  short-lived magic-link verification records) and the recorded scores. Branch
+  previews use `typestar-auth-preview`.
 - **Email Sending** — delivers sign-in links through the `send_email` binding;
   the sending domain must be onboarded first.
 - `nodejs_compat` is enabled because the captions library needs it (and Better
@@ -358,6 +446,10 @@ Accounts need three things set up once:
 1. **Create the D1 databases** and paste the printed ids into `wrangler.jsonc`:
    `bun run db:create` (production) and `bun run db:create:preview`. Then apply
    the schema with `bun run db:migrate` / `bun run db:migrate:preview`.
+   (The preview database appears twice in `wrangler.jsonc`: as `DB_PREVIEW` at
+   the top level, so `wrangler d1 migrations` can target it — it does not read
+   the `previews` block — and in `previews`, which is what a preview build
+   binds.)
 2. **Set the Better Auth secret** (≥32 characters) as a Worker secret:
    `bunx wrangler secret put BETTER_AUTH_SECRET`.
 3. **Onboard the sending domain** to Email Sending so the `EMAIL` binding can

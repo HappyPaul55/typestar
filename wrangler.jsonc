@@ -35,7 +35,31 @@
     "not_found_handling": "404-page",
     // Only these paths run the Worker; all other requests are served straight
     // from the edge asset cache.
-    "run_worker_first": ["/api/*", "/play", "/play/*"]
+    "run_worker_first": [
+      "/api/*",
+      "/play",
+      "/play/*",
+      "/u/*",
+      "/embed/*",
+      // Only the locale-prefixed *dynamic* routes run the Worker. The plain
+      // localized pages (/de/privacy, /de/recent, /de/play, …) are static
+      // assets and are served straight from the edge cache, like `/privacy`.
+      "/de/play/*",
+      "/de/u/*",
+      "/de/embed/*",
+      "/fr/play/*",
+      "/fr/u/*",
+      "/fr/embed/*",
+      "/es/play/*",
+      "/es/u/*",
+      "/es/embed/*",
+      "/pt-BR/play/*",
+      "/pt-BR/u/*",
+      "/pt-BR/embed/*",
+      "/ja/play/*",
+      "/ja/u/*",
+      "/ja/embed/*"
+    ]
   },
   // Processed tracks are cached here. Create the bucket with:
   //   bunx wrangler r2 bucket create typestar-tracks

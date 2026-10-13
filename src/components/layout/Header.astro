@@ -2,16 +2,22 @@
 import type { SiteSettings } from "../../lib/site";
 import Container from "../ui/Container.astro";
 import Mark from "../ui/Mark.astro";
+import { localeFromPath, tFor } from "../../i18n/astro";
+import { localePath } from "../../i18n/paths";
 
 interface Props {
   settings: SiteSettings;
 }
 
 const { settings } = Astro.props;
+const locale = localeFromPath(Astro.url.pathname);
+const t = tFor(locale);
 
 const nav = [
-  { href: "/privacy", label: "Privacy" },
-  { href: "/account", label: "Account" },
+  { href: localePath(locale, "/challenge"), label: t("nav.challenge") },
+  { href: localePath(locale, "/recent"), label: t("nav.recent") },
+  { href: localePath(locale, "/privacy"), label: t("nav.privacy") },
+  { href: localePath(locale, "/account"), label: t("nav.account") },
 ];
 
 // `build.format: "file"` means Astro.url.pathname is /play.html at build time,
@@ -34,7 +40,7 @@ const current = (href: string) => (isActive(href) ? "page" : undefined);
   <Container class="relative flex items-center justify-between gap-6 py-[0.9rem]">
     <a
       class="inline-flex items-center gap-[0.6rem]"
-      href="/"
+      href={localePath(locale, "/")}
       aria-label={`${settings.name} home`}
     >
       <Mark size={30} />
@@ -45,7 +51,7 @@ const current = (href: string) => (isActive(href) ? "page" : undefined);
       </span>
     </a>
 
-    <nav class="nav-links nav-links--bar" aria-label="Primary">
+    <nav class="nav-links nav-links--bar" aria-label={t("nav.primary")}>
       {
         nav.map((item) => (
           <a href={item.href} aria-current={current(item.href)}>
@@ -53,13 +59,13 @@ const current = (href: string) => (isActive(href) ? "page" : undefined);
           </a>
         ))
       }
-      <a class="nav-pill" href="/play" aria-current={current("/play")}
-        >Play</a
+      <a class="nav-pill" href={localePath(locale, "/play")} aria-current={current(localePath(locale, "/play"))}
+        >{t("nav.play")}</a
       >
     </nav>
 
     <details class="nav-disclosure">
-      <summary class="nav-toggle" aria-label="Menu">
+      <summary class="nav-toggle" aria-label={t("nav.menu")}>
         <svg
           width="20"
           height="20"
@@ -74,7 +80,7 @@ const current = (href: string) => (isActive(href) ? "page" : undefined);
             stroke-linecap="round"></path>
         </svg>
       </summary>
-      <nav class="nav-links nav-links--panel" aria-label="Primary">
+      <nav class="nav-links nav-links--panel" aria-label={t("nav.primary")}>
         {
           nav.map((item) => (
             <a href={item.href} aria-current={current(item.href)}>
@@ -82,8 +88,8 @@ const current = (href: string) => (isActive(href) ? "page" : undefined);
             </a>
           ))
         }
-        <a class="nav-pill" href="/play" aria-current={current("/play")}
-          >Play</a
+        <a class="nav-pill" href={localePath(locale, "/play")} aria-current={current(localePath(locale, "/play"))}
+          >{t("nav.play")}</a
         >
       </nav>
     </details>

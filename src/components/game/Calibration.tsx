@@ -3,6 +3,8 @@
  * on connection and buffering; the offset nudges every word in time.
  */
 
+import { useT } from "../../i18n/react";
+
 interface Props {
   offset: number;
   onChange(offset: number): void;
@@ -10,21 +12,19 @@ interface Props {
 }
 
 export default function Calibration({ offset, onChange, onClose }: Props) {
+  const t = useT();
   return (
     <div className="calibration">
       <p className="comment">
         <span className="slash" aria-hidden="true">
           //
         </span>{" "}
-        sync
+        {t("calibration.comment")}
       </p>
-      <p className="calibration__help">
-        If the words run ahead of the music, nudge them later. If they lag,
-        nudge them earlier.
-      </p>
+      <p className="calibration__help">{t("calibration.help")}</p>
 
       <label className="calibration__row">
-        <span className="calibration__label">offset</span>
+        <span className="calibration__label">{t("calibration.offset")}</span>
         <input
           type="range"
           min={-0.6}
@@ -42,10 +42,10 @@ export default function Calibration({ offset, onChange, onClose }: Props) {
 
       <div className="calibration__actions">
         <button type="button" className="btn-game" onClick={() => onChange(0)}>
-          Reset
+          {t("calibration.reset")}
         </button>
         <button type="button" className="btn-game btn-game--primary" onClick={onClose}>
-          Done
+          {t("calibration.done")}
         </button>
       </div>
     </div>

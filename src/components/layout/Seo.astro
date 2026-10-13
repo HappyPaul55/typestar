@@ -1,5 +1,7 @@
 ---
 import type { SiteSettings } from "../../lib/site";
+import { DEFAULT_LOCALE, HTML_LANG, OG_LOCALE, type Locale } from "../../i18n/locales";
+import { tFor } from "../../i18n/astro";
 
 interface Crumb {
   name: string;
@@ -13,6 +15,7 @@ interface Props {
   type?: string;
   noindex?: boolean;
   breadcrumbs?: Crumb[];
+  locale?: Locale;
   settings: SiteSettings;
 }
 
@@ -23,6 +26,7 @@ const {
   type = "website",
   noindex = false,
   breadcrumbs = [],
+  locale = DEFAULT_LOCALE,
   settings,
 } = Astro.props;
 
@@ -31,7 +35,8 @@ const normalise = (value: string) =>
 
 const canonical = new URL(normalise(path), settings.url).href;
 const ogImage = new URL("/og-image.png", settings.url).href;
-const ogAlt = `${settings.name} — a yellow “TS” tile beside the title on a dark notebook background`;
+const t = tFor(locale);
+const ogAlt = t("seo.ogAlt", { name: settings.name });
 
 const author = {
   "@type": "Person",
@@ -46,11 +51,11 @@ const application = {
   "@id": `${settings.url}/#game`,
   name: settings.name,
   url: `${settings.url}/`,
-  description: settings.description,
+  description,
   applicationCategory: "GameApplication",
   operatingSystem: "Any",
-  browserRequirements: "Requires JavaScript",
-  inLanguage: "en-GB",
+  browserRequirements: tFor(locale)("seo.requiresJs"),
+  inLanguage: HTML_LANG[locale],
   isAccessibleForFree: true,
   offers: { "@type": "Offer", price: "0", priceCurrency: "GBP" },
   author: { "@id": `${settings.authorUrl}/#person` },
@@ -62,8 +67,8 @@ const website = {
   "@id": `${settings.url}/#website`,
   url: `${settings.url}/`,
   name: settings.name,
-  description: settings.description,
-  inLanguage: "en-GB",
+  description,
+  inLanguage: HTML_LANG[locale],
   publisher: { "@id": `${settings.authorUrl}/#person` },
 };
 
@@ -96,7 +101,7 @@ const jsonLd = { "@context": "https://schema.org", "@graph": graph };
 <link
   rel="sitemap"
   type="application/xml"
-  title="Sitemap"
+  title={t("seo.sitemap")}
   href="/sitemap-index.xml"
 />
 
@@ -106,7 +111,7 @@ const jsonLd = { "@context": "https://schema.org", "@graph": graph };
 <meta property="og:title" data-seo="og:title" content={title} />
 <meta property="og:description" data-seo="og:description" content={description} />
 <meta property="og:url" data-seo="og:url" content={canonical} />
-<meta property="og:locale" content="en_GB" />
+<meta property="og:locale" content={OG_LOCALE[locale]} />
 <meta property="og:image" data-seo="og:image" content={ogImage} />
 <meta property="og:image:type" data-seo="og:image:type" content="image/png" />
 <meta property="og:image:width" data-seo="og:image:width" content="1200" />
