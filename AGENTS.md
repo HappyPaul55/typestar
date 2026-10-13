@@ -357,7 +357,8 @@ lockfile is `bun.lock`; do not add `package-lock.json`, `yarn.lock` or
   `node:sqlite` score store in the same `.cache/auth.sqlite` file. The
   daily/weekly challenge is derived from the date (no cron): one seeded featured
   track per period, with no modifier, and its board is a time-boxed query over
-  that track at any settings.
+  that track at any settings. Nothing is stored — the response also carries the
+  previous day and week, also derived, shown as final standings.
 - **Embeds are a compact `GameApp`, and only `/embed/*` is frameable.** The
   embed route serves the same island with `embed` set: no picker, no local
   files, no accounts and no score recording, and the HUD hides "change song"

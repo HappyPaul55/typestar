@@ -110,3 +110,11 @@ export function weeklyChallenge(date: Date): Challenge {
 export function currentChallenges(date: Date): { daily: Challenge; weekly: Challenge } {
   return { daily: dailyChallenge(date), weekly: weeklyChallenge(date) };
 }
+
+/** The periods immediately before the ones containing `date`. */
+export function previousChallenges(date: Date): { daily: Challenge; weekly: Challenge } {
+  return {
+    daily: dailyChallenge(new Date(date.getTime() - 86400000)),
+    weekly: weeklyChallenge(new Date(date.getTime() - 7 * 86400000)),
+  };
+}

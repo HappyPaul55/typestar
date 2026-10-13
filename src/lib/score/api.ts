@@ -20,7 +20,7 @@ import {
 import type { RunSettings } from "../game/game";
 import { isPlayStyle, trackCanSing, type PlayStyle } from "../game/modes";
 import type { Track } from "../track/types";
-import { currentChallenges, type Challenge } from "./challenge";
+import { currentChallenges, previousChallenges, type Challenge } from "./challenge";
 import { issueNonce, MAX_OFFSET, verifyNonce } from "./nonce";
 import { replayRun } from "./replay";
 import type { SqlStore } from "./store";
@@ -525,14 +525,21 @@ async function challengeBoards(env: ScoreEnv, challenge: Challenge) {
 }
 
 async function challengeHandler(env: ScoreEnv, now: Date): Promise<Response> {
-  const { daily, weekly } = currentChallenges(now);
-  const [dailyBoards, weeklyBoards] = await Promise.all([
-    challengeBoards(env, daily),
-    challengeBoards(env, weekly),
+  const current = currentChallenges(now);
+  const previous = previousChallenges(now);
+  const [daily, weekly, pastDaily, pastWeekly] = await Promise.all([
+    challengeBoards(env, current.daily),
+    challengeBoards(env, current.weekly),
+    challengeBoards(env, previous.daily),
+    challengeBoards(env, previous.weekly),
   ]);
   return json({
-    daily: { ...daily, boards: dailyBoards },
-    weekly: { ...weekly, boards: weeklyBoards },
+    daily: { ...current.daily, boards: daily },
+    weekly: { ...current.weekly, boards: weekly },
+    previous: {
+      daily: { ...previous.daily, boards: pastDaily },
+      weekly: { ...previous.weekly, boards: pastWeekly },
+    },
   });
 }
 

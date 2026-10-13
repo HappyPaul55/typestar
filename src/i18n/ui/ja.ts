@@ -229,6 +229,10 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "challenge.singingBoard": "歌唱ボード",
   "challenge.loading": "チャレンジを読み込み中…",
   "challenge.error": "チャレンジを読み込めませんでした。",
+  "challenge.previousHeading": "前回の期間",
+  "challenge.finished": "終了",
+  "challenge.periodRange": "{start}〜{end}",
+  "challenge.pastEmpty": "この期間のスコアはありません。",
 
   // Local library
   "local.readFailed": "それらのフォルダを読み取れませんでした。",

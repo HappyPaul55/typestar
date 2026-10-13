@@ -3,6 +3,7 @@ import {
   currentChallenges,
   dailyChallenge,
   isoWeekKey,
+  previousChallenges,
   utcDateKey,
   weeklyChallenge,
 } from "./challenge";
@@ -38,6 +39,13 @@ describe("challenge", () => {
     const { daily, weekly } = currentChallenges(new Date(Date.UTC(2026, 9, 12)));
     expect("modifier" in daily).toBe(false);
     expect("modifier" in weekly).toBe(false);
+  });
+
+  test("the previous period is the one before", () => {
+    // 2026-10-12 is a Monday, in ISO week 42.
+    const { daily, weekly } = previousChallenges(new Date(Date.UTC(2026, 9, 12, 6)));
+    expect(daily.id).toBe("daily:2026-10-11");
+    expect(weekly.id).toBe("weekly:2026-W41");
   });
 
   test("daily spans a day and weekly a week", () => {

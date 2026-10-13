@@ -230,6 +230,10 @@ export const fr: Partial<Record<MessageKey, string>> = {
   "challenge.singingBoard": "Classement de chant",
   "challenge.loading": "Chargement des défis…",
   "challenge.error": "Le défi n'a pas pu être chargé.",
+  "challenge.previousHeading": "Période précédente",
+  "challenge.finished": "Terminé",
+  "challenge.periodRange": "{start} – {end}",
+  "challenge.pastEmpty": "Aucun score sur cette période.",
 
   // Local library
   "local.readFailed": "Ces dossiers n'ont pas pu être lus.",

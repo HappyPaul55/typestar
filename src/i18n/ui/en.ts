@@ -235,6 +235,10 @@ export const en = {
   "challenge.singingBoard": "Singing board",
   "challenge.loading": "Loading challenges…",
   "challenge.error": "The challenge could not be loaded.",
+  "challenge.previousHeading": "Last period",
+  "challenge.finished": "Finished",
+  "challenge.periodRange": "{start} – {end}",
+  "challenge.pastEmpty": "No scores this period.",
 
   // Local library
   "local.readFailed": "Those folders could not be read.",

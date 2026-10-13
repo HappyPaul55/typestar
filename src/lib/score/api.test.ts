@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Track } from "../track/types";
 import { handleScoreRequest, type ScoreEnv } from "./api";
-import { currentChallenges } from "./challenge";
+import { currentChallenges, previousChallenges } from "./challenge";
 import { createDevScoreStore } from "./dev-store";
 import { timelineChecksum, type TimelineEvent } from "./timeline";
 import type { SqlStore } from "./store";
@@ -204,5 +204,34 @@ describe("score API", () => {
       daily: { boards: { type: Array<{ score: number }> } };
     };
     expect(body.daily.boards.type.map((entry) => entry.score)).toEqual([500, 100]);
+  });
+
+  test("the previous period keeps its own board", async () => {
+    const env = await makeEnv();
+    const now = new Date(Date.UTC(2026, 9, 12, 12));
+    const { daily } = currentChallenges(now);
+    const { daily: pastDaily } = previousChallenges(now);
+
+    await env.store.run(
+      `insert into "score" ("id", "userId", "trackId", "trackType", "title", "artist",
+         "style", "difficulty", "runMode", "speed", "score", "accuracy", "maxCombo",
+         "hits", "misses", "progress", "valid", "invalidReason", "createdAt")
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        "s-past", "u1", pastDaily.trackId, "youtube", "Test song", null,
+        "type", "normal", "fun", 1, 700, 0.9, 10, 10, 0, 1, 1, null,
+        "2026-10-11T06:00:00.000Z",
+      ],
+    );
+
+    const response = await handleScoreRequest(get("/api/scores/challenge"), env);
+    const body = (await response.json()) as {
+      daily: { boards: { type: Array<{ score: number }> } };
+      previous: { daily: { id: string; boards: { type: Array<{ score: number }> } } };
+    };
+    expect(body.previous.daily.id).toBe(pastDaily.id);
+    expect(body.previous.daily.boards.type.map((entry) => entry.score)).toEqual([700]);
+    // The current period does not reach back into the one before it.
+    expect(body.daily.boards.type).toHaveLength(0);
   });
 });

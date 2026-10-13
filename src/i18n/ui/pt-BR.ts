@@ -227,6 +227,10 @@ export const ptBR: Partial<Record<MessageKey, string>> = {
   "challenge.singingBoard": "Placar de canto",
   "challenge.loading": "Carregando desafios…",
   "challenge.error": "Não foi possível carregar o desafio.",
+  "challenge.previousHeading": "Período anterior",
+  "challenge.finished": "Encerrado",
+  "challenge.periodRange": "{start} – {end}",
+  "challenge.pastEmpty": "Nenhuma pontuação neste período.",
 
   // Local library
   "local.readFailed": "Não foi possível ler essas pastas.",

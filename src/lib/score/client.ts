@@ -69,6 +69,8 @@ export interface ChallengeBoard {
 export interface ChallengesResponse {
   daily: ChallengeBoard;
   weekly: ChallengeBoard;
+  /** The previous day and week, shown as final standings. */
+  previous: { daily: ChallengeBoard; weekly: ChallengeBoard };
 }
 
 async function getJson<T>(url: string): Promise<T | null> {
