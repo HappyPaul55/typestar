@@ -1,5 +1,9 @@
 # Cloudflare redirects
 # https://developers.cloudflare.com/workers/static-assets/redirects/
 #
-# Nothing needs redirecting yet — add one line per redirect, e.g.:
+# Add one line per redirect, e.g.:
 # /old-path   /new-path   301
+
+# Pages that do not exist; the privacy notice is the closest real policy page.
+/cookies        /privacy   301
+/accessibility  /privacy   301

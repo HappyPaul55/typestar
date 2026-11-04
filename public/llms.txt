@@ -1,0 +1,27 @@
+# TypeStar
+
+> TypeStar is a free rhythm touch-typing game: YouTube supplies the music and visuals, and you type the lyrics as the words arrive - a bit Guitar Hero, a bit keyboard speed test.
+
+## Pages
+
+- [TypeStar home](https://typestar.happypaul55.com/): what the game is, how a round works in three steps, the difficulties, run modes and how scoring is graded.
+- [Play](https://typestar.happypaul55.com/play): the game itself - start from the featured tracks or paste a YouTube or UltraStar link, then type or sing along.
+- [Privacy](https://typestar.happypaul55.com/privacy): no accounts, no analytics and no advertising; preferences stay in local storage, scores stay in the browser and microphone audio never leaves the device.
+
+## How it plays
+
+A song is loaded as a timed track: YouTube captions, an UltraStar chart, or a local folder of UltraStar songs and videos with matching `.vtt` subtitles. Words light up as they arrive and you type them before their moment passes. Three difficulties (Easy, Normal, Hard) control how much of each word must be typed, four run modes (Normal, Instant, Fun, Practise) control what a mistake costs, and playback speed runs from 0.5x to 1.5x. Chained correct words build a combo multiplier and clean lines pay a bonus; every song is also rated Easy, Medium or Hard by how fast its lyrics arrive. Singing is an optional second style, scored from pitch when a chart carries per-note notes and karaoke otherwise.
+
+## Project
+
+- [Source code](https://github.com/HappyPaul55/typestar) - released under the GNU Affero General Public License v3.0.
+- [HappyPaul55](https://www.happypaul55.com/) - the author's site.
+- [Sitemap](https://typestar.happypaul55.com/sitemap-index.xml) - every public page.
+- [Security contact](https://typestar.happypaul55.com/.well-known/security.txt) - how to report a vulnerability.
+
+## Notes
+
+- The game is free and needs no account or sign-up; nothing is stored server-side.
+- New songs get a one-off Cloudflare Turnstile human check the first time their track is fetched.
+- No cookies of its own, no analytics, trackers or advertising pixels; game preferences live in the browser's local storage.
+- The interface is English only for now.
