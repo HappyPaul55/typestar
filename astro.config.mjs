@@ -6,6 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { loadEnv } from "vite";
+import cspHashes from "./src/integrations/csp-hashes.mjs";
 
 const TRACKS_DIR = join(process.cwd(), "public", "tracks");
 const CACHE_DIR = join(process.cwd(), ".cache", "tracks");
@@ -176,11 +177,14 @@ export default defineConfig({
   site: "https://typestar.happypaul55.com",
   build: {
     format: "file",
-    inlineStylesheets: "always",
+    inlineStylesheets: "never",
   },
   trailingSlash: "never",
-  integrations: [sitemap(), react()],
+  integrations: [sitemap(), react(), cspHashes()],
   vite: {
+    build: {
+      assetsInlineLimit: 0,
+    },
     plugins: [tailwindcss(), devServer(env)],
   },
 });
